@@ -1,0 +1,140 @@
+@startuml diagrama-casos-uso
+
+!define RECTANGLE class
+
+title Diagrama de Casos de Uso - Sistema de Gestión de Plantillas Dinámicas
+
+left to right direction
+
+actor "Usuario\nAdministrador" as Admin
+actor "Sistema\nExterno" as Sistema
+actor "Servicio\nEmail" as EmailService
+actor "Servicio\nTelegram" as TelegramService
+
+rectangle "Sistema Mercury" {
+    
+    package "Gestión de Plantillas" {
+        usecase "Crear Plantilla" as UC01
+        usecase "Editar Plantilla" as UC02
+        usecase "Eliminar Plantilla" as UC03
+        usecase "Listar Plantillas" as UC04
+        usecase "Buscar Plantilla" as UC05
+        usecase "Gestionar Versiones" as UC06
+        usecase "Gestionar Categorías" as UC07
+        usecase "Gestionar Variables" as UC08
+    }
+    
+    package "Previsualización" {
+        usecase "Previsualizar Plantilla" as UC09
+        usecase "Validar Sintaxis" as UC10
+        usecase "Vista con Datos Ejemplo" as UC11
+        usecase "Vista con Datos Reales" as UC12
+    }
+    
+    package "Envío de Mensajes" {
+        usecase "Enviar Email" as UC13
+        usecase "Enviar Telegram" as UC14
+        usecase "Programar Envío" as UC15
+        usecase "Envío Masivo" as UC16
+        usecase "Cancelar Envío" as UC17
+    }
+    
+    package "Seguimiento y Monitoreo" {
+        usecase "Consultar Estado Envío" as UC18
+        usecase "Ver Historial Envíos" as UC19
+        usecase "Ver Estadísticas" as UC20
+        usecase "Exportar Logs" as UC21
+        usecase "Reintentar Envío Fallido" as UC22
+    }
+    
+    package "Gestión de Errores" {
+        usecase "Registrar Error" as UC23
+        usecase "Notificar Error" as UC24
+        usecase "Ver Dashboard Errores" as UC25
+        usecase "Clasificar Error" as UC26
+    }
+    
+    package "Notificaciones y Webhooks" {
+        usecase "Configurar Webhook" as UC27
+        usecase "Recibir Notificación Estado" as UC28
+        usecase "Enviar Notificación Administrador" as UC29
+    }
+}
+
+' Relaciones Usuario Administrador
+Admin --> UC01
+Admin --> UC02
+Admin --> UC03
+Admin --> UC04
+Admin --> UC05
+Admin --> UC06
+Admin --> UC07
+Admin --> UC08
+Admin --> UC09
+Admin --> UC10
+Admin --> UC18
+Admin --> UC19
+Admin --> UC20
+Admin --> UC21
+Admin --> UC22
+Admin --> UC25
+Admin --> UC27
+
+' Relaciones Sistema Externo
+Sistema --> UC04
+Sistema --> UC05
+Sistema --> UC09
+Sistema --> UC10
+Sistema --> UC13
+Sistema --> UC14
+Sistema --> UC15
+Sistema --> UC16
+Sistema --> UC17
+Sistema --> UC18
+Sistema --> UC19
+Sistema --> UC28
+
+' Relaciones entre casos de uso
+UC09 ..> UC10 : <<include>>
+UC09 ..> UC11 : <<extend>>
+UC09 ..> UC12 : <<extend>>
+
+UC13 ..> UC23 : <<extend>>
+UC14 ..> UC23 : <<extend>>
+
+UC16 ..> UC13 : <<include>>
+UC16 ..> UC14 : <<include>>
+
+UC23 ..> UC24 : <<include>>
+UC23 ..> UC26 : <<include>>
+
+UC18 ..> UC28 : <<extend>>
+
+UC22 ..> UC13 : <<include>>
+
+UC02 ..> UC06 : <<include>>
+
+' Relaciones con servicios externos
+UC13 --> EmailService
+UC14 --> TelegramService
+
+UC24 --> Sistema : notifica
+UC28 --> Sistema : notifica
+UC29 --> Admin : notifica
+
+note right of UC16
+    Procesa envíos en lotes
+    controlando la tasa de envío
+end note
+
+note right of UC06
+    Mantiene historial completo
+    de cambios en plantillas
+end note
+
+note bottom of UC23
+    Los errores se clasifican
+    automáticamente por severidad
+end note
+
+@enduml
