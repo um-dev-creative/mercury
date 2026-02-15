@@ -53,6 +53,8 @@
         <spring-cloud.version>2025.0.1</spring-cloud.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jwt.version>0.12.3</jwt.version>
+        <rewrite.plugin.version>5.42.0</rewrite.plugin.version>
+        <rewrite.recipe.version>5.21.0</rewrite.recipe.version>
         <!--        Test Dependencies-->
         <!--        JUnit 5.x-->
         <junit.jupiter.version>5.11.4</junit.jupiter.version>
