@@ -3,6 +3,9 @@ log:
   debug: ${LOGGING_TRACE_ENABLED}
 
 prx:
+  consumer:
+    mercury:
+      topic: ${MERCURY_EMAIL_TOPIC}
   logging:
     trace:
       enabled: ${LOGGING_TRACE_ENABLED}
@@ -10,21 +13,61 @@ prx:
     secret: ${APP_TOKEN_SECRET}
     expirationMs: ${APP_TOKEN_EXPIRATION}
   auth:
-    id: backbone
-    authorization-grant-type: ${BACKBONE_GRANT_TYPE}
-    scope: ${BACKBONE_SCOPE}
-    client-secret: ${BACKBONE_CLIENT_SECRET}
-    client-id: ${BACKBONE_CLIENT_ID}
-    redirect-uri: ${AUTH_SERVER_URI}/protocol/openid-connect/token
-    username: ${BACKBONE_USERNAME}
-    password: ${BACKBONE_PASSWORD}
+    converter:
+      resource-id: ${AUTH_CLIENT_ID}  # Resource ID for the authentication client
+      principal-claim-name: ${AUTH_RESOURCE_PRINCIPAL}  # Principal claim name for the resourceauth:
+    clients:
+      - id: backbone
+        authorization-grant-type: ${BACKBONE_GRANT_TYPE}
+        scope: ${BACKBONE_SCOPE}
+        client-secret: ${BACKBONE_CLIENT_SECRET}
+        client-id: ${BACKBONE_CLIENT_ID}
+        redirect-uri: ${AUTH_SERVER_URI}${AUTH_TOKEN_URI}
+        username: ${BACKBONE_USERNAME}
+        password: ${BACKBONE_PASSWORD}
+      - id: mercury
+        authorization-grant-type: ${MERCURY_GRANT_TYPE}
+        scope: ${MERCURY_SCOPE}
+        client-secret: ${MERCURY_CLIENT_SECRET}
+        client-id: ${MERCURY_CLIENT_ID}
+        redirect-uri: ${AUTH_SERVER_URI}${AUTH_TOKEN_URI}
+        username: ${MERCURY_USERNAME}
+        password: ${MERCURY_PASSWORD}
+  verification:
+    code:
+      template:
+        id: ${PRX_VERIFICATION_CODE_TEMPLATE_ID}  # Verification code template ID
+  bootstrap:
+    server:
+      url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
+      port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
+  security:
+    keystore:
+      location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the keystore
+      type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the keystore
+      password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the keystore
+    truststore:
+      location: ${SSL_JKS_CNFS_TRUSTSTORE_LOCATION}  # Location of the truststore
+      type: ${SSL_JKS_CNFS_TRUSTSTORE_TYPE}  # Type of the truststore
+      password: ${SSL_JKS_CNFS_TRUSTSTORE_PASSWORD}  # Password for the truststore
+    management-authenticator:
+      enabled: true  # Enable management authenticator
+      keystore:
+        location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the keystore for management
+        type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the keystore for management
+        password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the keystore for management
+      truststore:
+        location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the truststore for management
+        type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the truststore for management
+        password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the truststore for management
 app:
-  clientRoles: mercury-api-client
+  clientRoles: ${AUTH_ROLE_ID}
   # The environments for the application
   api:
     excludes: none
     exclude:
       methods: accessToken
+    endpoint: /api/v1  # API endpoint for the application
   # The name of the application
   name: mercury
   # The version of the application
@@ -44,6 +87,54 @@ server:
       mime-types: text/html,text/xml,text/plain,text/css,application/json
       min-response-size: 1024
 spring:
+  freemarker:
+    template-loader-path: ${TEMPLATE_PATH}
+    suffix: ${TEMPLATE_SUFFIX}
+
+  mail:
+    smtp:
+      ssl:
+        trust: ${MAIL_HOST}  # Trust the mail server
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}  # Port for the mail server
+    username: ${MAIL_USERNAME}  # Username for the mail server
+    password: ${MAIL_PASSWORD}  # Password for the mail server
+    protocol: ${MAIL_PROTOCOL}  # Protocol for the mail server
+    properties:
+      mail.smtp.auth: ${MAIL_PROPERTIES_SMTP_AUTH}  # Enable SMTP authentication
+      mail.smtp.starttls.enable: ${MAIL_PROPERTIES_STARTTLS_ENABLED}  # Enable STARTTLS
+#      mail.smtp.ssl.trust: ${MAIL_HOST}  # Trust the mail host
+      mail.smtp.connectiontimeout: 5000  # Connection timeout in milliseconds
+      mail.smtp.timeout: 5000  # Timeout in milliseconds
+      mail.smtp.writetimeout: 5000  # Write timeout in milliseconds
+  datasource:
+    username: ${MERCURY_DB_USERNAME}  # Username for the database
+    password: ${MERCURY_DB_PASSWORD}  # Password for the database
+    url: jdbc:postgresql://${MERCURY_DB_URI}:${MERCURY_DB_PORT}/${MERCURY_DB_NAME}  # JDBC URL for the database
+    driver-class-name: org.postgresql.Driver  # Driver class name for PostgresSQL
+  # JPA (Java Persistence API) settings
+  jpa:
+    hibernate.ddl-auto: none  # Hibernate DDL auto setting
+    show-sql: false  # Show SQL statements
+    database: POSTGRESQL  # Database type
+    database-platform: org.hibernate.dialect.PostgreSQLDialect  # Hibernate dialect for PostgresSQL
+    properties:
+      jdbc:
+        lob.non_contextual_creation: true  # Non-contextual LOB creation
+      hibernate:
+        boot:
+                  allow_jdbc_metadata_access: true
+    log-level: error
+    defer-datasource-initialization: true# Log level for JPA
+  data:
+    mongodb:
+      uuidRepresentation: STANDARD
+      host: ${MONGO_HOST}
+      port: ${MONGO_PORT}
+      database: ${MONGO_DATABASE}
+      username: ${MONGO_USERNAME}
+      password: ${MONGO_PASSWORD}
+      uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/${MONGO_DATABASE}?retryWrites=true&w=majority
   ssl:
     bundle:
       jks:
@@ -77,23 +168,23 @@ spring:
   security:
     # Disables the security for the Spring Boot application
     oauth2:
-      clientRegistrationId: backbone-client
+      clientRegistrationId: mercury-backend-client
       client:
         registration:
-          keycloak:
-            redirect-uri: ${AUTH_SERVER_URI}
-            authorization-grant-type: password
-            scope: openid
-            client-secret: ${AUTH_CLIENT_SECRET}
+          external:
+            provider: external
             client-id: ${AUTH_CLIENT_ID}
+            client-secret: ${AUTH_CLIENT_SECRET}
+            scope: profile mercury-backend-app-scope openid
+            authorization-grant-type: password
         provider:
-          keycloak:
+          external:
             issuer-uri: ${AUTH_SERVER_URI}
-            jwk-set-uri: ${spring.security.oauth2.client.provider.keycloak.issuer-uri}/protocol/openid-connect/certs
+            jwk-set-uri: ${spring.security.oauth2.client.provider.external.issuer-uri}/protocol/openid-connect/certs
       resourceserver:
         jwt:
           issuer-uri: ${AUTH_SERVER_URI}
-          jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}/protocol/openid-connect/certs
+          jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}${AUTH_CERT_URI}
   cloud:
     # The Spring Cloud Config specific configurations
     #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>
@@ -119,13 +210,7 @@ spring:
       port: ${CNFS_PORT}
       # Enables sending of state for the Spring Cloud Config
       send-state: true
-  jpa:
-    properties:
-      hibernate:
-        boot:
-          allow_jdbc_metadata_access: true
-    # Defers the initialization of the datasource
-    defer-datasource-initialization: true
+
 
 swagger:
   base-package: 'com.prx.mercury.api.v1.controller'

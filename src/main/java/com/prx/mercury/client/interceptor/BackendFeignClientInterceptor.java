@@ -1,8 +1,9 @@
-package com.prx.mercury.config;
+package com.prx.mercury.client.interceptor;
 
-import com.prx.commons.pojo.UserSession;
-import com.prx.commons.properties.AuthProperties;
-import com.prx.commons.to.TokenResponse;
+import com.prx.commons.general.pojo.UserSession;
+import com.prx.commons.general.to.TokenResponse;
+import com.prx.security.properties.AuthProperties;
+import com.prx.security.properties.ClientProperties;
 import feign.RequestInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,14 +28,21 @@ import static org.springframework.cloud.openfeign.security.OAuth2AccessTokenInte
 public class BackendFeignClientInterceptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BackendFeignClientInterceptor.class);
+    private static final String BACKBONE_ID = "backbone";
 
     @Value("${prx.logging.trace.enabled}")
     private boolean isTraceEnabled;
 
-    private final AuthProperties authProperties;
+    private final ClientProperties clientProperties;
 
     public BackendFeignClientInterceptor(AuthProperties authProperties) {
-        this.authProperties = authProperties;
+        if (Objects.nonNull(authProperties.getClients())) {
+            this.clientProperties = authProperties.getClients().stream()
+                    .filter(authProperties1 -> authProperties1.getId()
+                            .equalsIgnoreCase(BACKBONE_ID)).findFirst().orElse(null);
+        } else {
+            this.clientProperties = null;
+        }
     }
 
     @Bean
@@ -62,25 +70,22 @@ public class BackendFeignClientInterceptor {
         MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
 
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        parameters.add(GRANT_TYPE.value, authProperties.getAuthorizationGrantType());
-        parameters.add(CLIENT_ID.value, authProperties.getClientId());
-        parameters.add(USERNAME.value, authProperties.getUsername());
-        parameters.add(PASSWORD.value, authProperties.getPassword());
-        parameters.add(CLIENT_SECRET.value, authProperties.getClientSecret());
+        parameters.add(GRANT_TYPE.value, clientProperties.getAuthorizationGrantType());
+        parameters.add(CLIENT_ID.value, clientProperties.getClientId());
+        parameters.add(USERNAME.value, clientProperties.getUsername());
+        parameters.add(PASSWORD.value, clientProperties.getPassword());
+        parameters.add(CLIENT_SECRET.value, clientProperties.getClientSecret());
 
-        var response = client.postForObject(authProperties.getRedirectUri(), new HttpEntity<>(parameters, headers), TokenResponse.class);
+        var response = client.postForObject(clientProperties.getRedirectUri(), new HttpEntity<>(parameters, headers), TokenResponse.class);
         if (Objects.isNull(response)) {
             LOGGER.error("Error occurred while connect with the Manager authenticator");
             throw new Exception("Error occurred while connect with the Manager authenticator");
         }
-        return create(response, UUID.randomUUID()).getToken();
+        return create(response, UUID.randomUUID()).token();
     }
 
     public static UserSession create(TokenResponse tokenResponse, UUID id) {
-        UserSession userSession = new UserSession();
-        userSession.setId(id);
-        userSession.setToken(tokenResponse.getAccessToken());
-        return userSession;
+        return new UserSession(id, "", tokenResponse.accessToken());
     }
 
 }
