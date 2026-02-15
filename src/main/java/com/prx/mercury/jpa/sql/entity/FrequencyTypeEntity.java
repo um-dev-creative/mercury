@@ -42,9 +42,11 @@ public class FrequencyTypeEntity {
     @Column(name = "active", nullable = false)
     private Boolean active = false;
 
-    /// Default constructor for FrequencyType.
+    /**
+     * Default constructor for FrequencyTypeEntity.
+     */
     public FrequencyTypeEntity() {
-        /// Default constructor for FrequencyType.
+        // Default constructor for FrequencyTypeEntity.
     }
 
     public UUID getId() {

@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.UUID;
 
-/// FrequencyRepository.
+/**
+ * Repository for {@link FrequencyTypeEntity}.
+ */
 public interface FrequencyTypeRepository extends JpaRepository<FrequencyTypeEntity, UUID> {
 }

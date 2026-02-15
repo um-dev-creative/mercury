@@ -1,7 +1,6 @@
 package com.prx.mercury.jpa.entity;
 
 import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
-import com.prx.mercury.jpa.sql.entity.UserEntity;
 import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,7 @@ class VerificationCodeEntityTest {
         VerificationCodeEntity verificationCodeEntity = new VerificationCodeEntity();
         UUID id = UUID.randomUUID();
         verificationCodeEntity.setId(id);
-        verificationCodeEntity.setUser(new UserEntity());
+        verificationCodeEntity.setUserId(UUID.randomUUID());
         verificationCodeEntity.setApplication(new ApplicationEntity());
         verificationCodeEntity.setVerificationCode("123456");
         verificationCodeEntity.setCreatedAt(LocalDateTime.now());
@@ -33,7 +32,7 @@ class VerificationCodeEntityTest {
         verificationCodeEntity.setModifiedAt(LocalDateTime.now());
 
         assertEquals(id, verificationCodeEntity.getId());
-        assertNotNull(verificationCodeEntity.getUser());
+        assertNotNull(verificationCodeEntity.getUserId());
         assertNotNull(verificationCodeEntity.getApplication());
         assertEquals("123456", verificationCodeEntity.getVerificationCode());
         assertNotNull(verificationCodeEntity.getCreatedAt());

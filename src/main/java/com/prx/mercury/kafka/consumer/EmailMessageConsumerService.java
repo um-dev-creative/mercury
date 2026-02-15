@@ -1,74 +1,92 @@
 package com.prx.mercury.kafka.consumer;
 
+import com.prx.commons.exception.StandardException;
+import com.prx.mercury.constant.MercuryMessage;
 import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
 import com.prx.mercury.kafka.to.EmailMessageTO;
-import org.apache.commons.lang.NotImplementedException;
 
 import java.util.List;
 import java.util.Optional;
 
-/// This interface defines the operations for consuming email message data from Kafka and storing it in a cache.
-/// The operations include finding all email messages, finding an email message by id, saving an email message,
-/// saving all email messages, deleting an email message by id, deleting all email messages, and updating an email message.
-/// The default implementations of these methods throw a NotImplementedException.
+/**
+ * Defines operations for consuming and caching email message data from Kafka.
+ * <p>
+ * Implementations may persist messages to a cache or database. Default implementations
+ * throw {@link StandardException} with {@link MercuryMessage#METHOD_NOT_IMPLEMENTED}.
+ */
 public interface EmailMessageConsumerService {
 
-    /// Finds all email messages in the cache.
-    ///
-    /// @return A list of all email messages in the cache.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Finds all email messages in the cache.
+     *
+     * @return a list of all cached {@link EmailMessageDocument} instances
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default List<EmailMessageDocument> findAll() {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Finds an email message in the cache by its id.
-    ///
-    /// @param id The id of the email message to find.
-    /// @return An Optional containing the found email message, or an empty Optional if no email message was found with the given id.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Finds an email message in the cache by its id.
+     *
+     * @param id the id of the email message to find
+     * @return an {@link Optional} containing the found {@link EmailMessageTO}, or an empty {@link Optional}
+     * when no message exists for the given id
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default Optional<EmailMessageTO> findById(String id) {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Saves an email message in the cache.
-    ///
-    /// @param emailMessageTO The email message to save.
-    /// @return The saved email message.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Saves an email message in the cache.
+     *
+     * @param emailMessageTO the email message to save
+     * @return the saved {@link EmailMessageTO}
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default EmailMessageTO save(EmailMessageTO emailMessageTO) {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Saves a list of email messages in the cache.
-    ///
-    /// @param emailMessageTOS The list of email messages to save.
-    /// @return The list of saved email messages.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Saves a list of email messages in the cache.
+     *
+     * @param emailMessageTOS list of email messages to save
+     * @return the list of saved {@link EmailMessageTO}
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default List<EmailMessageTO> saveAll(List<EmailMessageTO> emailMessageTOS) {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Deletes an email message from the cache by its id.
-    ///
-    /// @param id The id of the email message to delete.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Deletes an email message from the cache by its id.
+     *
+     * @param id the id of the email message to delete
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default void deleteById(String id) {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Deletes all email messages from the cache.
-    ///
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Deletes all email messages from the cache.
+     *
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default void deleteAll() {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 
-    /// Updates an email message in the cache.
-    ///
-    /// @param emailMessageTO The email message to update.
-    /// @return The updated email message.
-    /// @throws NotImplementedException if the method is not implemented.
+    /**
+     * Updates an existing email message in the cache.
+     *
+     * @param emailMessageTO the email message to update
+     * @return the updated {@link EmailMessageTO}
+     * @throws StandardException when the method is not implemented by the concrete service
+     */
     default EmailMessageTO update(EmailMessageTO emailMessageTO) {
-        throw new NotImplementedException();
+        throw new StandardException(MercuryMessage.METHOD_NOT_IMPLEMENTED);
     }
 }

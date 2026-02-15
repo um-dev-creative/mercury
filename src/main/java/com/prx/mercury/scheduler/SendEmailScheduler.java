@@ -29,7 +29,7 @@ public class SendEmailScheduler {
      * Scheduled task that triggers email sending process.
      * Executes at a fixed rate of every 60 seconds (60,000 milliseconds).
      */
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 1500)
     public void sendEmail() {
         logger.debug("Initiating email sending task...");
         messageProcessor.processMessage();
@@ -40,7 +40,7 @@ public class SendEmailScheduler {
      * Scheduled task that updates the status of processed messages.
      * Executes at a fixed rate of every 5 minutes (300,000 milliseconds).
      */
-    @Scheduled(fixedRate = 300000)
+    @Scheduled(fixedRate = 1500)
     public void saveMessageProcessed() {
         logger.debug("Initiating message processed saving task...");
         messageProcessor.updateMessageStatus();

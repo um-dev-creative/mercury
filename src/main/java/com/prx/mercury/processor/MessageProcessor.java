@@ -82,13 +82,13 @@ package com.prx.mercury.processor;
                     }
 
                     /**
-                     * Updates the status of SENT messages and creates necessary records.
+                     * Updates the status of SENT messages and creates the necessary records.
                      * For each message that has been sent:
                      * 1. Retrieves message status type and template information
                      * 2. Creates a message record in the persistent store
-                     * 3. If the message is a verification code message, creates a verification code record
-                     * 4. Deletes the document from MongoDB after processing
-                     *
+                     * 3. If the message is a verification code message, create verification code record
+                     * 4. Delete the document from MongoDB after processing
+                     * <p>
                      * This method is designed to be called by a scheduler.
                      */
                     @Transactional
@@ -105,7 +105,7 @@ package com.prx.mercury.processor;
                                     var messageRecordTO = messageRecordService.create(messageRecordMapper.toMessageRecordTO(emailMessageDocument, messageStatusTypeTO));
                                     logger.debug("Message record created: {}", messageRecordTO);
 
-                                    // If message type equal to verification code, create the verification code record
+                                    // If a message type equal to verification code, create the verification code record
                                     if (templateDefinedTO.template().templateType().id().equals(verificationCodeId)) {
                                         // Create the verification code record
                                         logger.debug("Creating verification code: {}", emailMessageDocument);

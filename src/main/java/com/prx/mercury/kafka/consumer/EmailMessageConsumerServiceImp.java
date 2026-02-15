@@ -18,7 +18,12 @@ public class EmailMessageConsumerServiceImp implements EmailMessageConsumerServi
     private final EmailMessageMapper emailMessageMapper;
 
 
-    ///  Default constructor
+    /**
+     * Default constructor.
+     *
+     * @param emaiMessageRepository repository for EmailMessage documents
+     * @param emailMessageMapper    mapper between TO and document
+     */
     public EmailMessageConsumerServiceImp(EmailMessageNSRepository emaiMessageRepository, EmailMessageMapper emailMessageMapper) {
         this.emaiMessageRepository = emaiMessageRepository;
         this.emailMessageMapper = emailMessageMapper;

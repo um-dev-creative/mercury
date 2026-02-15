@@ -40,7 +40,9 @@ public class SeverityTypeEntity {
     @Column(name = "active", nullable = false)
     private Boolean active = false;
 
-    ///  Create an instance of SeverityType
+    /**
+     * Default constructor.
+     */
     public SeverityTypeEntity() {
         // Default constructor
     }

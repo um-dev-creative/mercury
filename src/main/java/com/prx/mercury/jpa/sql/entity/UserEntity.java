@@ -14,7 +14,9 @@ public class UserEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    ///  Create an instance of UserEntity
+    /**
+     * Default constructor.
+     */
     public UserEntity() {
         // Default constructor
     }

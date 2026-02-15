@@ -13,9 +13,11 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-/// Service implementation for managing verification codes.
-/// This service handles operations related to the creation and confirmation
-/// of verification codes used in application authentication flows.
+/**
+ * Service implementation for managing verification codes.
+ * This service handles operations related to the creation and confirmation
+ * of verification codes used in application authentication flows.
+ */
 @Service
 public class VerificationCodeServiceImpl implements VerificationCodeService {
 
@@ -24,22 +26,26 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
     private final VerificationCodeRepository verificationCodeRepository;
     private final VerificationCodeMapper verificationCodeMapper;
 
-    /// Constructs a new VerificationCodeServiceImpl with required dependencies.
-    ///
-    /// @param verificationCodeRepository Repository for verification code persistence operations
-    /// @param verificationCodeMapper Mapper for converting between entity and transfer objects
+    /**
+     * Constructs a new VerificationCodeServiceImpl with required dependencies.
+     *
+     * @param verificationCodeRepository Repository for verification code persistence operations
+     * @param verificationCodeMapper     Mapper for converting between entity and transfer objects
+     */
     public VerificationCodeServiceImpl(VerificationCodeRepository verificationCodeRepository, VerificationCodeMapper verificationCodeMapper) {
         this.verificationCodeRepository = verificationCodeRepository;
         this.verificationCodeMapper = verificationCodeMapper;
     }
 
-    /// Confirms a verification code for a user and application.
-    /// This method validates the provided code against stored verification codes,
-    /// updates attempt counts, and marks the code as verified if it matches.
-    ///
-    /// @param verificationCodeRequest The request containing userId, applicationId and code to verify
-    /// @return ResponseEntity with ACCEPTED status if verified, NOT_ACCEPTABLE otherwise
-    /// @throws IllegalArgumentException if no valid verification code is found for the user and application
+    /**
+     * Confirms a verification code for a user and application.
+     * This method validates the provided code against stored verification codes,
+     * updates attempt counts, and marks the code as verified if it matches.
+     *
+     * @param verificationCodeRequest The request containing userId, applicationId and code to verify
+     * @return ResponseEntity with ACCEPTED status if verified, NOT_ACCEPTABLE otherwise
+     * @throws IllegalArgumentException if no valid verification code is found for the user and application
+     */
     @Override
     public ResponseEntity<Void> confirmCode(VerificationCodeRequest verificationCodeRequest) {
         var verificationCodeEntityOptional = this.verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(
@@ -74,27 +80,32 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
                 ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
-    /// Creates a new verification code entry.
-    /// Maps the provided transfer object to an entity, persists it to the database,
-    /// and returns the created code as a transfer object.
-    ///
-    /// @param verificationCodeTO The verification code transfer object to create
-    /// @return The created verification code as a transfer object
+    /**
+     * Creates a new verification code entry.
+     * Maps the provided transfer object to an entity, persists it to the database,
+     * and returns the created code as a transfer object.
+     *
+     * @param verificationCodeTO The verification code transfer object to create
+     * @return The created verification code as a transfer object
+     */
     @Override
     public VerificationCodeTO create(VerificationCodeTO verificationCodeTO) {
         logger.debug("Creating verification code: {}", verificationCodeTO);
+
         return verificationCodeMapper.toVerificationCodeTO(
                 verificationCodeRepository.save(verificationCodeMapper
                         .toVerificationCodeEntity(verificationCodeTO)));
     }
 
-    /// Retrieves the latest is_verified status for a user.
-    /// This method queries the repository for the most recent verification code
-    /// status for the given userId, handling not found and error cases.
-    ///
-    /// @param userId The ID of the user whose verification status is to be retrieved
-    /// @return ResponseEntity containing the is_verified status, NOT_FOUND if no code exists,
-    ///         BAD_REQUEST for invalid userId format, INTERNAL_SERVER_ERROR for other errors
+    /**
+     * Retrieves the latest is_verified status for a user.
+     * This method queries the repository for the most recent verification code
+     * status for the given userId, handling not found and error cases.
+     *
+     * @param userId The ID of the user whose verification status is to be retrieved
+     * @return ResponseEntity containing the is_verified status, NOT_FOUND if no code exists,
+     *         BAD_REQUEST for invalid userId format, INTERNAL_SERVER_ERROR for other errors
+     */
     @Override
     public ResponseEntity<Boolean> getLatestIsVerifiedStatus(String userId) {
         try {

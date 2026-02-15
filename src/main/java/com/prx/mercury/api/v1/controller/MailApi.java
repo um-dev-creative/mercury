@@ -22,14 +22,15 @@ public interface MailApi {
         };
     }
 
-    /// Send an email.
-    /// This method handles POST requests to send an email.
-    /// It consumes and produces JSON.
-    /// The request body is expected to be a RequestEntity containing a MailTO object.
-    /// The method returns a ResponseEntity with the result of the email sending operation.
-    ///
-    /// @param requestMail the request entity containing the email details
-    /// @return a ResponseEntity with the result of the email sending operation
+    /**
+     * Send an email.
+     * This method handles POST requests to send an email. It consumes and produces JSON.
+     * The request body is expected to be a {@link SendEmailRequest} containing email details.
+     * The method returns a {@link ResponseEntity} with the result of the email sending operation.
+     *
+     * @param requestMail the request entity containing the email details
+     * @return a ResponseEntity with the result of the email sending operation
+     */
     @Operation(description = "Send a email")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "To send a email.")

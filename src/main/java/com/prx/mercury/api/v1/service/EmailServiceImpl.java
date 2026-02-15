@@ -26,18 +26,16 @@ import java.util.function.IntFunction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.mail.javamail.MimeMessageHelper.MULTIPART_MODE_MIXED_RELATED;
 
-/// EmailServiceImpl.
-/// This class provides the implementation for sending emails using JavaMailSender and FreeMarker templates.
-/// It implements the EmailService interface.
-/// The class is annotated with @Service to indicate that it is a Spring service component.
-/// The sender email address is injected from the application properties.
-/// The sendMail method handles the creation and sending of the email.
-/// It processes the email template using FreeMarker and sets the email details using MimeMessageHelper.
-/// The method returns a ResponseEntity with the result of the email sending operation.
-/// If an exception occurs, it logs the error and returns a bad request response.
-///
-/// @version 1.0.0, 03-05-2022
-/// @since 11
+/**
+ * Service implementation for sending emails using JavaMailSender and FreeMarker templates.
+ * <p>
+ * Implements {@link EmailService}. The class is registered as a Spring {@link Service}.
+ * It processes templates via FreeMarker and sends emails using the configured {@link JavaMailSender}.
+ * Sent messages are persisted to the NoSQL repository when applicable.
+ *
+ * @version 1.0.0, 03-05-2022
+ * @since 11
+ */
 @Service
 public class EmailServiceImpl implements EmailService {
 
@@ -46,10 +44,13 @@ public class EmailServiceImpl implements EmailService {
     private final EmailMessageNSRepository emailMessageNSRepository;
     private final JavaMailSender mailSender;
 
-    /// Constructs an EmailServiceImpl with required dependencies.
-    ///
-    /// @param freemarkerConfig         The FreeMarker configuration for processing email templates
-    /// @param emailMessageNSRepository The repository for email message document persistence
+    /**
+     * Constructs an EmailServiceImpl with required dependencies.
+     *
+     * @param freemarkerConfig         The FreeMarker configuration for processing email templates
+     * @param emailMessageNSRepository The repository for email message document persistence
+     * @param mailSender               The JavaMailSender used to send emails
+     */
     public EmailServiceImpl(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig, EmailMessageNSRepository emailMessageNSRepository, JavaMailSender mailSender
     ) {
         this.freemarkerConfig = freemarkerConfig;
@@ -57,11 +58,13 @@ public class EmailServiceImpl implements EmailService {
         this.mailSender = mailSender;
     }
 
-    /// Retrieves email messages by their delivery status.
-    ///
-    /// @param deliveryStatus The delivery status to filter by (OPENED or SENT)
-    /// @return A list of email message documents with the specified delivery status
-    /// @throws IllegalArgumentException if delivery status is null
+    /**
+     * Retrieves email messages by their delivery status.
+     *
+     * @param deliveryStatus The delivery status to filter by (OPENED or SENT)
+     * @return A list of email message documents with the specified delivery status
+     * @throws IllegalArgumentException if delivery status is null
+     */
     @Override
     public List<EmailMessageDocument> findByDeliveryStatus(DeliveryStatusType deliveryStatus) {
         if (Objects.isNull(deliveryStatus)) {
@@ -74,10 +77,12 @@ public class EmailServiceImpl implements EmailService {
         return Collections.emptyList();
     }
 
-    /// Updates the status of an email message in the database.
-    ///
-    /// @param emailMessageDocument The email message document to update
-    /// @throws IllegalArgumentException if email message document is null
+    /**
+     * Updates the status of an email message in the database.
+     *
+     * @param emailMessageDocument The email message document to update
+     * @throws IllegalArgumentException if email message document is null
+     */
     @Override
     public void updateEmailStatus(EmailMessageDocument emailMessageDocument) {
         if (Objects.isNull(emailMessageDocument)) {
@@ -96,13 +101,15 @@ public class EmailServiceImpl implements EmailService {
         emailMessageNSRepository.delete(emailMessageDocument);
     }
 
-    /// Sends an email based on the provided email message document and template definition.
-    /// Updates the delivery status based on the result of the sending operation.
-    ///
-    /// @param emailMessageDocument The email message document containing email details
-    /// @param templateDefinedTO    The template definition to use for the email content
-    /// @return An updated email message document with the new delivery status
-    /// @throws IllegalArgumentException if template definition is null
+    /**
+     * Sends an email based on the provided email message document and template definition.
+     * Updates the delivery status based on the result of the sending operation.
+     *
+     * @param emailMessageDocument The email message document containing email details
+     * @param templateDefinedTO    The template definition to use for the email content
+     * @return An updated email message document with the new delivery status
+     * @throws IllegalArgumentException if template definition is null
+     */
     @Override
     public EmailMessageDocument sendEmail(EmailMessageDocument emailMessageDocument, TemplateDefinedTO templateDefinedTO) {
         if (Objects.isNull(templateDefinedTO)) {
@@ -127,15 +134,17 @@ public class EmailServiceImpl implements EmailService {
                 result ? DeliveryStatusType.SENT : DeliveryStatusType.FAILED);
     }
 
-    /// Processes an email template and sends the email using Gmail API.
-    ///
-    /// @param templateTO The template object containing the template location
-    /// @param subject    The email subject
-    /// @param from       The sender's email address
-    /// @param to         List of recipient email contacts
-    /// @param cc         List of CC email contacts
-    /// @param params     Parameters to be applied to the template
-    /// @return true if the email was successfully sent, false otherwise
+    /**
+     * Processes an email template and sends the email using the configured mail sender.
+     *
+     * @param templateTO The template object containing the template location
+     * @param subject    The email subject
+     * @param from       The sender's email address
+     * @param to         List of recipient email contacts
+     * @param cc         List of CC email contacts
+     * @param params     Parameters to be applied to the template
+     * @return true if the email was successfully sent, false otherwise
+     */
     private boolean process(TemplateTO templateTO, String subject, String from, List<EmailContact> to, List<EmailContact> cc, Map<String, Object> params) {
         final IntFunction<String[]> function = String[]::new;
         final var mimeMessage = new MimeMessage(Session.getDefaultInstance(new Properties(), null));

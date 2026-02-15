@@ -1,4 +1,7 @@
 # Application specific configurations
+log:
+  debug: ${LOGGING_TRACE_ENABLED}
+
 prx:
   consumer:
     mercury:

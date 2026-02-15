@@ -37,7 +37,9 @@ public class TemplateTypeEntity {
     @Column(name = "active")
     private Boolean active;
 
-    ///  Create an instance of TemplateTypeEntity
+    /**
+     * Default constructor.
+     */
     public TemplateTypeEntity() {
         // Default constructor
     }
