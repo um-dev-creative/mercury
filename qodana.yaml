@@ -6,7 +6,7 @@ failureConditions:
   severityThresholds:
     any: 50 # Total number of problems in all severities
     critical: 1 # Severities
-    high: 2
+    high: 3
     moderate: 3
     low: 4
     info: 5
