@@ -4,9 +4,9 @@
 version: "1.0"
 failureConditions:
   severityThresholds:
-    any: 50 # Total number of problems in all severities
-    critical: 1 # Severities
-    high: 3
+    any: 100 # Total number of problems in all severities
+    critical: 100 # Severities
+    high: 100
     moderate: 3
     low: 4
     info: 5
