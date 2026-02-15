@@ -69,9 +69,8 @@
         <sonar.projectName>umdevc-mercury</sonar.projectName>
         <sonar.coverage.exclusions>**/*.xml,**/*Application.*,**/config/*,**/loggers/*,**/loggers/interceptor/*,**/mapper/*</sonar.coverage.exclusions>
         <!-- Do not exclude all Java files — previous config removed all Java from Sonar analysis. Keep resource/config exclusions only. -->
-        <sonar.exclusions>**/*.xml,**/*Application.*,**/exceptions/*, **/util/*, **/config/*,**/config/**/*,
-            **/mapper/*, **/*Test.*, **/cache/*,
-            **/cache/domain/*,**/repository/*,**/repository/**/*,**/*Entity.*,**/*Document.*
+        <sonar.exclusions>**/*.xml,**/*Application.*,**/exceptions/*, **/util/*, **/config/*,**/mapper/*, **/*Test.*, **/cache/*,
+            **/cache/domain/*,**/repository/*,**/*Entity.*,**/*Document.*
         </sonar.exclusions>
         <!-- Include only production sources for coverage reporting (exclude tests). Adjust glob if your sources live elsewhere) -->
         <sonar.coverage.inclusions>src/main/java/**/*.java</sonar.coverage.inclusions>
