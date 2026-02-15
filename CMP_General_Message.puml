@@ -1,0 +1,32 @@
+@startuml
+'https://plantuml.com/component-diagram
+
+cloud  "WWW" as WW {
+    US as [Users]
+    PR as [Producer]
+}
+
+package "Mercury Platform" {
+    interface Input as IN
+    interface Output as OU
+    KF as [Kafka]
+    MR as [Mercury]
+    IN -right- KF
+    OU -left- KF
+}
+
+database "PostgresSQL" as PSQL
+
+database "MongoDB" as MSQL
+
+PR -down-> IN : Request send message
+OU <-- MR : Read the topic message
+MR --> PSQL : Save permanent record
+MR --> MSQL : Save temporal record
+MR <-- PSQL : Read permanent record
+MR <-- MSQL : Read temporal record
+MR --> MSQL : Remove the temporal record completed
+MR --> PSQL : Update permanent record
+MR ..up..> US : Send message
+
+@enduml

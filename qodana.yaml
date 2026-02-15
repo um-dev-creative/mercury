@@ -14,5 +14,3 @@ failureConditions:
 linter: jetbrains/qodana-jvm-community:2025.3
 profile:
   name: qodana.recommended
-include:
-  - name: CheckDependencyLicenses
