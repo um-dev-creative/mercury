@@ -25,7 +25,8 @@ class MailApiTest {
     void sendEmailSuccessfully() {
         EmailService emailService = Mockito.mock(EmailService.class);
         SendEmailRequest request = new SendEmailRequest(
-                "templateName",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
                 "from@example.com",
                 List.of(new EmailContact("to@example.com", "to", " To" )),
                 List.of(new EmailContact("cc@example.com", "cc", " Cc" )),

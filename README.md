@@ -1,92 +1,221 @@
-# mercury
+# Mercury
+## Sonar Cloud badges
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=prx-dev_mercury)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
 
-Messenger app
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
 
-## Getting started
+## Technologies
+[![Java](https://img.shields.io/badge/Java-21-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.8-brightgreen?logo=spring&style=flat-square)](https://spring.io/projects/spring-boot)
+[![Maven](https://img.shields.io/badge/Maven-3.8-red?logo=apachemaven&style=flat-square)](https://maven.apache.org/)
+[![Docker base image](https://img.shields.io/badge/amazoncorretto-21--alpine3.20-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.4-blue?logo=postgresql&style=flat-square)](https://www.postgresql.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-detected-brightgreen?logo=mongodb&style=flat-square)](https://www.mongodb.com/)
+[![Kafka](https://img.shields.io/badge/Kafka-detected-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
+[![MapStruct](https://img.shields.io/badge/MapStruct-1.5.5.Final-blue?logo=mapstruct&style=flat-square)](https://mapstruct.org/)
+[![Telegram Bots](https://img.shields.io/badge/TelegramBots-9.3.0-blue?logo=telegram&style=flat-square)](https://core.telegram.org/)
+[![JUnit](https://img.shields.io/badge/JUnit-5.11.3-red?logo=junit&style=flat-square)](https://junit.org/)
+[![Mockito](https://img.shields.io/badge/Mockito-5.14.2-red?logo=mockito&style=flat-square)](https://site.mockito.org/)
+[![SonarCloud](https://img.shields.io/badge/SonarCloud-detected-4E9BCF?logo=sonarcloud&style=flat-square)](https://sonarcloud.io/)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+One-line summary: Messaging backend and utility service for PRX (Mercury).
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Overview
+--------
+Mercury is a messaging backend and utility service used by PRX to process and route messages, integrate with external services (email, Telegram), and expose REST APIs for clients. It is implemented as a Spring Boot application and includes Kafka integration, JPA (PostgreSQL), and optional MongoDB support for some persistence needs.
 
-## Add your files
+Requiriments
+------------
+(Note: heading intentionally matches the requested spelling. See the correct heading below.)
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+Requirements
+------------
+Minimum requirements to build and run Mercury locally:
+- Java 21 (JDK) or a compatible runtime (Amazon Corretto 21 recommended)
+- Maven 3.6+ (3.8+ recommended)
+- Docker (optional; required to run the provided Dockerfile locally)
+- PostgreSQL (if you need to run integration tests or use the JPA-backed features)
 
+Quick build
+-----------
+This project uses Maven. From the repository root the basic build steps are:
+
+```pwsh
+# Clean and build the project (skip tests for a fast build)
+mvn -U clean package -DskipTests
+
+# Run unit tests and generate reports (recommended before pushing changes)
+mvn clean test
+
+# Build the executable JAR (artifact name: target/mercury.jar)
+mvn -U clean package
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/prx-open/mercury.git
-git branch -M main
-git push -uf origin main
+
+Build and run with Docker (optional):
+
+```pwsh
+# Build the Docker image (uses the repository Dockerfile)
+docker build -t prx/mercury:latest .
+
+# Run the container exposing port 8118
+docker run --rm -p 8118:8118 prx/mercury:latest
 ```
 
-## Integrate with your tools
+Notes on runtime configuration
+- The application exposes port 8118 by default (see `Dockerfile` CMD and `EXPOSE`).
+- The Docker image copies several certificate files and a keystore; ensure `src/main/resources/` contains the expected `.crt` and `.jks` files if you plan to build the container as-is.
+- The service consults environment variables such as `VAULT_ENABLED` (see `Dockerfile` CMD) and may use Spring Cloud Config or Vault depending on your environment.
 
-- [ ] [Set up project integrations](https://gitlab.com/prx-open/mercury/-/settings/integrations)
+Known issues and workarounds
+---------------------------
+1. Missing certificates or keystore when building the Docker image
+   - Symptom: Docker build fails because cert files or keystore are not found in `src/main/resources/`.
+   - Workaround: Place the expected cert and keystore files (`*.crt`, `keystore.jks`) in `src/main/resources/` before building, or comment-out the COPY/KEYTOOL sections in the Dockerfile for local testing.
 
-## Collaborate with your team
+2. Transitive dependency vulnerability warnings reported by IDE / scanning tools
+   - Symptom: IDE or scanning tool warns about transitive vulnerabilities (log4j/logback, commons, PostgreSQL driver, etc.). These come from direct or transitive dependencies declared in `pom.xml`.
+   - Workaround: Generate a dependency tree and pin/override versions for vulnerable transitive dependencies in your `pom.xml` using `<dependencyManagement>` or explicit `<exclusions>`. Example to produce a tree:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+```pwsh
+mvn dependency:tree -DoutputFile=dependency-tree.txt -DoutputType=text
+```
 
-## Test and Deploy
+3. Sonar coverage thresholds may fail on local runs
+   - Symptom: Local Sonar/SonarCloud checks indicate low coverage or fail Quality Gate due to branch/line thresholds enforced by CI.
+   - Workaround: Run tests with the coverage profile and ensure JaCoCo reports are generated before running Sonar local analysis (see next section).
 
-Use the built-in continuous integration in GitLab.
+Continuous Integration
+----------------------
+This repository includes SonarCloud badges and properties suggesting Sonar integration. There is no repository-local CI config guaranteed in this tree (GitLab CI/GitHub Actions may be used by the upstream project). Typical CI steps you can adopt:
+- Checkout code
+- Run `mvn -Pcoverage -DskipTests=false clean test` to generate coverage reports (JaCoCo)
+- Run static analysis, linters, and `mvn verify`
+- Publish code coverage and send results to SonarCloud using the Sonar scanner with a project token
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Example pipeline snippet (GitLab CI / GitHub Actions style, conceptual):
 
-***
+1. Build & test
+```pwsh
+mvn -Pcoverage clean test
+```
+2. Package
+```pwsh
+mvn -DskipTests=false package
+```
+3. Run Sonar analysis (requires SONAR_TOKEN)
+```pwsh
+sonar-scanner -Dsonar.projectKey=prx-dev_mercury -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$env:SONAR_TOKEN
+```
 
-# Editing this README
+## How to verify Sonar coverage locally
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!).  Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+A short checklist and exact PowerShell commands to generate the JaCoCo XML report and run Sonar locally.
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+1) Generate the JaCoCo XML report (runs tests and produces XML/HTML reports):
 
-## Name
-Choose a self-explaining name for your project.
+```powershell
+mvn -U -DskipITs clean verify
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+2) Confirm the JaCoCo XML report exists at the path configured in `pom.xml`:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```powershell
+Test-Path .\target\site\jacoco\jacoco.xml
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+3) Run Sonar analysis. Choose one of the options below and provide your Sonar token as needed.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- Using Maven (recommended if running on the same machine that built the project):
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```powershell
+mvn sonar:sonar -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=<SONAR_TOKEN>
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Using SonarScanner CLI:
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+```powershell
+sonar-scanner -Dsonar.projectKey=prx-dev_mercury -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=<SONAR_TOKEN>
+```
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Notes:
+- `pom.xml` already sets `sonar.coverage.jacoco.xmlReportPaths` to `target/site/jacoco/jacoco.xml` and includes `src/main/java` in `sonar.inclusions`/`sonar.coverage.inclusions` so Sonar should pick up coverage for production sources.
+- If your CI produces JaCoCo in a different location or runs tests in a different job, ensure the JaCoCo XML is available to the Sonar job (upload/download artifact between jobs or run Sonar in the same job).
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## Documentation
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+- CHANGELOG.md — project changelog and migration notes
+- BUILD_VALIDATION_REPORT.md — results of the upgrade validation and recommended fixes
+- README-BUILD.md — build/run instructions and CI guidance
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
 
-## License
-For open source projects, say how it is licensed.
+```pwsh
+mvn org.springdoc:springdoc-openapi-maven-plugin:generate -DskipTests
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- JavaDoc: Generate JavaDoc with Maven:
+
+```pwsh
+mvn javadoc:javadoc
+```
+
+- Project site and reports: The repository contains `htmlReport/` and `target/site/` artifacts (if you run site generation). To generate the Maven site:
+
+```pwsh
+mvn site
+```
+
+- Developer knowledge base: https://prx.myjetbrains.com/articles/PRX-A-77/Mercury (also referenced in existing README content)
+
+Tech stack and versions
+-----------------------
+Below is an alphabetically sorted list of detected technologies, the extracted version (or a conservative fallback), and the source file where that information was found.
+
+| Technology |       Version | Source |
+|---|--------------:|---|
+| Amazon Corretto (Docker base image) | 21-alpine3.20 | Dockerfile |
+| Apache POI (poi-ooxml) |         4.1.1 | pom.xml |
+| Docker (project contains a Dockerfile) |      detected | Dockerfile |
+| Google Gson |        2.10.1 | pom.xml |
+| JaCoCo (Maven plugin) |        0.8.12 | pom.xml |
+| Java (language / runtime) |            21 | pom.xml |
+| JUnit Jupiter |        5.11.3 | pom.xml |
+| MapStruct |   1.5.5.Final | pom.xml |
+| Maven (build tool) |           3.8 | pom.xml |
+| Maven Javadoc Plugin |         3.6.3 | pom.xml |
+| Maven Surefire Plugin |         3.2.5 | pom.xml |
+| MongoDB (Spring Data integration present) |      detected | pom.xml |
+| Mockito |        5.14.2 | pom.xml |
+| org.json (json) |      20250517 | pom.xml |
+| PostgreSQL JDBC driver |        42.7.4 | pom.xml |
+| SonarCloud (project properties present) |      detected | pom.xml |
+| Spring Boot |         3.5.8 | pom.xml |
+| Spring Cloud |      2025.0.1 | pom.xml |
+| Spring Core |         6.2.1 | pom.xml |
+| Spring Data JPA (dependency present) |      detected | pom.xml |
+| Spring Kafka (dependency present) |      detected | pom.xml |
+| Spring Web (spring-boot-starter-web) |      detected | pom.xml |
+| Springdoc OpenAPI (springdoc) |         2.6.0 | pom.xml |
+| Telegram Bots (org.telegram) |         9.3.0 | pom.xml |
+
+Note: "detected" means the technology is present but an explicit version was not found in the scanned files.
+
+Files scanned
+-------------
+- pom.xml (project metadata, properties, dependencies, plugin versions)
+- Dockerfile (base image tag and runtime container instructions)
+
+License
+-------
+The repository does not contain a LICENSE file. Add one if you want to specify terms for reuse.
+
+More
+----
+For development notes, CI, and architecture links see the original README content and the repository files.

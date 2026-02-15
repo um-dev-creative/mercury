@@ -7,8 +7,8 @@
 </head>
 <body>
 <h2 class="hello-title">Hello ${name}!</h2>
-<#--<#list users as user>-->
-<#--    <p>User: ${user.alias}</p>-->
+<#--<#list users as userEntity>-->
+<#--    <p>User: ${userEntity.alias}</p>-->
 <#--</#list>-->
 </body>
 </html>

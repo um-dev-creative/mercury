@@ -2,7 +2,6 @@ package com.prx.mercury;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -15,11 +14,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @EnableFeignClients(basePackages = "com.prx.mercury.client")
 @EnableScheduling
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}, scanBasePackages = {
-        "com.prx.mercury",
-        "com.prx.commons.properties",
-        "com.prx.security"
-})
+@SpringBootApplication(
+        scanBasePackages = {
+                "com.prx.commons.services",
+                "com.prx.mercury",
+                "com.prx.security"
+        }
+)
 public class MercuryApplication {
     public static void main(String[] args) {
         SpringApplication.run(MercuryApplication.class, args);
