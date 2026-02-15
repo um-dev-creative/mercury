@@ -50,3 +50,5 @@ jobs:
       - name: Ensure results directory exists
         run: mkdir -p ../results
       - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json
