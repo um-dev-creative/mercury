@@ -1,4 +1,6 @@
 # Mercury
+## Qodana badges
+[![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
 ## Sonar Cloud badges
 [![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=prx-dev_mercury)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
 
