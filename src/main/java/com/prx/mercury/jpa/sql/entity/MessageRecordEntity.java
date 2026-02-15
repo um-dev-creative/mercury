@@ -54,7 +54,9 @@ public class MessageRecordEntity {
     @JoinColumn(name = "template_defined_id", nullable = false)
     private TemplateDefinedEntity templateDefined;
 
-    ///  Create an instance of MessageRecordEntity
+    /**
+     * Default constructor.
+     */
     public MessageRecordEntity() {
         // Default constructor
     }

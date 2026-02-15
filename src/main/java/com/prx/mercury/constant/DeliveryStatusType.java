@@ -1,6 +1,8 @@
 package com.prx.mercury.constant;
 
-/// Enum for the status of the order
+/**
+ * Enum for the status of the delivery of a message.
+ */
 public enum DeliveryStatusType {
     OPENED,
     PENDING,

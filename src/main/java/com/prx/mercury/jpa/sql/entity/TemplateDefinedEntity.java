@@ -51,7 +51,9 @@ public class TemplateDefinedEntity {
     @JoinColumn(name = "frequency_type", nullable = false)
     private FrequencyTypeEntity frequencyType;
 
-    /// Create an instance of TemplateDefinedEntity
+    /**
+     * Default constructor.
+     */
     public TemplateDefinedEntity() {
         // Default constructor
     }

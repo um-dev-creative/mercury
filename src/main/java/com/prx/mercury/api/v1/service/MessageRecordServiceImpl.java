@@ -7,32 +7,38 @@ import org.springframework.stereotype.Service;
 
 import java.util.Objects;
 
-/// Implementation of the MessageRecordService interface.
-/// This service is responsible for managing message records in the database.
-/// It provides operations to create and persist message records.
-///
-/// @version 1.0.0
-/// @since 11
+/**
+ * Implementation of the {@link MessageRecordService} interface.
+ * This service is responsible for managing message records in the database.
+ * It provides operations to create and persist message records.
+ *
+ * @version 1.0.0
+ * @since 11
+ */
 @Service
 public class MessageRecordServiceImpl implements MessageRecordService {
 
     private final MessageRecordRepository messageRecordRepository;
     private final MessageRecordMapper messageRecordMapper;
 
-    /// Constructs a MessageRecordServiceImpl with required dependencies.
-    ///
-    /// @param messageRecordRepository Repository for database operations on message records
-    /// @param messageRecordMapper Mapper for converting between transfer objects and entities
+    /**
+     * Constructs a MessageRecordServiceImpl with required dependencies.
+     *
+     * @param messageRecordRepository Repository for database operations on message records
+     * @param messageRecordMapper     Mapper for converting between transfer objects and entities
+     */
     public MessageRecordServiceImpl(MessageRecordRepository messageRecordRepository, MessageRecordMapper messageRecordMapper) {
         this.messageRecordRepository = messageRecordRepository;
         this.messageRecordMapper = messageRecordMapper;
     }
 
-    /// Creates a new message record in the database.
-    ///
-    /// @param messageRecordTO The message record transfer object containing data to be persisted
-    /// @return The created message record transfer object with populated ID
-    /// @throws IllegalArgumentException if the provided message record is null
+    /**
+     * Creates a new message record in the database.
+     *
+     * @param messageRecordTO The message record transfer object containing data to be persisted
+     * @return The created message record transfer object with populated ID
+     * @throws IllegalArgumentException if the provided message record is null
+     */
     @Override
     public MessageRecordTO create(MessageRecordTO messageRecordTO) {
         if (Objects.isNull(messageRecordTO)) {

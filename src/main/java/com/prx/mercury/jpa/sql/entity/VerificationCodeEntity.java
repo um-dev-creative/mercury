@@ -18,9 +18,8 @@ public class VerificationCodeEntity {
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
-    private UserEntity userEntity;
+    private UUID userId;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -74,7 +73,9 @@ public class VerificationCodeEntity {
     @JoinColumn(name = "message_record_id", nullable = false)
     private MessageRecordEntity messageRecord;
 
-    ///  Create an instance of VerificationCodeEntity
+    /**
+     * Default constructor.
+     */
     public VerificationCodeEntity() {
         // Default constructor
     }
@@ -95,12 +96,12 @@ public class VerificationCodeEntity {
         this.id = id;
     }
 
-    public UserEntity getUser() {
-        return userEntity;
+    public UUID getUserId() {
+        return userId;
     }
 
-    public void setUser(UserEntity userEntity) {
-        this.userEntity = userEntity;
+    public void setUserId(UUID userId) {
+        this.userId = userId;
     }
 
     public ApplicationEntity getApplication() {

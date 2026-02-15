@@ -58,7 +58,9 @@ public class TemplateEntity {
     @JoinColumn(name = "severity_type_id", nullable = false)
     private SeverityTypeEntity severityTypeEntity;
 
-    ///  Create an instance of TemplateEntity
+    /**
+     * Default constructor.
+     */
     public TemplateEntity() {
         // Default constructor
     }

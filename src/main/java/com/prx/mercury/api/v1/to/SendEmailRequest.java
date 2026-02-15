@@ -10,17 +10,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/// A record that represents a request to send an email.
-///
-/// @param templateDefinedId The ID of the email template defined.
-/// @param userId The ID of the template usage.
-/// @param from The sender's email address.
-/// @param to The list of recipient email addresses.
-/// @param cc The list of CC email addresses.
-/// @param subject The subject of the email.
-/// @param body The body content of the email.
-/// @param sendDate The date the email was sent.
-/// @param params Additional parameters for the email.
+/**
+ * A record that represents a request to send an email.
+ *
+ * @param templateDefinedId The ID of the email template defined.
+ * @param userId            The ID of the template usage.
+ * @param from              The sender's email address.
+ * @param to                The list of recipient email addresses.
+ * @param cc                The list of CC email addresses.
+ * @param subject           The subject of the email.
+ * @param body              The body content of the email.
+ * @param sendDate          The date the email was sent.
+ * @param params            Additional parameters for the email.
+ */
 public record SendEmailRequest (
         @NotNull UUID templateDefinedId,
         @NotNull UUID userId,

@@ -14,7 +14,9 @@ public class ApplicationEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    /// Create an instance of ApplicationEntity
+    /**
+     * Default constructor.
+     */
     public ApplicationEntity() {
         // Default contructor
     }

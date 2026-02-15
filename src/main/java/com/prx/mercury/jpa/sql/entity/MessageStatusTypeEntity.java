@@ -42,9 +42,11 @@ public class MessageStatusTypeEntity {
     @Column(name = "active", nullable = false)
     private Boolean active = false;
 
-    /// Default constructor for MessageStatusTypeEntity.
+    /**
+     * Default constructor for MessageStatusTypeEntity.
+     */
     public MessageStatusTypeEntity() {
-        /// Default constructor for MessageStatusTypeEntity.
+        // Default constructor for MessageStatusTypeEntity.
     }
 
     public UUID getId() {
