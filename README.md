@@ -2,17 +2,17 @@
 ## Qodana badges
 [![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
 ## Sonar Cloud badges
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=prx-dev_mercury)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=umdevc-mercury)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
 
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=prx-dev_mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=prx-dev_mercury)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
 
 ## Technologies
 [![Java](https://img.shields.io/badge/Java-21-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
