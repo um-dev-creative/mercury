@@ -37,9 +37,7 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_467158173 }}
         with:
-          args: |
-            --linter qodana-jvm-community:2025.3
-            --within-docker false
+          linter: qodana-jvm-community:2025.3
           # When pr-mode is set to true, Qodana analyzes only the files that have been changed
           pr-mode: false
           use-caches: true
