@@ -23,8 +23,7 @@ class MailControllerTest {
     void sendEmailSuccessfully() {
         EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
+                "templateName",
                 "from@example.com",
                 List.of(new EmailContact("to@example.com", "to", " To" )),
                 List.of(new EmailContact("cc@example.com", "cc", " Cc" )),
@@ -58,8 +57,7 @@ class MailControllerTest {
     void sendEmailWithInvalidEmailAddress() {
         EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
+                "templateName",
                 "invalid-email",
                 List.of(new EmailContact("to@example.com", "to", " To" )),
                 Collections.emptyList(),
@@ -80,8 +78,7 @@ class MailControllerTest {
     void sendEmailWithEmptySubject() {
         EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
+                "templateName",
                 "from@example.com",
                 List.of(new EmailContact("to@example.com", "to", " To" )),
                 List.of(new EmailContact("cc@example.com", "cc", " Cc" )),

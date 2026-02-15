@@ -1,9 +1,9 @@
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.client.to.AuthResponse;
 import com.prx.mercury.client.BackboneClient;
+import com.prx.mercury.client.to.AuthRequest;
 import com.prx.mercury.security.SessionJwtServiceImpl;
-import com.prx.security.to.AuthRequest;
-import com.prx.security.to.AuthResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -21,7 +21,8 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("token should return OK status with valid alias")
     void tokenShouldReturnOkStatusWithValidAlias() {
-        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setAlias("validAlias");
         when(sessionJwtService.generateSessionToken(anyString(), anyMap())).thenReturn("validToken");
 
         ResponseEntity<AuthResponse> response = authService.token(authRequest);
@@ -34,7 +35,8 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("token should return BAD_REQUEST status with null alias")
     void tokenShouldReturnBadRequestStatusWithNullAlias() {
-        AuthRequest authRequest = new AuthRequest(null, null);
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setAlias(null);
 
         ResponseEntity<AuthResponse> response = authService.token(authRequest);
 
@@ -44,7 +46,8 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("token should return BAD_REQUEST status with blank alias")
     void tokenShouldReturnBadRequestStatusWithBlankAlias() {
-        AuthRequest authRequest = new AuthRequest("", "");
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setAlias("");
 
         ResponseEntity<AuthResponse> response = authService.token(authRequest);
 
@@ -54,7 +57,8 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("token should return NOT_ACCEPTABLE status with blank token")
     void tokenShouldReturnNotAcceptableStatusWithBlankToken() {
-        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
+        AuthRequest authRequest = new AuthRequest();
+        authRequest.setAlias("validAlias");
         when(sessionJwtService.generateSessionToken(anyString(), anyMap())).thenReturn("");
 
         ResponseEntity<AuthResponse> response = authService.token(authRequest);

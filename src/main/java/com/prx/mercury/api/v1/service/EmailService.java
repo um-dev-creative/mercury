@@ -2,15 +2,8 @@ package com.prx.mercury.api.v1.service;
 
 import com.prx.mercury.api.v1.to.SendEmailRequest;
 import com.prx.mercury.api.v1.to.SendEmailResponse;
-import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.api.v1.to.TemplateTO;
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-import java.util.List;
-import java.util.UUID;
 
 /**
  * EmailService.
@@ -29,21 +22,5 @@ public interface EmailService {
      */
     default ResponseEntity<SendEmailResponse> sendMail(SendEmailRequest mail) {
         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
-    }
-
-    default EmailMessageDocument sendEmail(EmailMessageDocument emailMessageDocument, TemplateDefinedTO templateDefinedTO) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default void updateEmailStatus(EmailMessageDocument emailMessageDocument) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default List<EmailMessageDocument> findByDeliveryStatus(DeliveryStatusType deliveryStatus) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default void delete(EmailMessageDocument emailMessageDocument) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
     }
 }

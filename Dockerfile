@@ -1,5 +1,5 @@
 FROM amazoncorretto:21-alpine3.20
-LABEL version="0.0.2"
+LABEL version="0.0.1"
 LABEL description="Directory Backend API"
 LABEL mantainer="Luis Mata luis.antonio.mata@gmail.com"
 
@@ -15,8 +15,6 @@ ARG APP_CRT_ALIAS=mercury-api-client
 ARG APP_CRT_FILE_NAME=mercury-api-client
 ARG CNFS_CRT_NAME=prx-qa.config-server
 ARG RESOURCE_PATH=src/main/resources/
-WORKDIR /opt
-COPY ${RESOURCE_PATH}/templates /opt/templates
 WORKDIR /usr/local/runme
 COPY ${TARGET_FILE}${JAR_FILE} ${JAR_FILE}
 COPY ${RESOURCE_PATH}${APP_CRT_FILE_NAME}.cer ${APP_CRT_FILE_NAME}.cer
@@ -40,4 +38,4 @@ RUN keytool -import -alias ${APP_CRT_ALIAS} -keystore /usr/lib/jvm/default-jvm/j
 USER jvapps:appmng
 
 EXPOSE 8118
-CMD ["java", "-Dspring.applicationEntity.name=mercury", "-Dspring.cloud.vault.enabled=${VAULT_ENABLED}", "-Dapi.info.version=1.0.0", "-jar", "mercury.jar"]
+CMD ["java", "-Dspring.application.name=mercury", "-Dspring.cloud.vault.enabled=${VAULT_ENABLED}", "-Dapi.info.version=1.0.0", "-jar", "mercury.jar"]

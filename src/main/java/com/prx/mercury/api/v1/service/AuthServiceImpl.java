@@ -1,10 +1,9 @@
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.client.to.AuthResponse;
 import com.prx.mercury.client.BackboneClient;
+import com.prx.mercury.client.to.AuthRequest;
 import com.prx.mercury.security.SessionJwtServiceImpl;
-import com.prx.security.service.AuthService;
-import com.prx.security.to.AuthRequest;
-import com.prx.security.to.AuthResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -40,10 +39,10 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public ResponseEntity<AuthResponse> token(AuthRequest authRequest) {
-        if (Objects.isNull(authRequest.alias()) || authRequest.alias().isBlank()) {
+        if (Objects.isNull(authRequest.getAlias()) || authRequest.getAlias().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
-        var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.alias(), new ConcurrentHashMap<>()));
+        var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.getAlias(), new ConcurrentHashMap<>()));
         if (Objects.isNull(authResponse) || authResponse.token().isBlank()) {
             return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
         }

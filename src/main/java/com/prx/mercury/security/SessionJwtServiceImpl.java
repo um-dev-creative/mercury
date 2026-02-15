@@ -1,9 +1,8 @@
 package com.prx.mercury.security;
 
 import com.prx.commons.constants.keys.AuthKey;
-import com.prx.security.exception.CertificateSecurityException;
+import com.prx.security.SessionJwtService;
 import com.prx.security.jwt.JwtConfigProperties;
-import com.prx.security.service.SessionJwtService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -27,7 +26,6 @@ public class SessionJwtServiceImpl implements SessionJwtService {
 
     private final JwtConfigProperties jwtConfigProperties;
     private final SecretKey key;
-    public static final String USER_ID = "uid";
 
     /**
      * Constructor to initialize SessionJwtService with JwtConfigProperties.
@@ -67,14 +65,8 @@ public class SessionJwtServiceImpl implements SessionJwtService {
      * @return the claims contained in the token
      */
     @Override
-    public Claims getTokenClaims(String token) throws CertificateSecurityException {
-        Claims claims;
-        try {
-            claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-        } catch (Exception e) {
-            throw new CertificateSecurityException(e.getMessage(), e);
-        }
-        return claims;
+    public Claims getTokenClaims(String token) {
+        return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
     }
 
     /**

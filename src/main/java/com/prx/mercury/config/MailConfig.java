@@ -1,4 +1,4 @@
-package com.prx.mercury.config;
+package com.prx.mercury.config.mapper;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -27,7 +27,7 @@ public class MailConfig {
     private String password;
     @Value("${spring.mail.protocol}")
     private String protocol;
-    @Value("${spring.mail.properties.mail.smtp.timeout}")
+    @Value("${spring.mail.properties.mail.timeout}")
     private int timeout;
     @Value("${spring.mail.properties.mail.smtp.starttls.enable}")
     private boolean starttls;
