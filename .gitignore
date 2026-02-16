@@ -27,3 +27,4 @@ target/
 htmlReport/
 .idea/
 .sonarlint/
+.ai/*
