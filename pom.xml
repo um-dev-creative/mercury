@@ -46,7 +46,6 @@
         <!--        OPEN API -->
         <springdoc.version>2.6.0</springdoc.version>
         <!--        SPRING -->
-        <spring-core.version>6.2.1</spring-core.version>
         <spring-boot.version>3.5.8</spring-boot.version>
         <spring-cloud.version>2025.0.1</spring-cloud.version>
 
