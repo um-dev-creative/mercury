@@ -21,7 +21,7 @@
 [![Docker base image](https://img.shields.io/badge/amazoncorretto-21--alpine3.20-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.4-blue?logo=postgresql&style=flat-square)](https://www.postgresql.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-detected-brightgreen?logo=mongodb&style=flat-square)](https://www.mongodb.com/)
-[![Kafka](https://img.shields.io/badge/Kafka-detected-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
+[![Kafka](https://img.shields.io/badge/Kafka-3.9.0-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
 [![MapStruct](https://img.shields.io/badge/MapStruct-1.5.5.Final-blue?logo=mapstruct&style=flat-square)](https://mapstruct.org/)
 [![Telegram Bots](https://img.shields.io/badge/TelegramBots-9.3.0-blue?logo=telegram&style=flat-square)](https://core.telegram.org/)
 [![JUnit](https://img.shields.io/badge/JUnit-5.11.3-red?logo=junit&style=flat-square)](https://junit.org/)

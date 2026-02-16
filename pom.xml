@@ -28,9 +28,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>21</java.version>
-        <postgresql.version>42.7.7</postgresql.version>
-        <google.gson.version>2.10.1</google.gson.version>
-        <org.json.version>20250517</org.json.version>
         <!--        PRX Commons-->
         <com.prx.commons.version>0.0.1</com.prx.commons.version>
         <com.prx.commons-services.version>0.0.1</com.prx.commons-services.version>
@@ -41,50 +38,54 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <maven.plugin.javadoc.version>3.6.3</maven.plugin.javadoc.version>
-        <maven.plugin.jacoco.version>0.8.12</maven.plugin.jacoco.version>
+        <maven.plugin.jacoco.version>0.8.14</maven.plugin.jacoco.version>
         <maven.plugin.pmd.version>3.28.0</maven.plugin.pmd.version>
         <maven.plugin.jxr.version>3.0.0</maven.plugin.jxr.version>
         <maven.surefire.version>3.5.2</maven.surefire.version>
+
         <!--        OPEN API -->
         <springdoc.version>2.6.0</springdoc.version>
         <!--        SPRING -->
         <spring-core.version>6.2.1</spring-core.version>
         <spring-boot.version>3.5.8</spring-boot.version>
         <spring-cloud.version>2025.0.1</spring-cloud.version>
+
+        <!-- Centralized versions for previously hardcoded dependency/plugin versions -->
+        <postgresql.version>42.7.7</postgresql.version>
+        <google.gson.version>2.10.1</google.gson.version>
+        <org.json.version>20250517</org.json.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jwt.version>0.12.3</jwt.version>
         <rewrite.plugin.version>5.42.0</rewrite.plugin.version>
         <rewrite.recipe.version>5.21.0</rewrite.recipe.version>
+        <asm.version>9.7</asm.version>
+        <poi.version>5.2.4</poi.version>
+
         <!--        Test Dependencies-->
         <!--        JUnit 5.x-->
-        <junit.jupiter.version>5.11.4</junit.jupiter.version>
-        <junit.jupiter.core.version>5.9.3</junit.jupiter.core.version>
+        <junit.jupiter.version>5.14.1</junit.jupiter.version>
         <!--        Mockito-->
-        <mockserver.junit.jupiter.version>5.11.2</mockserver.junit.jupiter.version>
-        <mockito.junit.jupiter.version>4.8.0</mockito.junit.jupiter.version>
-        <mockito.version>5.14.2</mockito.version>
+        <mockito.version>5.21.0</mockito.version>
+
         <!--        Coverage and Sonar-->
         <sonar.organization>umdevc</sonar.organization>
-        <sonar.projectKey>umdevc-mercury</sonar.projectKey>
-        <sonar.projectName>umdevc-mercury</sonar.projectName>
-        <sonar.coverage.exclusions>
-            **/*.xml,**/*Application.*,**/exceptions/*, **/util/*, **/config/*,**/loggers/*,**/interceptor/*,**/mapper/*, **/*Test.*, **/cache/*,
-            **/cache/domain/*,**/repository/*,**/*Entity.*,**/*Document.*,**/kafka/listener/*,**/mercury/security/*,**/processor/*
-        </sonar.coverage.exclusions>
+        <sonar.projectKey>umdc-mercury</sonar.projectKey>
+        <sonar.projectName>umdc-mercury</sonar.projectName>
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <!-- Include only production Java sources for Sonar analysis (exclude tests and resources). Adjust glob if your sources live elsewhere) -->
+        <sonar.inclusions>src/main/java/**/*.java</sonar.inclusions>
+        <sonar.coverage.inclusions>${sonar.inclusions}</sonar.coverage.inclusions>
         <!-- Do not exclude all Java files — previous config removed all Java from Sonar analysis. Keep resource/config exclusions only. -->
         <sonar.exclusions>
             **/*.xml,**/*Application.*,**/exceptions/*, **/util/*, **/config/*,**/loggers/*,**/interceptor/*,**/mapper/*, **/*Test.*, **/cache/*,
             **/cache/domain/*,**/repository/*,**/*Entity.*,**/*Document.*,**/kafka/listener/*,**/mercury/security/*,**/processor/*
         </sonar.exclusions>
+        <sonar.coverage.exclusions>${sonar.exclusions}</sonar.coverage.exclusions>
         <!-- Include only production sources for coverage reporting (exclude tests). Adjust glob if your sources live elsewhere) -->
-        <sonar.coverage.inclusions>src/main/java/**/*.java</sonar.coverage.inclusions>
-        <!-- Ensure Sonar analyzes production Java sources for both analysis and coverage -->
-        <sonar.inclusions>src/main/java/**/*.java</sonar.inclusions>
         <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
         <project.ruleset>${project.basedir}/ruleset.xml</project.ruleset>
-        <asm.version>9.1</asm.version>
     </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -255,12 +256,10 @@
             <artifactId>spring-restdocs-mockmvc</artifactId>
             <scope>test</scope>
         </dependency>
-
-
         <dependency>
             <groupId>org.apache.poi</groupId>
             <artifactId>poi-ooxml</artifactId>
-            <version>4.1.1</version>
+            <version>${poi.version}</version>
         </dependency>
     </dependencies>
 
