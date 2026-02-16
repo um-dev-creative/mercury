@@ -1,0 +1,149 @@
+@startuml secuencia-envio-email
+
+title Diagrama de Secuencia - Envío de Email con Plantilla Dinámica
+
+actor "Sistema\nExterno" as Client
+participant "MailController" as Controller
+participant "EmailServiceImpl" as EmailService
+participant "TemplateProcessorService" as Processor
+participant "TemplateRepository" as TemplateRepo
+participant "MessageRepository" as MessageRepo
+participant "JavaMailSender" as MailSender
+database "PostgreSQL" as DB
+
+== Recepción de Solicitud ==
+
+Client -> Controller: POST /api/v1/mail/send\n(SendEmailRequest)
+activate Controller
+
+Controller -> EmailService: sendMail(request)
+activate EmailService
+
+== Creación de Registro de Mensaje ==
+
+EmailService -> EmailService: createMessage(request)
+activate EmailService
+
+EmailService -> MessageRepo: save(message)
+activate MessageRepo
+MessageRepo -> DB: INSERT INTO messages
+MessageRepo --> EmailService: message (PENDING)
+deactivate MessageRepo
+
+deactivate EmailService
+
+== Procesamiento de Plantilla ==
+
+EmailService -> Processor: processTemplateByCode(templateId, params)
+activate Processor
+
+Processor -> TemplateRepo: findByCode(templateId)
+activate TemplateRepo
+TemplateRepo -> DB: SELECT * FROM templates
+TemplateRepo --> Processor: template
+deactivate TemplateRepo
+
+alt Plantilla Inactiva
+    Processor --> EmailService: TemplateInactiveException
+    EmailService -> MessageRepo: update(message, FAILED)
+    EmailService --> Controller: ResponseEntity.badRequest()
+    Controller --> Client: 400 Bad Request
+end
+
+Processor -> Processor: validateRequiredVariables(template, params)
+
+alt Variables Faltantes
+    Processor --> EmailService: MissingVariableException
+    EmailService -> MessageRepo: update(message, FAILED)
+    EmailService --> Controller: ResponseEntity.badRequest()
+    Controller --> Client: 400 Bad Request
+end
+
+Processor -> Processor: processTemplateContent(content, params)
+note right
+    Procesa la plantilla
+    FreeMarker con los
+    parámetros proporcionados
+end note
+
+Processor --> EmailService: processedBody (HTML)
+deactivate Processor
+
+== Actualización de Estado ==
+
+EmailService -> MessageRepo: update(message, PROCESSING, body)
+activate MessageRepo
+MessageRepo -> DB: UPDATE messages
+MessageRepo --> EmailService: message (PROCESSING)
+deactivate MessageRepo
+
+== Envío de Email ==
+
+EmailService -> EmailService: createMimeMessage(request, processedBody)
+activate EmailService
+EmailService --> EmailService: mimeMessage
+deactivate EmailService
+
+EmailService -> MailSender: send(mimeMessage)
+activate MailSender
+
+alt Envío Exitoso
+    MailSender -> MailSender: Conectar SMTP
+    MailSender -> MailSender: Enviar mensaje
+    MailSender --> EmailService: OK
+    
+    EmailService -> MessageRepo: update(message, SENT, sentAt)
+    activate MessageRepo
+    MessageRepo -> DB: UPDATE messages
+    MessageRepo -> DB: UPDATE message_recipients
+    MessageRepo --> EmailService: message (SENT)
+    deactivate MessageRepo
+    
+    EmailService -> MessageRepo: addDeliveryLog(INFO, "Email enviado")
+    activate MessageRepo
+    MessageRepo -> DB: INSERT INTO delivery_logs
+    deactivate MessageRepo
+    
+    EmailService --> Controller: ResponseEntity.ok(SendEmailResponse)
+    Controller --> Client: 200 OK\n(messageId, status, body)
+    
+else Error al Enviar
+    MailSender --> EmailService: MessagingException
+    
+    EmailService -> EmailService: handleMessageFailure(message, error)
+    activate EmailService
+    
+    EmailService -> MessageRepo: update(message, FAILED, errorMessage)
+    activate MessageRepo
+    MessageRepo -> DB: UPDATE messages
+    MessageRepo -> DB: UPDATE message_recipients (FAILED)
+    deactivate MessageRepo
+    
+    EmailService -> MessageRepo: addDeliveryLog(ERROR, "Error al enviar")
+    activate MessageRepo
+    MessageRepo -> DB: INSERT INTO delivery_logs
+    deactivate MessageRepo
+    
+    deactivate EmailService
+    
+    EmailService --> Controller: ResponseEntity.internalServerError()
+    Controller --> Client: 500 Internal Server Error
+end
+
+deactivate MailSender
+
+deactivate EmailService
+deactivate Controller
+
+== Logs y Auditoría ==
+
+note over MessageRepo, DB
+    Todos los eventos importantes
+    se registran en delivery_logs:
+    - Email enviado
+    - Error al procesar plantilla
+    - Error al enviar
+    - Reintentos
+end note
+
+@enduml
