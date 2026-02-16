@@ -1,18 +1,17 @@
 # Mercury
-## Qodana badges
-[![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
-## Sonar Cloud badges
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=umdevc-mercury)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+## Qodana and SonarCloud badges
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=umdc-mercury)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
 
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
 
 ## Technologies
 [![Java](https://img.shields.io/badge/Java-21-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
@@ -221,3 +220,5 @@ The repository does not contain a LICENSE file. Add one if you want to specify t
 More
 ----
 For development notes, CI, and architecture links see the original README content and the repository files.
+
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-light.svg)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
