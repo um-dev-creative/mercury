@@ -1,12 +1,10 @@
 package com.prx.mercury.jpa.sql.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import org.hibernate.annotations.ColumnDefault;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -16,6 +14,11 @@ public class CampaignMetricsEntity {
     @ColumnDefault("mercury.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
+
+    @NotNull
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "campaign_id", nullable = false)
+    private CampaignEntity campaign;
 
     @ColumnDefault("0")
     @Column(name = "total_sent")
@@ -47,7 +50,7 @@ public class CampaignMetricsEntity {
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "last_updated")
-    private Instant lastUpdated;
+    private LocalDateTime lastUpdated;
 
     public UUID getId() {
         return id;
@@ -55,6 +58,14 @@ public class CampaignMetricsEntity {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public CampaignEntity getCampaign() {
+        return campaign;
+    }
+
+    public void setCampaign(CampaignEntity campaign) {
+        this.campaign = campaign;
     }
 
     public Integer getTotalSent() {
@@ -113,11 +124,11 @@ public class CampaignMetricsEntity {
         this.unsubscribed = unsubscribed;
     }
 
-    public Instant getLastUpdated() {
+    public LocalDateTime getLastUpdated() {
         return lastUpdated;
     }
 
-    public void setLastUpdated(Instant lastUpdated) {
+    public void setLastUpdated(LocalDateTime lastUpdated) {
         this.lastUpdated = lastUpdated;
     }
 

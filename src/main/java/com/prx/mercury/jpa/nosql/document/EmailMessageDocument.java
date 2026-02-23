@@ -1,56 +1,48 @@
 package com.prx.mercury.jpa.nosql.document;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.prx.mercury.api.v1.to.EmailContact;
+import com.prx.mercury.constant.DeliveryStatusType;
+import jakarta.persistence.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Document(collection = "messages")
-public class EmailMessageDocument extends MessageDocument {
-    private List<EmailContact> to;
-    private List<EmailContact> cc;
-    private String from;
-    private String subject;
-    private String body;
+public record EmailMessageDocument(
+        @Id
+        String id,
+        UUID messageId,
+        UUID templateDefinedId,
+        UUID userId,
+        String from,
+        List<EmailContact> to,
+        List<EmailContact> cc,
+        String subject,
+        String body,
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        LocalDateTime sendDate,
+        Map<String, Object> params,
+        DeliveryStatusType deliveryStatus) {
 
-    public List<EmailContact> getTo() {
-        return to;
-    }
-
-    public void setTo(List<EmailContact> to) {
-        this.to = to;
-    }
-
-    public List<EmailContact> getCc() {
-        return cc;
-    }
-
-    public void setCc(List<EmailContact> cc) {
-        this.cc = cc;
-    }
-
-    public String getFrom() {
-        return from;
-    }
-
-    public void setFrom(String from) {
-        this.from = from;
-    }
-
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
-    public String getBody() {
-        return body;
-    }
-
-    public void setBody(String body) {
-        this.body = body;
+    @Override
+    public String toString() {
+        return "MessageValueDTO{" +
+                "id=" + id +
+                ", templateDefinedId=" + templateDefinedId +
+                ", userId=" + userId +
+                ", from='" + from + '\'' +
+                ", to='" + to + '\'' +
+                ", cc='" + cc + '\'' +
+                ", subject='" + subject + '\'' +
+                ", body='" + body + '\'' +
+                ", sendDate='" + sendDate + '\'' +
+                ", params='" + params + '\'' +
+                ", deliveryStatus='" + deliveryStatus + '\'' +
+                '}';
     }
 }
 

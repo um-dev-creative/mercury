@@ -19,6 +19,7 @@ public abstract class MessageDocument {
     private DeliveryStatusType deliveryStatus;
     private LocalDateTime sendDate;
     private Map<String, Object> params;
+    private UUID campaignId;
 
     public String getId() {
         return id;
@@ -74,5 +75,13 @@ public abstract class MessageDocument {
 
     public void setParams(Map<String, Object> params) {
         this.params = params;
+    }
+
+    public UUID getCampaignId() {
+        return campaignId;
+    }
+
+    public void setCampaignId(UUID campaignId) {
+        this.campaignId = campaignId;
     }
 }

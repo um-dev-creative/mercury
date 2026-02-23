@@ -7,7 +7,7 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -34,7 +34,7 @@ public class CampaignEntity {
     private UUID userId;
 
     @Column(name = "scheduled_at")
-    private Instant scheduledAt;
+    private LocalDateTime scheduledAt;
 
     @Size(max = 50)
     @ColumnDefault("'DRAFT'")
@@ -50,10 +50,10 @@ public class CampaignEntity {
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
-    private Instant createdAt;
+    private LocalDateTime createdAt;
 
     @Column(name = "completed_at")
-    private Instant completedAt;
+    private LocalDateTime completedAt;
 
     @Column(name = "created_by")
     private UUID createdBy;
@@ -95,11 +95,11 @@ public class CampaignEntity {
         this.userId = userId;
     }
 
-    public Instant getScheduledAt() {
+    public LocalDateTime getScheduledAt() {
         return scheduledAt;
     }
 
-    public void setScheduledAt(Instant scheduledAt) {
+    public void setScheduledAt(LocalDateTime scheduledAt) {
         this.scheduledAt = scheduledAt;
     }
 
@@ -127,19 +127,19 @@ public class CampaignEntity {
         this.batchSize = batchSize;
     }
 
-    public Instant getCreatedAt() {
+    public LocalDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(Instant createdAt) {
+    public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public Instant getCompletedAt() {
+    public LocalDateTime getCompletedAt() {
         return completedAt;
     }
 
-    public void setCompletedAt(Instant completedAt) {
+    public void setCompletedAt(LocalDateTime completedAt) {
         this.completedAt = completedAt;
     }
 

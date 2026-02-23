@@ -1,7 +1,10 @@
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.RecipientTO;
+import com.prx.mercury.jpa.nosql.document.MessageDocument;
+import com.prx.mercury.jpa.nosql.repository.MessageNSRepository;
 import com.prx.mercury.jpa.sql.entity.CampaignEntity;
 import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
 import com.prx.mercury.jpa.sql.repository.CampaignMetricsRepository;
@@ -11,6 +14,7 @@ import com.prx.mercury.mapper.CampaignMapper;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -72,7 +76,7 @@ public class CampaignServiceImpl {
         String topic = getTopicForChannelCode(channelType.getCode());
 
         for (RecipientTO recipient : request.recipients()) {
-            BaseMessageDocument message = createMessageForChannel(
+            MessageDocument message = createMessageForChannel(
                     channelType.getCode(),
                     campaign.getId(),
                     recipient,
@@ -91,14 +95,17 @@ public class CampaignServiceImpl {
         CampaignEntity campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
 
-        CampaignMetricsEntity metrics = metricsRepository.findByCampaignId(campaignId)
+        CampaignMetricsEntity metrics = metricsRepository.findByCampaign_Id(campaignId)
                 .orElseGet(() -> {
                     CampaignMetricsEntity newMetrics = new CampaignMetricsEntity();
                     newMetrics.setCampaign(campaign);
                     return newMetrics;
                 });
 
-        int pending = campaign.getTotalRecipients() - (metrics.getTotalSent() + metrics.getFailed());
+        int total = campaign.getTotalRecipients() != null ? campaign.getTotalRecipients() : 0;
+        int sent = metrics.getTotalSent() != null ? metrics.getTotalSent() : 0;
+        int failed = metrics.getFailed() != null ? metrics.getFailed() : 0;
+        int pending = total - (sent + failed);
 
         return new CampaignProgressTO(
                 campaign.getId(),
@@ -123,7 +130,7 @@ public class CampaignServiceImpl {
         return "mercury-" + channelCode + "-messages";
     }
 
-    private BaseMessageDocument createMessageForChannel(
+    private MessageDocument createMessageForChannel(
             String channelCode,
             UUID campaignId,
             RecipientTO recipient,
