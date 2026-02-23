@@ -20,6 +20,7 @@ public interface EmailMessageMapper {
     SendEmailRequest toSendEmailRequest(EmailMessageTO emailMessageTO);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "messageId", ignore = true)
     @Mapping(target = "to", source = "to")
     @Mapping(target = "cc", source = "cc")
     @Mapping(target = "from", source = "from")

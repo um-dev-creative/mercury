@@ -10,5 +10,5 @@ import java.util.UUID;
 @Repository
 public interface CampaignMetricsRepository extends JpaRepository<CampaignMetricsEntity, UUID> {
 
-    Optional<CampaignMetricsEntity> findByCampaignId(UUID campaignId);
+    Optional<CampaignMetricsEntity> findByCampaign_Id(UUID campaignId);
 }
