@@ -7,7 +7,7 @@ import com.prx.mercury.api.v1.to.TemplateTO;
 import com.prx.mercury.api.v1.to.TemplateTypeTO;
 import com.prx.mercury.api.v1.to.VerificationCodeTO;
 import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.mapper.MessageRecordMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

@@ -278,7 +278,7 @@ class VerificationCodeServiceImplTest {
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
         verify(verificationCodeRepository).saveAll(captor.capture());
         List<VerificationCodeEntity> saved = captor.getValue();
-        // only eligible entity should be in saved list
+        // only eligible document should be in saved list
         assertNotNull(saved);
         assertEquals(1, saved.size());
         VerificationCodeEntity savedEntity = saved.get(0);

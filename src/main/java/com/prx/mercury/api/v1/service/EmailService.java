@@ -4,7 +4,7 @@ import com.prx.mercury.api.v1.to.SendEmailRequest;
 import com.prx.mercury.api.v1.to.SendEmailResponse;
 import com.prx.mercury.api.v1.to.TemplateDefinedTO;
 import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 

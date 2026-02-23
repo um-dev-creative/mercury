@@ -1,6 +1,6 @@
 package com.prx.mercury.kafka.config;
 
-import com.prx.mercury.kafka.consumer.EmailMessageConsumerService;
+import com.prx.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.prx.mercury.kafka.to.EmailMessageTO;
 import io.jsonwebtoken.lang.Objects;
 import org.apache.kafka.clients.producer.ProducerConfig;

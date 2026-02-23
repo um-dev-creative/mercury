@@ -5,7 +5,7 @@ import com.prx.mercury.api.v1.to.EmailContact;
 import com.prx.mercury.api.v1.to.MessageRecordTO;
 import com.prx.mercury.api.v1.to.MessageStatusTypeTO;
 import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.jpa.sql.entity.MessageRecordEntity;
 import com.prx.mercury.jpa.sql.entity.MessageStatusTypeEntity;
 import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;

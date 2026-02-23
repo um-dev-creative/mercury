@@ -51,7 +51,7 @@ public class MailController implements MailApi {
      * This method handles POST requests to send an email. It consumes and produces JSON.
      * The request body is expected to be a {@link SendEmailRequest} containing email details.
      *
-     * @param requestMail the request entity containing the email details
+     * @param requestMail the request document containing the email details
      * @return a {@link ResponseEntity} with the result of the email sending operation
      */
     @Override

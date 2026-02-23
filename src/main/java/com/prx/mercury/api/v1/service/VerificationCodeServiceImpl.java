@@ -30,7 +30,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      * Constructs a new VerificationCodeServiceImpl with required dependencies.
      *
      * @param verificationCodeRepository Repository for verification code persistence operations
-     * @param verificationCodeMapper     Mapper for converting between entity and transfer objects
+     * @param verificationCodeMapper     Mapper for converting between document and transfer objects
      */
     public VerificationCodeServiceImpl(VerificationCodeRepository verificationCodeRepository, VerificationCodeMapper verificationCodeMapper) {
         this.verificationCodeRepository = verificationCodeRepository;
@@ -82,7 +82,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
 
     /**
      * Creates a new verification code entry.
-     * Maps the provided transfer object to an entity, persists it to the database,
+     * Maps the provided transfer object to an document, persists it to the database,
      * and returns the created code as a transfer object.
      *
      * @param verificationCodeTO The verification code transfer object to create

@@ -26,12 +26,12 @@ class MessageRecordMapperTest {
         }
 
         @Override
-        public MessageRecordEntity toMessageRecordEntity(com.prx.mercury.jpa.nosql.entity.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO, com.prx.mercury.api.v1.to.TemplateDefinedTO templateDefinedTO) {
+        public MessageRecordEntity toMessageRecordEntity(com.prx.mercury.jpa.nosql.document.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO, com.prx.mercury.api.v1.to.TemplateDefinedTO templateDefinedTO) {
             throw new UnsupportedOperationException("not implemented");
         }
 
         @Override
-        public MessageRecordTO toMessageRecordTO(com.prx.mercury.jpa.nosql.entity.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO) {
+        public MessageRecordTO toMessageRecordTO(com.prx.mercury.jpa.nosql.document.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO) {
             throw new UnsupportedOperationException("not implemented");
         }
     };

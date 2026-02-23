@@ -1,8 +1,8 @@
-package com.prx.mercury.kafka.consumer;
+package com.prx.mercury.kafka.consumer.service;
 
 import com.prx.commons.exception.StandardException;
 import com.prx.mercury.constant.MercuryMessage;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.kafka.to.EmailMessageTO;
 
 import java.util.List;

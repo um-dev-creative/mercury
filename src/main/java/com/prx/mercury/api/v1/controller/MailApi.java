@@ -28,7 +28,7 @@ public interface MailApi {
      * The request body is expected to be a {@link SendEmailRequest} containing email details.
      * The method returns a {@link ResponseEntity} with the result of the email sending operation.
      *
-     * @param requestMail the request entity containing the email details
+     * @param requestMail the request document containing the email details
      * @return a ResponseEntity with the result of the email sending operation
      */
     @Operation(description = "Send a email")

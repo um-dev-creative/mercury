@@ -25,7 +25,7 @@ public interface VerificationCodeApi {
     /**
      * Send verification code to user.
      *
-     * @param verificationCodeRequest the request entity containing the verification code details
+     * @param verificationCodeRequest the request document containing the verification code details
      * @return a ResponseEntity with the result of the verification code sending operation
      */
     @Operation(description = "Send verification code to user")

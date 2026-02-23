@@ -4,7 +4,7 @@ import com.prx.mercury.api.v1.to.EmailContact;
 import com.prx.mercury.api.v1.to.TemplateDefinedTO;
 import com.prx.mercury.api.v1.to.TemplateTO;
 import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.jpa.nosql.repository.EmailMessageNSRepository;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
