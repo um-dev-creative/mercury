@@ -13,14 +13,21 @@ public class TelegramChannelService implements ChannelService<TelegramMessageDoc
     private TelegramMessageDocument telegramMessageDocument;
     private TemplateDefinedTO templateDefinedTO;
 
+    public TelegramChannelService() {
+        //Default constructor
+    }
+
     @Override
     public TelegramMessageDocument send(TelegramMessageDocument message, TemplateDefinedTO template) {
+        this.telegramMessageDocument =message;
+        this.templateDefinedTO = template;
         return null;
     }
 
     @Override
     public void updateStatus(TelegramMessageDocument message) {
         // TODO document why this method is empty
+        this.telegramMessageDocument =message;
     }
 
     @Override

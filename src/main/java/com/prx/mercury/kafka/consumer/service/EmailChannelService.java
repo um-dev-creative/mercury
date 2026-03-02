@@ -10,6 +10,10 @@ import java.util.List;
 @Service
 public class EmailChannelService implements ChannelService<EmailMessageDocument> {
 
+    public EmailChannelService() {
+        // Default constructor
+    }
+
     @Override
     public EmailMessageDocument send(EmailMessageDocument message, TemplateDefinedTO template) {
         return null;

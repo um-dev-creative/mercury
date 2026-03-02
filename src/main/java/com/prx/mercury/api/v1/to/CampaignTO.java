@@ -22,20 +22,23 @@ public record CampaignTO(
         List<RecipientTO> recipients,
         Map<String, Object> templateParams,
         LocalDateTime scheduledAt,
-        Integer batchSize
+        @NotNull @NotBlank @NotEmpty
+        String status
 ) {
+
+    private static final String DEFAULT_STATUS = "DRAFT";
 
     public CampaignTO {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("Campaign name is required");
         }
 
-        // Valores por defecto
-        if (batchSize == null || batchSize <= 0) {
-            batchSize = 100;
-        }
         if (templateParams == null) {
             templateParams = Map.of();
+        }
+
+        if (status == null || status.isBlank()) {
+            status = DEFAULT_STATUS;
         }
     }
 

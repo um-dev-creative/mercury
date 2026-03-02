@@ -11,6 +11,7 @@ import java.util.UUID;
 @Table(name = "campaign_metrics", schema = "mercury")
 public class CampaignMetricsEntity {
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("mercury.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;

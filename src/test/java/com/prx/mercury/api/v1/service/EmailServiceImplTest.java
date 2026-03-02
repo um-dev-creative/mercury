@@ -73,6 +73,35 @@ class EmailServiceImplTest {
     }
 
     @Test
+    @DisplayName("Find by delivery status with ABORTED status")
+    void findByDeliveryStatusWithAbortedStatus() {
+        String id = UUID.randomUUID().toString();
+        UUID messageId = UUID.randomUUID();
+        UUID templateDefinedId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        String from = "test@example.com";
+        List<EmailContact> to = List.of(new EmailContact("to@example.com", "To Name", "To Type"));
+        List<EmailContact> cc = List.of(new EmailContact("cc@example.com", "Cc Name", "Cc Type"));
+        String subject = "Test Subject";
+        String body = "Test Body";
+        LocalDateTime sendDate = LocalDateTime.now();
+        Map<String, Object> params = Map.of("key", "value");
+        DeliveryStatusType deliveryStatus = DeliveryStatusType.ABORTED;
+
+        EmailMessageDocument emailMessageDocument = new EmailMessageDocument(
+                id, messageId, templateDefinedId, userId, from, to, cc, subject, body, sendDate, params, deliveryStatus
+        );
+        List<EmailMessageDocument> expectedDocuments = List.of(emailMessageDocument);
+
+        when(emailMessageNSRepository.findByDeliveryStatus(any(DeliveryStatusType.class))).thenReturn(expectedDocuments);
+
+        List<EmailMessageDocument> result = emailServiceImpl.findByDeliveryStatus(deliveryStatus);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
     @DisplayName("Find by delivery status with null status")
     void findByDeliveryStatusWithNullStatus() {
         assertThrows(IllegalArgumentException.class, () -> emailServiceImpl.findByDeliveryStatus(null));

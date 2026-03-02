@@ -1,39 +1,23 @@
 // src/main/java/com/prx/mercury/api/v1/service/ChannelTypeService.java
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.ChannelTypeTO;
-import org.springframework.http.HttpStatus;
+import com.prx.mercury.api.v1.to.CampaignProgressTO;
+import com.prx.mercury.api.v1.to.CampaignTO;
 
-import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
-public interface ChannelTypeService {
+public interface CampaignService {
 
-    default List<ChannelTypeTO> findAll() {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
+    String PARSE_MODE_KEY = "parseMode";
+    String SENDER_ID_KEY = "senderId";
+    String MESSAGE_KEY = "message";
+    String SUBJECT_KEY = "subject";
+    String BODY_KEY = "body";
+    String FROM_KEY = "from";
 
-    default List<ChannelTypeTO> findEnabled() {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
+    CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request);
 
-    default ChannelTypeTO findByCode(String code) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
+    CampaignProgressTO getProgress(UUID campaignId);
 
-    default ChannelTypeTO findById(UUID id) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default ChannelTypeTO create(ChannelTypeTO channelTypeTO) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default ChannelTypeTO update(UUID id, ChannelTypeTO channelTypeTO) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
-
-    default void toggleEnabled(UUID id, boolean enabled) {
-        throw new UnsupportedOperationException(HttpStatus.NOT_IMPLEMENTED.getReasonPhrase());
-    }
 }

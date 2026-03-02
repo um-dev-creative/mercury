@@ -3,140 +3,123 @@ package com.prx.mercury.api.v1.service;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.RecipientTO;
-import com.prx.mercury.jpa.nosql.document.MessageDocument;
-import com.prx.mercury.jpa.nosql.repository.MessageNSRepository;
 import com.prx.mercury.jpa.sql.entity.CampaignEntity;
 import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
 import com.prx.mercury.jpa.sql.repository.CampaignMetricsRepository;
 import com.prx.mercury.jpa.sql.repository.CampaignRepository;
 import com.prx.mercury.jpa.sql.repository.ChannelTypeRepository;
+import com.prx.mercury.jpa.sql.repository.TemplateDefinedRepository;
 import com.prx.mercury.mapper.CampaignMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 @Service
-public class CampaignServiceImpl {
+public class CampaignServiceImpl implements CampaignService {
+
+    private static final Logger logger = LoggerFactory.getLogger(CampaignServiceImpl.class);
+    private static final int DEFAULT_BATCH_SIZE = 100;
+    private static final String DEFAULT_STATUS = "DRAFT";
 
     private final CampaignRepository campaignRepository;
     private final CampaignMetricsRepository metricsRepository;
     private final ChannelTypeRepository channelTypeRepository;
-    private final MessageNSRepository messageRepository;
+    private final TemplateDefinedRepository templateDefinedRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final CampaignMapper campaignMapper;
+    private final CampaignProgressService campaignProgressService;
+    private final CampaignMessageFactory messageFactory;
 
     public CampaignServiceImpl(
             CampaignRepository campaignRepository,
             CampaignMetricsRepository metricsRepository,
             ChannelTypeRepository channelTypeRepository,
-            MessageNSRepository messageRepository,
+            TemplateDefinedRepository templateDefinedRepository,
             KafkaTemplate<String, Object> kafkaTemplate,
-            CampaignMapper campaignMapper) {
+            CampaignMapper campaignMapper,
+            CampaignProgressService campaignProgressService,
+            CampaignMessageFactory messageFactory) {
         this.campaignRepository = campaignRepository;
         this.metricsRepository = metricsRepository;
         this.channelTypeRepository = channelTypeRepository;
-        this.messageRepository = messageRepository;
+        this.templateDefinedRepository = templateDefinedRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.campaignMapper = campaignMapper;
+        this.campaignProgressService = campaignProgressService;
+        this.messageFactory = messageFactory;
     }
 
     @Async
-    public CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request) {
-        // 1. Validar que el canal existe y está habilitado
-        var channelType = channelTypeRepository.findByCode(request.channelTypeCode())
-                .orElseThrow(() -> new IllegalArgumentException("Channel type not found: " + request.channelTypeCode()));
+    @Override
+    public CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO campaignTO) {
+        validateRecipients(campaignTO);
 
-        if (!channelType.getEnabled()) {
+        // 1. Validate channel exists and is enabled
+        var channelType = channelTypeRepository.findByCode(campaignTO.channelTypeCode())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Channel type not found: " + campaignTO.channelTypeCode()));
+
+        if (Objects.isNull(channelType.getEnabled()) || Boolean.FALSE.equals(channelType.getEnabled())) {
             throw new IllegalStateException("Channel type is disabled: " + channelType.getName());
         }
 
-        // 2. Crear campaña
-        CampaignEntity campaign = new CampaignEntity();
-        campaign.setName(request.name());
-        campaign.setChannelType(channelType);
-        campaign.setUserId(request.userId());
-        campaign.setStatus("IN_PROGRESS");
-        campaign.setTotalRecipients(request.recipients().size());
-        campaign.setBatchSize(request.batchSize() != null ? request.batchSize() : 100);
-        campaign.setCreatedAt(LocalDateTime.now());
-        campaignRepository.save(campaign);
+        var templateDefined = templateDefinedRepository.findById(campaignTO.templateId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Template not found: " + campaignTO.templateId()));
 
-        // 3. Crear registro de métricas inicial
+        // 2. Persist campaign
+        LocalDateTime now = LocalDateTime.now();
+        CampaignEntity campaign = campaignMapper.toCampaignEntity(
+                campaignTO, channelType, templateDefined,
+                DEFAULT_BATCH_SIZE, resolveStatus(campaignTO.status()), now,
+                campaignTO.recipients().size());
+        campaign = campaignRepository.save(campaign);
+
+        // 3. Create initial metrics record
         CampaignMetricsEntity metrics = new CampaignMetricsEntity();
         metrics.setCampaign(campaign);
         metricsRepository.save(metrics);
 
-        // 4. Procesar mensajes y publicar en Kafka
-        String topic = getTopicForChannelCode(channelType.getCode());
+        // 4. Build and publish per-recipient Kafka messages
+        String topic = messageFactory.topicFor(channelType.getCode());
+        UUID campaignId = campaign.getId();
 
-        for (RecipientTO recipient : request.recipients()) {
-            MessageDocument message = createMessageForChannel(
+        for (RecipientTO recipient : campaignTO.recipients()) {
+            Object message = messageFactory.createMessage(
                     channelType.getCode(),
-                    campaign.getId(),
+                    campaignId,
                     recipient,
-                    request.templateParams(),
-                    request.templateId()
-            );
-
+                    campaignTO.templateParams(),
+                    campaignTO.templateId());
             kafkaTemplate.send(topic, message);
         }
 
-        return CompletableFuture.completedFuture(getProgress(campaign.getId()));
+        return CompletableFuture.completedFuture(campaignProgressService.getProgress(campaignId));
     }
 
-    @Transactional(readOnly = true)
+    @Override
     public CampaignProgressTO getProgress(UUID campaignId) {
-        CampaignEntity campaign = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
-
-        CampaignMetricsEntity metrics = metricsRepository.findByCampaign_Id(campaignId)
-                .orElseGet(() -> {
-                    CampaignMetricsEntity newMetrics = new CampaignMetricsEntity();
-                    newMetrics.setCampaign(campaign);
-                    return newMetrics;
-                });
-
-        int total = campaign.getTotalRecipients() != null ? campaign.getTotalRecipients() : 0;
-        int sent = metrics.getTotalSent() != null ? metrics.getTotalSent() : 0;
-        int failed = metrics.getFailed() != null ? metrics.getFailed() : 0;
-        int pending = total - (sent + failed);
-
-        return new CampaignProgressTO(
-                campaign.getId(),
-                campaign.getName(),
-                campaignMapper.toChannelTypeTO(campaign.getChannelType()),
-                campaign.getTotalRecipients(),
-                metrics.getTotalSent(),
-                metrics.getDelivered(),
-                metrics.getFailed(),
-                pending,
-                metrics.getOpened(),
-                metrics.getClicked(),
-                0.0, // se calcula en el constructor del record
-                0.0,
-                campaign.getCreatedAt(),
-                metrics.getLastUpdated(),
-                campaign.getStatus()
-        );
+        return campaignProgressService.getProgress(campaignId);
     }
 
-    private String getTopicForChannelCode(String channelCode) {
-        return "mercury-" + channelCode + "-messages";
+    // ── helpers ───────────────────────────────────────────────────────────────
+
+    private void validateRecipients(CampaignTO campaignTO) {
+        if (campaignTO.recipients() == null || campaignTO.recipients().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "At least one recipient is required to create a campaign");
+        }
     }
 
-    private MessageDocument createMessageForChannel(
-            String channelCode,
-            UUID campaignId,
-            RecipientTO recipient,
-            Map<String, Object> params,
-            UUID templateId) {
-        // Implementar factory pattern para crear mensajes según canal
-        return null; // TODO: implementar
+    private String resolveStatus(String status) {
+        return status == null || status.isBlank() ? DEFAULT_STATUS : status;
     }
+
 }

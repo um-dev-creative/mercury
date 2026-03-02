@@ -9,14 +9,23 @@ import java.util.List;
 
 @Service
 public class SmsChannelService implements ChannelService<SmsMessageDocument> {
+
+    private SmsMessageDocument  smsMessageDocument;
+    private TemplateDefinedTO templateDefinedTO;
+
+    public SmsChannelService() {
+        // Default constructor
+    }
     @Override
     public SmsMessageDocument send(SmsMessageDocument message, TemplateDefinedTO template) {
+        this.smsMessageDocument =message;
+        this.templateDefinedTO = template;
         return null;
     }
 
     @Override
     public void updateStatus(SmsMessageDocument message) {
-        // TODO document why this method is empty
+        this.smsMessageDocument =message;
     }
 
     @Override

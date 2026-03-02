@@ -13,7 +13,7 @@ import java.util.UUID;
 @Repository
 public interface CampaignRepository extends JpaRepository<CampaignEntity, UUID> {
 
-    Page<CampaignEntity> findByUserId(UUID userId, Pageable pageable);
+//    Page<CampaignEntity> findByUserId(UUID userId, Pageable pageable);
 
     Page<CampaignEntity> findByChannelType(ChannelTypeEntity channelType, Pageable pageable);
 

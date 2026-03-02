@@ -15,7 +15,8 @@ import java.util.UUID;
 @Table(name = "campaigns", schema = "mercury")
 public class CampaignEntity {
     @Id
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
@@ -30,8 +31,9 @@ public class CampaignEntity {
     private ChannelTypeEntity channelType;
 
     @NotNull
-    @Column(name = "user_id", nullable = false)
-    private UUID userId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "template_defined_id", nullable = false)
+    private TemplateDefinedEntity templateDefined;
 
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
@@ -48,7 +50,6 @@ public class CampaignEntity {
     @Column(name = "batch_size")
     private Integer batchSize;
 
-    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -58,10 +59,19 @@ public class CampaignEntity {
     @Column(name = "created_by")
     private UUID createdBy;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "updated_by")
+    private UUID updatedBy;
+
     @ColumnDefault("'{}'")
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata")
     private Map<String, Object> metadata;
+
+    @Column(name = "application_id")
+    private UUID applicationId;
 
     public UUID getId() {
         return id;
@@ -87,12 +97,12 @@ public class CampaignEntity {
         this.channelType = channelType;
     }
 
-    public UUID getUserId() {
-        return userId;
+    public TemplateDefinedEntity getTemplateDefined() {
+        return templateDefined;
     }
 
-    public void setUserId(UUID userId) {
-        this.userId = userId;
+    public void setTemplateDefined(TemplateDefinedEntity templateDefined) {
+        this.templateDefined = templateDefined;
     }
 
     public LocalDateTime getScheduledAt() {
@@ -135,6 +145,14 @@ public class CampaignEntity {
         this.createdAt = createdAt;
     }
 
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public UUID getUpdatedBy() {
+        return updatedBy;
+    }
+
     public LocalDateTime getCompletedAt() {
         return completedAt;
     }
@@ -151,6 +169,14 @@ public class CampaignEntity {
         this.createdBy = createdBy;
     }
 
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setUpdatedBy(UUID updatedBy) {
+        this.updatedBy = updatedBy;
+    }
+
     public Map<String, Object> getMetadata() {
         return metadata;
     }
@@ -159,4 +185,11 @@ public class CampaignEntity {
         this.metadata = metadata;
     }
 
+    public UUID getApplicationId() {
+        return applicationId;
+    }
+
+    public void setApplicationId(UUID applicationId) {
+        this.applicationId = applicationId;
+    }
 }
