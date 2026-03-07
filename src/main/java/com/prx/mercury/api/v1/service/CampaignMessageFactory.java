@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,18 +32,29 @@ public class CampaignMessageFactory {
     private static final Logger logger = LoggerFactory.getLogger(CampaignMessageFactory.class);
     private static final String USER_ID_KEY = "userId";
 
+    /** Pre-computed Kafka topic names keyed by channel type – zero allocation per call. */
+    private static final Map<ChannelType, String> TOPIC_CACHE;
+
+    static {
+        TOPIC_CACHE = new EnumMap<>(ChannelType.class);
+        for (ChannelType type : ChannelType.values()) {
+            TOPIC_CACHE.put(type, "mercury-" + type.getCode() + "-messages");
+        }
+    }
+
     public CampaignMessageFactory() {
         //default constructor
     }
 
     /**
      * Returns the Kafka topic name for the given channel code.
+     * Topic names are pre-computed at class-load time (zero allocation per call).
      *
      * @param channelCode the channel code (e.g. "email", "sms")
      * @return fully-qualified topic name
      */
     public String topicFor(String channelCode) {
-        return "mercury-" + channelCode + "-messages";
+        return TOPIC_CACHE.get(ChannelType.fromCode(channelCode));
     }
 
     /**

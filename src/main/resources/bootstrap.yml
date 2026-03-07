@@ -49,6 +49,11 @@ prx:
     code:
       template:
         id: ${PRX_VERIFICATION_CODE_TEMPLATE_ID}  # Verification code template ID
+  scheduler:
+    send-email:
+      fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
+    save-message-processed:
+      fixed-rate: ${PRX_SCHEDULER_SAVE_MESSAGE_RATE:300000}     # Rate for persisting sent messages (ms); default 5 min
   bootstrap:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server

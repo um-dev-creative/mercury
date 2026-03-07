@@ -2,7 +2,6 @@ package com.prx.mercury.api.v1.service;
 
 import com.prx.mercury.api.v1.to.VerificationCodeRequest;
 import com.prx.mercury.api.v1.to.VerificationCodeTO;
-import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
 import com.prx.mercury.jpa.sql.repository.VerificationCodeRepository;
 import com.prx.mercury.mapper.VerificationCodeMapper;
 import org.slf4j.Logger;
@@ -57,6 +56,10 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
                     .header("message", "No valid verification code found for the user and application")
                     .build();
         }
+
+        // Single-pass: mutate each qualifying entity and track whether any was verified,
+        // eliminating the redundant second stream().filter().findFirst() pass.
+        final boolean[] anyVerified = {false};
         var collectionResult = verificationCodeEntityOptional.stream()
                 .filter(verificationCodeEntity ->
                         !verificationCodeEntity.getIsVerified()
@@ -68,6 +71,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
                     if (verificationCodeEntity.getVerificationCode().equals(verificationCodeRequest.code())) {
                         verificationCodeEntity.setIsVerified(true);
                         verificationCodeEntity.setVerifiedAt(LocalDateTime.now());
+                        anyVerified[0] = true;
                         logger.debug("Verification code confirmed: {}", verificationCodeEntity);
                     }
                     return verificationCodeEntity;
@@ -75,9 +79,9 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
 
         verificationCodeRepository.saveAll(collectionResult);
 
-        var result = collectionResult.stream().filter(VerificationCodeEntity::getIsVerified).findFirst();
-        return result.isPresent() ? ResponseEntity.status(HttpStatus.ACCEPTED).build() :
-                ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+        return anyVerified[0]
+                ? ResponseEntity.status(HttpStatus.ACCEPTED).build()
+                : ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }
 
     /**
