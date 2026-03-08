@@ -12,7 +12,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,11 +48,11 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public ResponseEntity<AuthResponse> token(AuthRequest authRequest) {
-        if (Objects.isNull(authRequest.alias()) || authRequest.alias().isBlank()) {
+        if (authRequest.alias().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.alias(), new ConcurrentHashMap<>()));
-        if (Objects.isNull(authResponse) || authResponse.token().isBlank()) {
+        if (authResponse.token().isBlank()) {
             return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
         }
         return ResponseEntity.ok(authResponse);
