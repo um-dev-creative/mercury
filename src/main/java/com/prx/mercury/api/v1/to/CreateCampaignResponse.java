@@ -1,5 +1,8 @@
 package com.prx.mercury.api.v1.to;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.prx.commons.util.DateUtil;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,7 +22,9 @@ public record CreateCampaignResponse(
         String name,
         String status,
         Integer totalRecipients,
+        @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime createdAt,
+        @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime scheduledAt
 ) {
 }

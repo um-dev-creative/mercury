@@ -51,7 +51,8 @@ public class CampaignController implements CampaignApi {
                 request.recipients(),
                 request.templateParams(),
                 request.scheduledAt(),
-                request.status()
+                request.status(),
+                request.applicationId()
         );
 
         CampaignProgressTO progress = campaignService.createCampaign(campaignTO).join();

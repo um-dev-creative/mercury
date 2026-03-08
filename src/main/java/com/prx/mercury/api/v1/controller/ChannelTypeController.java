@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/v1/messaging")
+@RequestMapping("/api/v1/channel-types")
 public class ChannelTypeController implements ChannelTypeApi {
 
     private final ChannelTypeService channelTypeService;

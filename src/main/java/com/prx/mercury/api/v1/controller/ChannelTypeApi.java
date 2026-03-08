@@ -12,34 +12,34 @@ import java.util.UUID;
 @Tag(name = "channel-types", description = "Channel Type Management API")
 public interface ChannelTypeApi {
     @Operation(description = "Get all channel types")
-    @GetMapping("/channel-types")
+    @GetMapping()
     ResponseEntity<List<ChannelTypeTO>> getAllChannelTypes();
 
     @Operation(description = "Get enabled channel types only")
-    @GetMapping("/channel-types/enabled")
+    @GetMapping("/enabled")
     ResponseEntity<List<ChannelTypeTO>> getEnabledChannelTypes();
 
     @Operation(description = "Get channel type by code")
-    @GetMapping("/channel-types/code/{code}")
+    @GetMapping("/code/{code}")
     ResponseEntity<ChannelTypeTO> getChannelTypeByCode(@PathVariable String code);
 
     @Operation(description = "Get channel type by ID")
-    @GetMapping("/channel-types/{id}")
+    @GetMapping("/{id}")
     ResponseEntity<ChannelTypeTO> getChannelTypeById(@PathVariable UUID id);
 
     @Operation(description = "Create new channel type")
-    @PostMapping("/channel-types")
+    @PostMapping()
     ResponseEntity<ChannelTypeTO> createChannelType(@RequestBody ChannelTypeTO channelTypeTO);
 
     @Operation(description = "Update channel type")
-    @PutMapping("/channel-types/{id}")
+    @PutMapping("/{id}")
     ResponseEntity<ChannelTypeTO> updateChannelType(
             @PathVariable UUID id,
             @RequestBody ChannelTypeTO channelTypeTO
     );
 
     @Operation(description = "Enable/Disable channel type")
-    @PatchMapping("/channel-types/{id}/toggle")
+    @PatchMapping("/{id}/toggle")
     ResponseEntity<Void> toggleChannelType(
             @PathVariable UUID id,
             @RequestParam boolean enabled

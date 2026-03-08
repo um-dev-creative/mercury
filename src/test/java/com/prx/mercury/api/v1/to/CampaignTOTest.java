@@ -27,7 +27,7 @@ class CampaignTOTest {
 
         CampaignTO to = new CampaignTO(
                 "My Campaign", "email", TEMPLATE_ID, USER_ID,
-                recipients(), params, scheduledAt, "DRAFT"
+                recipients(), params, scheduledAt, "DRAFT", UUID.randomUUID()
         );
 
         assertEquals("My Campaign", to.name());
@@ -44,20 +44,20 @@ class CampaignTOTest {
     @DisplayName("Create CampaignTO with null name throws IllegalArgumentException")
     void createWithNullNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> new CampaignTO(null, "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT"));
+                () -> new CampaignTO(null, "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID()));
     }
 
     @Test
     @DisplayName("Create CampaignTO with blank name throws IllegalArgumentException")
     void createWithBlankNameThrows() {
         assertThrows(IllegalArgumentException.class,
-                () -> new CampaignTO("  ", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT"));
+                () -> new CampaignTO("  ", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID()));
     }
 
     @Test
     @DisplayName("Create CampaignTO with null templateParams defaults to empty map")
     void createWithNullTemplateParamsDefaultsToEmptyMap() {
-        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT");
+        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID());
         assertNotNull(to.templateParams());
         assertTrue(to.templateParams().isEmpty());
     }
@@ -66,7 +66,7 @@ class CampaignTOTest {
     @DisplayName("isScheduled returns true for future scheduledAt")
     void isScheduledReturnsTrueForFutureDate() {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(),
-                null, LocalDateTime.now().plusHours(1), "DRAFT");
+                null, LocalDateTime.now().plusHours(1), "DRAFT", UUID.randomUUID());
         assertTrue(to.isScheduled());
     }
 
@@ -74,21 +74,21 @@ class CampaignTOTest {
     @DisplayName("isScheduled returns false for past scheduledAt")
     void isScheduledReturnsFalseForPastDate() {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(),
-                null, LocalDateTime.now().minusHours(1), "DRAFT");
+                null, LocalDateTime.now().minusHours(1), "DRAFT", UUID.randomUUID());
         assertFalse(to.isScheduled());
     }
 
     @Test
     @DisplayName("isScheduled returns false when scheduledAt is null")
     void isScheduledReturnsFalseWhenNull() {
-        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT");
+        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID());
         assertFalse(to.isScheduled());
     }
 
     @Test
     @DisplayName("Blank status defaults to DRAFT")
     void blankStatusDefaultsToDraft() {
-        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, " ");
+        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, " ", UUID.randomUUID());
         assertEquals("DRAFT", to.status());
     }
 }

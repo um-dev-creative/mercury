@@ -33,6 +33,7 @@ public interface CampaignMapper {
     @Mapping(target = "totalRecipients", source = "totalRecipients")
     @Mapping(target = "updatedBy", source = "campaignTO.userId")
     @Mapping(target = "scheduledAt", source = "campaignTO.scheduledAt")
+    @Mapping(target = "applicationId", source = "campaignTO.applicationId")
     @Mapping(target = "metadata", expression = "java(buildMetadataDocument(campaignTO, channelType, batchSize, status, now, totalRecipients))")
     CampaignEntity toCampaignEntity(CampaignTO campaignTO, ChannelTypeEntity channelType, TemplateDefinedEntity templateDefined,
                                     int batchSize, String status, LocalDateTime now, int totalRecipients);

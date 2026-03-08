@@ -1,5 +1,7 @@
 package com.prx.mercury.jpa.sql.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.prx.commons.util.DateUtil;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -67,6 +69,7 @@ public class CampaignEntity {
 
     @ColumnDefault("'{}'")
     @JdbcTypeCode(SqlTypes.JSON)
+    @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
     @Column(name = "metadata")
     private Map<String, Object> metadata;
 

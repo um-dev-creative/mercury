@@ -98,7 +98,7 @@ class CampaignServiceImplTest {
     private CampaignTO makeCampaignTO() {
         List<RecipientTO> recipients = List.of(new RecipientTO("user@example.com", "User", Map.of()));
         return new CampaignTO("Test Campaign", "email", UUID.randomUUID(), UUID.randomUUID(),
-                recipients, Map.of("from", "no-reply@x"), null, "DRAFT");
+                recipients, Map.of("from", "no-reply@x"), null, "DRAFT", UUID.randomUUID());
     }
 
     private void mockCampaignPersistence(UUID campaignId) {
@@ -188,7 +188,7 @@ class CampaignServiceImplTest {
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
 
             CampaignTO smsTo = new CampaignTO("SMS Campaign", "sms", UUID.randomUUID(), UUID.randomUUID(),
-                    List.of(new RecipientTO("+15551234567", "Name", Map.of())), Map.of(), null, "DRAFT");
+                    List.of(new RecipientTO("+15551234567", "Name", Map.of())), Map.of(), null, "DRAFT", UUID.randomUUID());
 
             CampaignProgressTO result = campaignServiceImpl.createCampaign(smsTo).get();
 
@@ -217,7 +217,7 @@ class CampaignServiceImplTest {
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
 
             CampaignTO tgTo = new CampaignTO("TG Campaign", "telegram", UUID.randomUUID(), UUID.randomUUID(),
-                    List.of(new RecipientTO("123456789", "TG User", Map.of())), Map.of(), null, "DRAFT");
+                    List.of(new RecipientTO("123456789", "TG User", Map.of())), Map.of(), null, "DRAFT", UUID.randomUUID());
 
             CampaignProgressTO result = campaignServiceImpl.createCampaign(tgTo).get();
 
@@ -247,7 +247,7 @@ class CampaignServiceImplTest {
 
             CampaignTO waTo = new CampaignTO("WA Campaign", "whatsapp", UUID.randomUUID(), UUID.randomUUID(),
                     List.of(new RecipientTO("+525512345678", "WA User", Map.of())),
-                    Map.of(CampaignService.MESSAGE_KEY, "Hello WA"), null, "DRAFT");
+                    Map.of(CampaignService.MESSAGE_KEY, "Hello WA"), null, "DRAFT", UUID.randomUUID());
 
             CampaignProgressTO result = campaignServiceImpl.createCampaign(waTo).get();
 
@@ -283,7 +283,7 @@ class CampaignServiceImplTest {
             CampaignTO pushTo = new CampaignTO("Push Campaign", "push", UUID.randomUUID(), UUID.randomUUID(),
                     List.of(new RecipientTO("device-token-abc", "Push User", Map.of())),
                     Map.of("title", "Hi", CampaignService.MESSAGE_KEY, "Hello Push", "platform", "android"),
-                    null, "DRAFT");
+                    null, "DRAFT", UUID.randomUUID());
 
             CampaignProgressTO result = campaignServiceImpl.createCampaign(pushTo).get();
 
