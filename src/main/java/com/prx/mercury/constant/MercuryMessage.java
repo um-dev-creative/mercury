@@ -9,7 +9,8 @@ public enum MercuryMessage implements MessageType {
     /**
      * Returned when a requested operation is not implemented (HTTP 501).
      */
-    METHOD_NOT_IMPLEMENTED(501, "Method not implemented");
+    METHOD_NOT_IMPLEMENTED(501, "Method not implemented"),
+    RUNTIME_EXCEPTION(500, "Internal server error");
 
     /**
      * Numeric status code.

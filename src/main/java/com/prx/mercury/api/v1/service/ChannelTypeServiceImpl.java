@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class ChannelTypeServiceImpl implements ChannelTypeService {
@@ -29,7 +28,7 @@ public class ChannelTypeServiceImpl implements ChannelTypeService {
     public List<ChannelTypeTO> findAll() {
         return channelTypeRepository.findAll().stream()
                 .map(channelTypeMapper::toChannelTypeTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -37,7 +36,7 @@ public class ChannelTypeServiceImpl implements ChannelTypeService {
     public List<ChannelTypeTO> findEnabled() {
         return channelTypeRepository.findByEnabledTrueAndActiveTrue().stream()
                 .map(channelTypeMapper::toChannelTypeTO)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override

@@ -59,20 +59,32 @@ public class CampaignServiceImpl implements CampaignService {
     @Async
     @Override
     public CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO campaignTO) {
+        logger.info("Creating campaign. name={}, channelTypeCode={}, templateId={}, userId={}",
+                campaignTO.name(), campaignTO.channelTypeCode(), campaignTO.templateId(), campaignTO.userId());
+
         validateRecipients(campaignTO);
 
         // 1. Validate channel exists and is enabled
         var channelType = channelTypeRepository.findByCode(campaignTO.channelTypeCode())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Channel type not found: " + campaignTO.channelTypeCode()));
+                .orElseThrow(() -> {
+                    logger.warn("Channel type not found. channelTypeCode={}", campaignTO.channelTypeCode());
+                    return new IllegalArgumentException("Channel type not found: " + campaignTO.channelTypeCode());
+                });
+
+        logger.debug("Resolved channel type. code={}, enabled={}", channelType.getCode(), channelType.getEnabled());
 
         if (Objects.isNull(channelType.getEnabled()) || Boolean.FALSE.equals(channelType.getEnabled())) {
+            logger.warn("Channel type is disabled. code={}, name={}", channelType.getCode(), channelType.getName());
             throw new IllegalStateException("Channel type is disabled: " + channelType.getName());
         }
 
         var templateDefined = templateDefinedRepository.findById(campaignTO.templateId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Template not found: " + campaignTO.templateId()));
+                .orElseThrow(() -> {
+                    logger.warn("Template not found. templateId={}", campaignTO.templateId());
+                    return new IllegalArgumentException("Template not found: " + campaignTO.templateId());
+                });
+
+        logger.debug("Resolved template. templateId={}", templateDefined.getId());
 
         // 2. Persist campaign
         LocalDateTime now = LocalDateTime.now();
@@ -82,6 +94,8 @@ public class CampaignServiceImpl implements CampaignService {
                 campaignTO.recipients().size());
         campaign = campaignRepository.save(campaign);
 
+        logger.info("Saved campaign. id={}, name={}", campaign.getId(), campaign.getName());
+
         // 3. Create initial metrics record
         CampaignMetricsEntity metrics = new CampaignMetricsEntity();
         metrics.setCampaign(campaign);
@@ -90,6 +104,9 @@ public class CampaignServiceImpl implements CampaignService {
         // 4. Build and publish per-recipient Kafka messages
         String topic = messageFactory.topicFor(channelType.getCode());
         UUID campaignId = campaign.getId();
+
+        logger.debug("Publishing campaign messages. campaignId={}, topic={}, recipients={}",
+                campaignId, topic, campaignTO.recipients().size());
 
         for (RecipientTO recipient : campaignTO.recipients()) {
             Object message = messageFactory.createMessage(
@@ -101,11 +118,13 @@ public class CampaignServiceImpl implements CampaignService {
             kafkaTemplate.send(topic, message);
         }
 
+        logger.info("Campaign created successfully. campaignId={}, status={}", campaignId, campaign.getStatus());
         return CompletableFuture.completedFuture(campaignProgressService.getProgress(campaignId));
     }
 
     @Override
     public CampaignProgressTO getProgress(UUID campaignId) {
+        logger.debug("Fetching campaign progress. campaignId={}", campaignId);
         return campaignProgressService.getProgress(campaignId);
     }
 
@@ -113,13 +132,18 @@ public class CampaignServiceImpl implements CampaignService {
 
     private void validateRecipients(CampaignTO campaignTO) {
         if (campaignTO.recipients() == null || campaignTO.recipients().isEmpty()) {
+            logger.warn("Campaign creation failed due to missing recipients. name={}, channelTypeCode={}",
+                    campaignTO.name(), campaignTO.channelTypeCode());
             throw new IllegalArgumentException(
                     "At least one recipient is required to create a campaign");
         }
+        logger.debug("Recipients validated. count={}", campaignTO.recipients().size());
     }
 
     private String resolveStatus(String status) {
-        return status == null || status.isBlank() ? DEFAULT_STATUS : status;
+        String resolvedStatus = status == null || status.isBlank() ? DEFAULT_STATUS : status;
+        logger.debug("Resolved campaign status. inputStatus={}, resolvedStatus={}", status, resolvedStatus);
+        return resolvedStatus;
     }
 
 }
