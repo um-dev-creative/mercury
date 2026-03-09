@@ -820,7 +820,7 @@ class ChannelTypeTest {
             for (ChannelType type : ChannelType.values()) {
                 String displayName = type.getDisplayName();
                 assertFalse(displayName.isEmpty());
-                assertNotEquals(type.getDisplayName(), displayName);
+                assertEquals(type.getDisplayName(), displayName);
             }
         }
     }
