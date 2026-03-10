@@ -27,9 +27,9 @@ public class SendEmailScheduler {
 
     /**
      * Scheduled task that triggers email sending process.
-     * Executes at a fixed rate of every 60 seconds (60,000 milliseconds).
+     * Rate is controlled by {@code prx.scheduler.send-email.fixed-rate} (default 60 000 ms).
      */
-    @Scheduled(fixedRate = 1500)
+    @Scheduled(fixedRateString = "${prx.scheduler.send-email.fixed-rate:60000}")
     public void sendEmail() {
         logger.debug("Initiating email sending task...");
         messageProcessor.processMessage();
@@ -38,9 +38,9 @@ public class SendEmailScheduler {
 
     /**
      * Scheduled task that updates the status of processed messages.
-     * Executes at a fixed rate of every 5 minutes (300,000 milliseconds).
+     * Rate is controlled by {@code prx.scheduler.save-message-processed.fixed-rate} (default 300 000 ms).
      */
-    @Scheduled(fixedRate = 1500)
+    @Scheduled(fixedRateString = "${prx.scheduler.save-message-processed.fixed-rate:300000}")
     public void saveMessageProcessed() {
         logger.debug("Initiating message processed saving task...");
         messageProcessor.updateMessageStatus();

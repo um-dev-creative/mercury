@@ -5,18 +5,26 @@ import com.prx.mercury.security.SessionJwtServiceImpl;
 import com.prx.security.service.AuthService;
 import com.prx.security.to.AuthRequest;
 import com.prx.security.to.AuthResponse;
+import feign.FeignException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
+import static com.prx.commons.util.JwtUtil.getUidFromToken;
+import static org.apache.commons.lang3.BooleanUtils.FALSE;
 
 /**
  * Service implementation for authentication-related operations.
  */
 @Service
 public class AuthServiceImpl implements AuthService {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthServiceImpl.class);
 
     private final SessionJwtServiceImpl sessionJwtService;
     private final BackboneClient backboneClient;
@@ -40,11 +48,32 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public ResponseEntity<AuthResponse> token(AuthRequest authRequest) {
-        if (Objects.isNull(authRequest.alias()) || authRequest.alias().isBlank()) {
+        if (authRequest.alias().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
         var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.alias(), new ConcurrentHashMap<>()));
-        if (Objects.isNull(authResponse) || authResponse.token().isBlank()) {
+        if (authResponse.token().isBlank()) {
+            return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+        }
+        return ResponseEntity.ok(authResponse);
+    }
+
+    @Override
+    public ResponseEntity<AuthResponse> token(AuthRequest authRequest, String sessionTokenBkd) {
+        var parameters = new ConcurrentHashMap<String, String>();
+        if (authRequest.alias().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+
+        UUID userId = getUidFromToken(sessionTokenBkd);
+        try {
+            parameters.put("uid", userId.toString());
+        } catch (FeignException.NotFound e) {
+            logger.info("Token is not validated {}:{}", userId, authRequest.alias());
+            parameters.put("vcCompleted", FALSE);
+        }
+        var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.alias(), parameters));
+        if (authResponse.token().isBlank()) {
             return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
         }
         return ResponseEntity.ok(authResponse);

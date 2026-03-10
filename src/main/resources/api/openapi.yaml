@@ -1,0 +1,424 @@
+openapi: 3.0.3
+info:
+  title: Mercury API
+  version: 0.0.1
+  description: REST API contract for Mercury messaging services.
+servers:
+  - url: /
+paths:
+  /api/v1/campaigns:
+    post:
+      tags:
+        - campaigns
+      summary: Create a new campaign
+      description: Creates a new messaging campaign and publishes messages to recipients via the specified channel.
+      operationId: createCampaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        '202':
+          description: Campaign accepted and processing started.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCampaignResponse'
+        '400':
+          description: Invalid request payload.
+        '422':
+          description: Channel type not found or disabled.
+
+  /api/v1/mail:
+    post:
+      tags:
+        - mail
+      summary: Send an email
+      description: Send an email.
+      operationId: sendEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '200':
+          description: Email sent successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendEmailResponse'
+
+  /api/v1/verification-code:
+    post:
+      tags:
+        - verification-code
+      summary: Send verification code to user
+      description: Send verification code to user.
+      operationId: sendVerificationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationCodeRequest'
+      responses:
+        '200':
+          description: Verification code sent successfully.
+        '400':
+          description: Invalid phone number.
+        '500':
+          description: Internal server error.
+
+  /api/v1/verification-code/latest-status:
+    get:
+      tags:
+        - verification-code
+      summary: Get latest verification status
+      description: Get the is_verified status of the latest verification code for a user.
+      operationId: getLatestIsVerifiedStatus
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '404':
+          description: No verification code found for user.
+        '500':
+          description: Internal server error.
+
+  /api/v1/channel-types:
+    get:
+      tags:
+        - channel-types
+      summary: Get all channel types
+      operationId: getAllChannelTypes
+      responses:
+        '200':
+          description: Channel types retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelTypeTO'
+    post:
+      tags:
+        - channel-types
+      summary: Create new channel type
+      operationId: createChannelType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelTypeTO'
+      responses:
+        '200':
+          description: Channel type created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/enabled:
+    get:
+      tags:
+        - channel-types
+      summary: Get enabled channel types only
+      operationId: getEnabledChannelTypes
+      responses:
+        '200':
+          description: Enabled channel types retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/code/{code}:
+    get:
+      tags:
+        - channel-types
+      summary: Get channel type by code
+      operationId: getChannelTypeByCode
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Channel type retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/{id}:
+    get:
+      tags:
+        - channel-types
+      summary: Get channel type by ID
+      operationId: getChannelTypeById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Channel type retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+    put:
+      tags:
+        - channel-types
+      summary: Update channel type
+      operationId: updateChannelType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelTypeTO'
+      responses:
+        '200':
+          description: Channel type updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/{id}/toggle:
+    patch:
+      tags:
+        - channel-types
+      summary: Enable or disable channel type
+      operationId: toggleChannelType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: enabled
+          in: query
+          required: true
+          schema:
+            type: boolean
+      responses:
+        '204':
+          description: Channel type toggled successfully.
+
+components:
+  schemas:
+    CreateCampaignRequest:
+      type: object
+      required:
+        - name
+        - channelTypeCode
+        - templateId
+        - userId
+        - recipients
+        - status
+        - applicationId
+      properties:
+        name:
+          type: string
+        channelTypeCode:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipientTO'
+        templateParams:
+          type: object
+          additionalProperties: true
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+
+    CreateCampaignResponse:
+      type: object
+      properties:
+        campaignId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        totalRecipients:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RecipientTO:
+      type: object
+      required:
+        - identifier
+      properties:
+        identifier:
+          type: string
+          description: Recipient identifier such as email, phone, or chat ID.
+        name:
+          type: string
+          nullable: true
+        customParams:
+          type: object
+          additionalProperties: true
+
+    SendEmailRequest:
+      type: object
+      required:
+        - templateDefinedId
+        - userId
+        - from
+        - to
+        - cc
+        - subject
+        - body
+      properties:
+        templateDefinedId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        from:
+          type: string
+        to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailContact'
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailContact'
+        subject:
+          type: string
+        body:
+          type: string
+        sendDate:
+          type: string
+          format: date-time
+        params:
+          type: object
+          additionalProperties: true
+
+    SendEmailResponse:
+      type: object
+      required:
+        - id
+        - status
+        - message
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        message:
+          type: string
+
+    EmailContact:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        alias:
+          type: string
+          nullable: true
+
+    VerificationCodeRequest:
+      type: object
+      required:
+        - applicationId
+        - userId
+        - code
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        code:
+          type: string
+
+    ChannelTypeTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        enabled:
+          type: boolean
+        implementationClass:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+

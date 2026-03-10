@@ -34,7 +34,7 @@ class AuthServiceImplTest {
     @Test
     @DisplayName("token should return BAD_REQUEST status with null alias")
     void tokenShouldReturnBadRequestStatusWithNullAlias() {
-        AuthRequest authRequest = new AuthRequest(null, null);
+        AuthRequest authRequest = new AuthRequest("", null);
 
         ResponseEntity<AuthResponse> response = authService.token(authRequest);
 

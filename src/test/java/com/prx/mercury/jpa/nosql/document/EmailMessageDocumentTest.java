@@ -1,4 +1,4 @@
-package com.prx.mercury.jpa.nosql.entity;
+package com.prx.mercury.jpa.nosql.document;
 
 import com.prx.mercury.api.v1.to.EmailContact;
 import com.prx.mercury.constant.DeliveryStatusType;

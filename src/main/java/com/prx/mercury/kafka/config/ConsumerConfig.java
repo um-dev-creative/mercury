@@ -1,11 +1,12 @@
 package com.prx.mercury.kafka.config;
 
-import com.prx.mercury.kafka.consumer.EmailMessageConsumerService;
+import com.prx.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.prx.mercury.kafka.to.EmailMessageTO;
 import io.jsonwebtoken.lang.Objects;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
@@ -19,6 +20,7 @@ import java.util.Map;
 
 @EnableKafka
 @Configuration
+@ConditionalOnProperty(name = "prx.kafka.enabled", havingValue = "true", matchIfMissing = true)
 public class ConsumerConfig {
 
     @Value("${prx.consumer.mercury.topic}")

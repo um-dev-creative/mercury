@@ -4,8 +4,20 @@ log:
 
 prx:
   consumer:
+    group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
+    topics:
+      telegram: telegram-topic
+      sms: sms-topic
+      email: email-topic
     mercury:
       topic: ${MERCURY_EMAIL_TOPIC}
+  # Kafka related toggles (allow disabling consumers or preventing auto-start)
+  kafka:
+    # Set to false to disable creating Kafka consumer beans entirely
+    enabled: ${PRX_KAFKA_ENABLED:true}
+    # Controls whether listener containers auto-start on context refresh. Set to false for local dev when Kafka is unavailable
+    auto-startup: ${PRX_KAFKA_AUTO_STARTUP:false}
+  # Default consumer group id used by listeners that reference ${prx.consumer.group-id}
   logging:
     trace:
       enabled: ${LOGGING_TRACE_ENABLED}
@@ -37,6 +49,11 @@ prx:
     code:
       template:
         id: ${PRX_VERIFICATION_CODE_TEMPLATE_ID}  # Verification code template ID
+  scheduler:
+    send-email:
+      fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
+    save-message-processed:
+      fixed-rate: ${PRX_SCHEDULER_SAVE_MESSAGE_RATE:300000}     # Rate for persisting sent messages (ms); default 5 min
   bootstrap:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
@@ -66,7 +83,7 @@ app:
   api:
     excludes: none
     exclude:
-      methods: accessToken
+      methods: accessToken,generateTokenSession
     endpoint: /api/v1  # API endpoint for the application
   # The name of the application
   name: mercury
@@ -87,6 +104,21 @@ server:
       mime-types: text/html,text/xml,text/plain,text/css,application/json
       min-response-size: 1024
 spring:
+  kafka:
+    # Bootstrap server drawn from the same env-vars used by ConsumerConfig
+    bootstrap-servers: ${BOOTSTRAP_SERVER_URI:localhost}:${BOOTSTRAP_SERVER_PORT:9092}
+    consumer:
+      group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+        spring.json.trusted.packages: '*'
+    listener:
+      # Mirror prx.kafka.auto-startup so the Spring-Boot-autoconfigured factory
+      # also does NOT auto-start when Kafka is unavailable locally
+      auto-startup: ${PRX_KAFKA_AUTO_STARTUP:false}
   freemarker:
     template-loader-path: ${TEMPLATE_PATH}
     suffix: ${TEMPLATE_SUFFIX}
@@ -125,7 +157,7 @@ spring:
         boot:
                   allow_jdbc_metadata_access: true
     log-level: error
-    defer-datasource-initialization: true# Log level for JPA
+    defer-datasource-initialization: true
   data:
     mongodb:
       uuidRepresentation: STANDARD

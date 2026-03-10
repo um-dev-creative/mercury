@@ -1,7 +1,10 @@
 package com.prx.mercury.client.interceptor;
 
+import com.prx.commons.constants.httpstatus.type.MessageType;
+import com.prx.commons.exception.StandardException;
 import com.prx.commons.general.pojo.UserSession;
 import com.prx.commons.general.to.TokenResponse;
+import com.prx.mercury.constant.MercuryKey;
 import com.prx.security.properties.AuthProperties;
 import com.prx.security.properties.ClientProperties;
 import feign.RequestInterceptor;
@@ -21,6 +24,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 import static com.prx.commons.constants.keys.ManagementAuthKey.*;
+import static com.prx.mercury.constant.MercuryMessage.RUNTIME_EXCEPTION;
 import static jakarta.ws.rs.core.HttpHeaders.AUTHORIZATION;
 import static org.springframework.cloud.openfeign.security.OAuth2AccessTokenInterceptor.BEARER;
 
@@ -52,7 +56,7 @@ public class BackendFeignClientInterceptor {
             try {
                 token = getToken();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                throw new StandardException(MercuryKey.APPLICATION_ID.getProjectId(), RUNTIME_EXCEPTION, e);
             }
             // Add the session-token header to the request
             template.header(AUTHORIZATION, BEARER.concat(" ").concat(token));
@@ -64,7 +68,7 @@ public class BackendFeignClientInterceptor {
         };
     }
 
-    private String getToken() throws Exception {
+    private String getToken() {
         RestTemplate client = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
@@ -79,7 +83,7 @@ public class BackendFeignClientInterceptor {
         var response = client.postForObject(clientProperties.getRedirectUri(), new HttpEntity<>(parameters, headers), TokenResponse.class);
         if (Objects.isNull(response)) {
             LOGGER.error("Error occurred while connect with the Manager authenticator");
-            throw new Exception("Error occurred while connect with the Manager authenticator");
+            throw new StandardException("Error occurred while connect with the Manager authenticator", MessageType.DEFAULT_MESSAGE);
         }
         return create(response, UUID.randomUUID()).token();
     }

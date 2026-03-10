@@ -1,4 +1,4 @@
-package com.prx.mercury.jpa.nosql.entity;
+package com.prx.mercury.jpa.nosql.document;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.prx.mercury.api.v1.to.EmailContact;
@@ -11,9 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Document(collection = "email_message")
+@Document(collection = "messages")
 public record EmailMessageDocument(
-
         @Id
         String id,
         UUID messageId,
@@ -46,3 +45,4 @@ public record EmailMessageDocument(
                 '}';
     }
 }
+

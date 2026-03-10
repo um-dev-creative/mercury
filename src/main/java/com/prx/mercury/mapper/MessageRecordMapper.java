@@ -5,17 +5,16 @@ import com.prx.mercury.api.v1.to.EmailContact;
 import com.prx.mercury.api.v1.to.MessageRecordTO;
 import com.prx.mercury.api.v1.to.MessageStatusTypeTO;
 import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.jpa.sql.entity.MessageRecordEntity;
 import com.prx.mercury.jpa.sql.entity.MessageStatusTypeEntity;
 import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 @Mapper(
         // Specifies that the mapper should be a Spring bean.
@@ -70,12 +69,13 @@ public interface MessageRecordMapper {
     );
 
     default String listToString(List<EmailContact> list) {
-        final IntFunction<String[]> function = String[]::new;
-        String sb ="";
-        if (list != null) {
-            sb = Arrays.toString(list.stream().filter(Objects::nonNull).map(EmailContact::email).toArray(function));
+        if (list == null || list.isEmpty()) {
+            return "";
         }
-        return sb;
+        return list.stream()
+                .filter(Objects::nonNull)
+                .map(EmailContact::email)
+                .collect(Collectors.joining(","));
     }
 
     default TemplateDefinedEntity toTemplateDefinedEntity(TemplateDefinedTO templateDefinedTO) {

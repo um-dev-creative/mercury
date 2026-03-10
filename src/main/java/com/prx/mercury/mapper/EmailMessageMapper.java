@@ -2,7 +2,7 @@ package com.prx.mercury.mapper;
 
 import com.prx.commons.services.config.mapper.MapperAppConfig;
 import com.prx.mercury.api.v1.to.SendEmailRequest;
-import com.prx.mercury.jpa.nosql.entity.EmailMessageDocument;
+import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.prx.mercury.kafka.to.EmailMessageTO;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -20,6 +20,7 @@ public interface EmailMessageMapper {
     SendEmailRequest toSendEmailRequest(EmailMessageTO emailMessageTO);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "messageId", ignore = true)
     @Mapping(target = "to", source = "to")
     @Mapping(target = "cc", source = "cc")
     @Mapping(target = "from", source = "from")

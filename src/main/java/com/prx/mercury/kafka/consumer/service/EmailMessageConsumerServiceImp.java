@@ -1,4 +1,4 @@
-package com.prx.mercury.kafka.consumer;
+package com.prx.mercury.kafka.consumer.service;
 
 import com.prx.mercury.jpa.nosql.repository.EmailMessageNSRepository;
 import com.prx.mercury.kafka.to.EmailMessageTO;

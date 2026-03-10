@@ -1,31 +1,30 @@
 # Mercury
-## Qodana badges
-[![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
-## Sonar Cloud badges
-[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=umdevc-mercury)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+## Qodana and SonarCloud badges
+[![Quality gate](https://sonarcloud.io/api/project_badges/quality_gate?project=umdc-mercury)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
 
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
-[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdevc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdevc-mercury)
+[![Qodana](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml/badge.svg?branch=main)](https://github.com/um-dev-creative/mercury/actions/workflows/qodana_code_quality.yml)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=coverage)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
 
 ## Technologies
 [![Java](https://img.shields.io/badge/Java-21-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.8-brightgreen?logo=spring&style=flat-square)](https://spring.io/projects/spring-boot)
-[![Maven](https://img.shields.io/badge/Maven-3.8-red?logo=apachemaven&style=flat-square)](https://maven.apache.org/)
-[![Docker base image](https://img.shields.io/badge/amazoncorretto-21--alpine3.20-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.4-blue?logo=postgresql&style=flat-square)](https://www.postgresql.org/)
+[![Maven](https://img.shields.io/badge/Maven->=3.8-red?logo=apachemaven&style=flat-square)](https://maven.apache.org/)
+[![Docker base image](https://img.shields.io/badge/amazoncorretto-21--alpine3.23-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.7-blue?logo=postgresql&style=flat-square)](https://www.postgresql.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-detected-brightgreen?logo=mongodb&style=flat-square)](https://www.mongodb.com/)
-[![Kafka](https://img.shields.io/badge/Kafka-detected-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
-[![MapStruct](https://img.shields.io/badge/MapStruct-1.5.5.Final-blue?logo=mapstruct&style=flat-square)](https://mapstruct.org/)
+[![Kafka](https://img.shields.io/badge/Kafka-3.9.0-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
+[![MapStruct](https://img.shields.io/badge/MapStruct-1.6.3-blue?logo=mapstruct&style=flat-square)](https://mapstruct.org/)
 [![Telegram Bots](https://img.shields.io/badge/TelegramBots-9.3.0-blue?logo=telegram&style=flat-square)](https://core.telegram.org/)
-[![JUnit](https://img.shields.io/badge/JUnit-5.11.3-red?logo=junit&style=flat-square)](https://junit.org/)
-[![Mockito](https://img.shields.io/badge/Mockito-5.14.2-red?logo=mockito&style=flat-square)](https://site.mockito.org/)
+[![JUnit](https://img.shields.io/badge/JUnit-5.14.1-red?logo=junit&style=flat-square)](https://junit.org/)
+[![Mockito](https://img.shields.io/badge/Mockito-5.21.0-red?logo=mockito&style=flat-square)](https://site.mockito.org/)
 [![SonarCloud](https://img.shields.io/badge/SonarCloud-detected-4E9BCF?logo=sonarcloud&style=flat-square)](https://sonarcloud.io/)
 
 One-line summary: Messaging backend and utility service for PRX (Mercury).
@@ -33,10 +32,6 @@ One-line summary: Messaging backend and utility service for PRX (Mercury).
 Overview
 --------
 Mercury is a messaging backend and utility service used by PRX to process and route messages, integrate with external services (email, Telegram), and expose REST APIs for clients. It is implemented as a Spring Boot application and includes Kafka integration, JPA (PostgreSQL), and optional MongoDB support for some persistence needs.
-
-Requiriments
-------------
-(Note: heading intentionally matches the requested spelling. See the correct heading below.)
 
 Requirements
 ------------
@@ -182,25 +177,25 @@ Below is an alphabetically sorted list of detected technologies, the extracted v
 
 | Technology |       Version | Source |
 |---|--------------:|---|
-| Amazon Corretto (Docker base image) | 21-alpine3.20 | Dockerfile |
-| Apache POI (poi-ooxml) |         4.1.1 | pom.xml |
+| Amazon Corretto (Docker base image) | 21-alpine3.23 | Dockerfile |
+| Apache POI (poi-ooxml) |         5.2.4 | pom.xml |
 | Docker (project contains a Dockerfile) |      detected | Dockerfile |
 | Google Gson |        2.10.1 | pom.xml |
 | JaCoCo (Maven plugin) |        0.8.12 | pom.xml |
 | Java (language / runtime) |            21 | pom.xml |
-| JUnit Jupiter |        5.11.3 | pom.xml |
-| MapStruct |   1.5.5.Final | pom.xml |
+| JUnit Jupiter |        5.14.1 | pom.xml |
+| MapStruct |         1.6.3 | pom.xml |
 | Maven (build tool) |           3.8 | pom.xml |
 | Maven Javadoc Plugin |         3.6.3 | pom.xml |
-| Maven Surefire Plugin |         3.2.5 | pom.xml |
+| Maven Surefire Plugin |         3.5.2 | pom.xml |
 | MongoDB (Spring Data integration present) |      detected | pom.xml |
-| Mockito |        5.14.2 | pom.xml |
+| Mockito |        5.21.0 | pom.xml |
 | org.json (json) |      20250517 | pom.xml |
-| PostgreSQL JDBC driver |        42.7.4 | pom.xml |
+| PostgreSQL JDBC driver |        42.7.7 | pom.xml |
 | SonarCloud (project properties present) |      detected | pom.xml |
 | Spring Boot |         3.5.8 | pom.xml |
 | Spring Cloud |      2025.0.1 | pom.xml |
-| Spring Core |         6.2.1 | pom.xml |
+| Spring Core |        6.2.14 | pom.xml |
 | Spring Data JPA (dependency present) |      detected | pom.xml |
 | Spring Kafka (dependency present) |      detected | pom.xml |
 | Spring Web (spring-boot-starter-web) |      detected | pom.xml |
@@ -221,3 +216,5 @@ The repository does not contain a LICENSE file. Add one if you want to specify t
 More
 ----
 For development notes, CI, and architecture links see the original README content and the repository files.
+
+[![SonarQube Cloud](https://sonarcloud.io/images/project_badges/sonarcloud-light.svg)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)

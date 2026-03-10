@@ -37,18 +37,18 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_467158173 }}
         with:
-          args: |
-            --linter qodana-jvm-community 
-            --within-docker false
+          linter: qodana-jvm-community:2025.3
           # When pr-mode is set to true, Qodana analyzes only the files that have been changed
           pr-mode: false
           use-caches: true
           post-pr-comment: true
           use-annotations: true
           # Upload Qodana results (SARIF, other artifacts, logs) as an artifact to the job
-          upload-result: false
+          upload-result: true
           # quick-fixes available in Ultimate and Ultimate Plus plans
           push-fixes: 'none'
+      - name: Ensure results directory exists
+        run: mkdir -p ../results
       - uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ runner.temp }}/qodana/results/qodana.sarif.json

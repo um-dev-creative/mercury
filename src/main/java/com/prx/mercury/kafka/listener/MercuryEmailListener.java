@@ -1,6 +1,6 @@
 package com.prx.mercury.kafka.listener;
 
-import com.prx.mercury.kafka.consumer.EmailMessageConsumerService;
+import com.prx.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.prx.mercury.kafka.to.EmailMessageTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
