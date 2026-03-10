@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for the {@link ChannelType} enum.
- *
+ * <p>
  * Tests cover enum instantiation, field accessors, factory method (fromCode),
  * enum constants, identity, case-insensitivity, and business logic characteristics
  * of the ChannelType enum.
@@ -55,11 +55,11 @@ class ChannelTypeTest {
         @Test
         @DisplayName("All constants should be ChannelType instances")
         void constantsAreInstances() {
-            assertTrue(ChannelType.EMAIL instanceof ChannelType);
-            assertTrue(ChannelType.SMS instanceof ChannelType);
-            assertTrue(ChannelType.TELEGRAM instanceof ChannelType);
-            assertTrue(ChannelType.WHATSAPP instanceof ChannelType);
-            assertTrue(ChannelType.PUSH instanceof ChannelType);
+            assertInstanceOf(ChannelType.class, ChannelType.EMAIL);
+            assertInstanceOf(ChannelType.class, ChannelType.SMS);
+            assertInstanceOf(ChannelType.class, ChannelType.TELEGRAM);
+            assertInstanceOf(ChannelType.class, ChannelType.WHATSAPP);
+            assertInstanceOf(ChannelType.class, ChannelType.PUSH);
         }
 
         @Test
@@ -690,7 +690,7 @@ class ChannelTypeTest {
         @DisplayName("All constants should not equal null")
         void allConstantsNotEqualsNull() {
             for (ChannelType type : ChannelType.values()) {
-                assertNotEquals(type, null);
+                assertNotEquals(null, type);
             }
         }
     }

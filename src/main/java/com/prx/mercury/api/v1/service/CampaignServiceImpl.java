@@ -131,7 +131,7 @@ public class CampaignServiceImpl implements CampaignService {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private void validateRecipients(CampaignTO campaignTO) {
-        if (campaignTO.recipients() == null || campaignTO.recipients().isEmpty()) {
+        if (campaignTO.recipients().isEmpty()) {
             logger.warn("Campaign creation failed due to missing recipients. name={}, channelTypeCode={}",
                     campaignTO.name(), campaignTO.channelTypeCode());
             throw new IllegalArgumentException(

@@ -1,5 +1,6 @@
 package com.prx.mercury.client.interceptor;
 
+import com.prx.commons.constants.httpstatus.type.MessageType;
 import com.prx.commons.exception.StandardException;
 import com.prx.commons.general.pojo.UserSession;
 import com.prx.commons.general.to.TokenResponse;
@@ -67,7 +68,7 @@ public class BackendFeignClientInterceptor {
         };
     }
 
-    private String getToken() throws Exception {
+    private String getToken() {
         RestTemplate client = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
@@ -82,7 +83,7 @@ public class BackendFeignClientInterceptor {
         var response = client.postForObject(clientProperties.getRedirectUri(), new HttpEntity<>(parameters, headers), TokenResponse.class);
         if (Objects.isNull(response)) {
             LOGGER.error("Error occurred while connect with the Manager authenticator");
-            throw new Exception("Error occurred while connect with the Manager authenticator");
+            throw new StandardException("Error occurred while connect with the Manager authenticator", MessageType.DEFAULT_MESSAGE);
         }
         return create(response, UUID.randomUUID()).token();
     }
