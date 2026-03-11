@@ -32,16 +32,19 @@ public interface CampaignApi {
      *                template, recipients and optional scheduling information.
      *                Must not be {@code null} and must pass bean validation.
      * @return a {@link ResponseEntity} containing a {@link CreateCampaignResponse}
-     *         with the newly created campaign details and HTTP status {@code 202 Accepted}.
+     *         with the newly created campaign details and HTTP status {@code 201 Created}.
      */
     @Operation(
             summary = "Create a new campaign",
             description = "Creates a new messaging campaign and publishes messages to recipients via the specified channel."
     )
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "202", description = "Campaign accepted and processing started."),
-            @ApiResponse(responseCode = "400", description = "Invalid request payload."),
-            @ApiResponse(responseCode = "422", description = "Channel type not found or disabled.")
+            @ApiResponse(responseCode = "201", description = "Campaign created successfully."),
+            @ApiResponse(responseCode = "400", description = "Invalid request payload or missing required fields."),
+            @ApiResponse(responseCode = "401", description = "Invalid or missing authentication token."),
+            @ApiResponse(responseCode = "403", description = "Caller lacks permission to create campaigns."),
+            @ApiResponse(responseCode = "422", description = "Channel type not found or disabled."),
+            @ApiResponse(responseCode = "500", description = "Unexpected internal error.")
     })
     @PostMapping(
             produces = MediaType.APPLICATION_JSON_VALUE,
