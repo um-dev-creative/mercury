@@ -66,6 +66,6 @@ public class CampaignController implements CampaignApi {
                 request.scheduledAt()
         );
 
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }
