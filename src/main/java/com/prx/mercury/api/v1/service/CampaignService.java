@@ -1,6 +1,7 @@
 // src/main/java/com/prx/mercury/api/v1/service/ChannelTypeService.java
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 
@@ -19,5 +20,14 @@ public interface CampaignService {
     CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request);
 
     CampaignProgressTO getProgress(UUID campaignId);
+
+    /**
+     * Retrieves a campaign by its unique identifier.
+     *
+     * @param id the campaign UUID; must not be {@code null}.
+     * @return the {@link CampaignDetailResponse} populated from the stored entity.
+     * @throws com.prx.mercury.api.v1.exception.CampaignNotFoundException if no campaign with the given id exists.
+     */
+    CampaignDetailResponse getById(UUID id);
 
 }

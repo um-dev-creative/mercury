@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.controller;
 
+import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
 import com.prx.mercury.api.v1.to.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -11,6 +12,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.CompletionException;
@@ -23,11 +25,13 @@ import java.util.stream.Collectors;
  * <p>Handles:</p>
  * <ul>
  *   <li>{@link MethodArgumentNotValidException} – bean-validation failures → 400</li>
+ *   <li>{@link MethodArgumentTypeMismatchException} – invalid path/query parameter type (e.g. non-UUID) → 400</li>
  *   <li>{@link HttpMessageNotReadableException} – malformed/unreadable request body → 400</li>
  *   <li>{@link IllegalArgumentException} – business-rule argument violations → 400</li>
  *   <li>{@link CompletionException} wrapping {@link IllegalArgumentException} → 400</li>
  *   <li>{@link CompletionException} wrapping {@link IllegalStateException} → 422</li>
  *   <li>{@link IllegalStateException} – disabled channel or other state violations → 422</li>
+ *   <li>{@link CampaignNotFoundException} – campaign not found → 404</li>
  *   <li>All other {@link Exception} → 500</li>
  * </ul>
  */
@@ -71,7 +75,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles asynchronous service failures surfaced via {@link java.util.concurrent.CompletableFuture#join()}.
+     * Handles type-mismatch errors for path/query parameters (e.g. a non-UUID value
+     * supplied where a {@link java.util.UUID} is expected).
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
+                                                       HttpServletRequest request) {
+        String message = String.format("Invalid value '%s' for parameter '%s'", ex.getValue(), ex.getName());
+        logger.warn("Type mismatch for '{}': {}", request.getRequestURI(), message);
+        return ResponseEntity
+                .badRequest()
+                .body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
+    }
+
+    /**
+     * Handles requests for campaigns that do not exist, returning {@code 404 Not Found}.
+     */
+    @ExceptionHandler(CampaignNotFoundException.class)
+    public ResponseEntity<ApiError> handleCampaignNotFound(CampaignNotFoundException ex,
+                                                           HttpServletRequest request) {
+        logger.warn("Campaign not found for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
      * Delegates to the appropriate handler based on the underlying cause type.
      */
     @ExceptionHandler(CompletionException.class)

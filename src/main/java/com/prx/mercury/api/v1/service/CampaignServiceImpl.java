@@ -1,5 +1,7 @@
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.RecipientTO;
@@ -126,6 +128,18 @@ public class CampaignServiceImpl implements CampaignService {
     public CampaignProgressTO getProgress(UUID campaignId) {
         logger.debug("Fetching campaign progress. campaignId={}", campaignId);
         return campaignProgressService.getProgress(campaignId);
+    }
+
+    @Override
+    public CampaignDetailResponse getById(UUID id) {
+        logger.debug("Fetching campaign by id. id={}", id);
+        CampaignEntity entity = campaignRepository.findById(id)
+                .orElseThrow(() -> {
+                    logger.warn("Campaign not found. id={}", id);
+                    return new CampaignNotFoundException("Campaign not found: " + id);
+                });
+        logger.debug("Campaign found. id={}, name={}, status={}", entity.getId(), entity.getName(), entity.getStatus());
+        return campaignMapper.toCampaignDetailResponse(entity);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

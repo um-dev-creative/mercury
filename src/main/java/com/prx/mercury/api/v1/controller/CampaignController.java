@@ -1,6 +1,7 @@
 package com.prx.mercury.api.v1.controller;
 
 import com.prx.mercury.api.v1.service.CampaignService;
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CreateCampaignRequest;
@@ -9,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.UUID;
 
 /**
  * REST controller that handles campaign lifecycle operations.
@@ -67,5 +70,16 @@ public class CampaignController implements CampaignApi {
         );
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>Delegates to {@link CampaignService#getById(UUID)} and wraps the result
+     * in a {@code 200 OK} response.</p>
+     */
+    @Override
+    public ResponseEntity<CampaignDetailResponse> getById(UUID id) {
+        return ResponseEntity.ok(campaignService.getById(id));
     }
 }
