@@ -1,6 +1,7 @@
 package com.prx.mercury.mapper;
 
 import com.prx.commons.services.config.mapper.MapperAppConfig;
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.ChannelTypeTO;
 import com.prx.mercury.jpa.sql.entity.CampaignEntity;
@@ -19,6 +20,17 @@ public interface CampaignMapper {
     @Mapping(target = "channelTypeCode", source = "channelType.code")
     @Mapping(target = "templateId", ignore = true)
     CampaignTO toCampaignTO(CampaignEntity entity);
+
+    /**
+     * Maps a {@link CampaignEntity} to a {@link CampaignDetailResponse} for the
+     * {@code GET /api/v1/campaigns/{id}} endpoint.
+     *
+     * @param entity the stored campaign entity; must not be {@code null}.
+     * @return a fully populated detail response record.
+     */
+    @Mapping(target = "channelType", source = "channelType.code")
+    @Mapping(target = "templateId", source = "templateDefined.id")
+    CampaignDetailResponse toCampaignDetailResponse(CampaignEntity entity);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "status", source = "status")

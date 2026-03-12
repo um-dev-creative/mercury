@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.controller;
 
+import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
 import com.prx.mercury.api.v1.to.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -13,6 +14,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -253,6 +255,56 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<ApiError> response = handler.handleGeneral(ex, request);
 
             assertThat(response.getBody().message()).doesNotContain("secret_table");
+        }
+    }
+
+    // ── CampaignNotFoundException (404) ───────────────────────────────────────
+
+    @Nested
+    @DisplayName("handleCampaignNotFound – CampaignNotFoundException")
+    class HandleCampaignNotFound {
+
+        @Test
+        @DisplayName("returns 404 with campaign id in message")
+        void handleCampaignNotFound_returns404() {
+            String id = "fe5e185c-5525-4155-b361-ce6960525b16";
+            CampaignNotFoundException ex = new CampaignNotFoundException("Campaign not found: " + id);
+
+            ResponseEntity<ApiError> response = handler.handleCampaignNotFound(ex, request);
+
+            assertAll("not found",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().status()).isEqualTo(404),
+                    () -> assertThat(response.getBody().error()).isEqualTo("Not Found"),
+                    () -> assertThat(response.getBody().message()).contains(id),
+                    () -> assertThat(response.getBody().path()).isEqualTo("/api/v1/campaigns")
+            );
+        }
+    }
+
+    // ── MethodArgumentTypeMismatchException (400) ─────────────────────────────
+
+    @Nested
+    @DisplayName("handleTypeMismatch – MethodArgumentTypeMismatchException")
+    class HandleTypeMismatch {
+
+        @Test
+        @DisplayName("returns 400 for invalid UUID path parameter")
+        void handleTypeMismatch_returns400() {
+            MethodArgumentTypeMismatchException ex = mock(MethodArgumentTypeMismatchException.class);
+            when(ex.getName()).thenReturn("id");
+            when(ex.getValue()).thenReturn("not-a-uuid");
+
+            ResponseEntity<ApiError> response = handler.handleTypeMismatch(ex, request);
+
+            assertAll("type mismatch",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().status()).isEqualTo(400),
+                    () -> assertThat(response.getBody().message()).contains("not-a-uuid"),
+                    () -> assertThat(response.getBody().message()).contains("id")
+            );
         }
     }
 }

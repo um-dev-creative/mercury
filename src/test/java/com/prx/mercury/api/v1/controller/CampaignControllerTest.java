@@ -1,6 +1,8 @@
 package com.prx.mercury.api.v1.controller;
 
+import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
 import com.prx.mercury.api.v1.service.CampaignService;
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CreateCampaignRequest;
@@ -199,6 +201,67 @@ class CampaignControllerTest {
         void createCampaign_nullRequest_throwsNPE() {
             assertThrows(NullPointerException.class,
                     () -> campaignController.createCampaign(null));
+        }
+    }
+
+    // ── getById ───────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("getById – success scenarios")
+    class GetByIdSuccess {
+
+        @Test
+        @DisplayName("returns 200 OK with campaign detail body")
+        void getById_returns200WithBody() {
+            UUID id = UUID.randomUUID();
+            LocalDateTime now = LocalDateTime.now();
+            CampaignDetailResponse detail = new CampaignDetailResponse(
+                    id, "Summer Promo 2026", "email", UUID.randomUUID(),
+                    "DRAFT", 50, null, now, now, Map.of("ownerId", "abc"));
+            when(campaignService.getById(id)).thenReturn(detail);
+
+            ResponseEntity<CampaignDetailResponse> response = campaignController.getById(id);
+
+            assertAll("getById response",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().id()).isEqualTo(id),
+                    () -> assertThat(response.getBody().name()).isEqualTo("Summer Promo 2026"),
+                    () -> assertThat(response.getBody().channelType()).isEqualTo("email"),
+                    () -> assertThat(response.getBody().status()).isEqualTo("DRAFT"),
+                    () -> assertThat(response.getBody().totalRecipients()).isEqualTo(50),
+                    () -> assertThat(response.getBody().createdAt()).isEqualTo(now),
+                    () -> assertThat(response.getBody().updatedAt()).isEqualTo(now)
+            );
+        }
+
+        @Test
+        @DisplayName("delegates to campaignService.getById exactly once")
+        void getById_delegatesToServiceOnce() {
+            UUID id = UUID.randomUUID();
+            LocalDateTime now = LocalDateTime.now();
+            when(campaignService.getById(id)).thenReturn(
+                    new CampaignDetailResponse(id, "N", "sms", null, "DRAFT", 0, null, now, now, null));
+
+            campaignController.getById(id);
+
+            verify(campaignService).getById(id);
+        }
+    }
+
+    @Nested
+    @DisplayName("getById – failure scenarios")
+    class GetByIdFailure {
+
+        @Test
+        @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
+        void getById_notFound_throwsCampaignNotFoundException() {
+            UUID id = UUID.randomUUID();
+            when(campaignService.getById(id))
+                    .thenThrow(new CampaignNotFoundException("Campaign not found: " + id));
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignController.getById(id));
         }
     }
 }

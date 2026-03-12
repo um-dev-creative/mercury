@@ -1,5 +1,7 @@
 package com.prx.mercury.api.v1.service;
 
+import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
+import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 import com.prx.mercury.api.v1.to.RecipientTO;
@@ -327,6 +329,63 @@ class CampaignServiceImplTest {
                     .thenThrow(new IllegalArgumentException("Campaign not found: " + unknown));
 
             assertThrows(IllegalArgumentException.class, () -> campaignServiceImpl.getProgress(unknown));
+        }
+    }
+
+    // ── GetById ───────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("getById tests")
+    class GetById {
+
+        @Test
+        @DisplayName("returns mapped CampaignDetailResponse when campaign exists")
+        void getById_success() {
+            UUID id = UUID.randomUUID();
+            LocalDateTime now = LocalDateTime.now();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setName("Summer Promo 2026");
+            entity.setStatus("DRAFT");
+            entity.setCreatedAt(now);
+            entity.setUpdatedAt(now);
+            ChannelTypeEntity channel = new ChannelTypeEntity();
+            channel.setCode("email");
+            entity.setChannelType(channel);
+            TemplateDefinedEntity template = new TemplateDefinedEntity();
+            template.setId(UUID.randomUUID());
+            entity.setTemplateDefined(template);
+
+            CampaignDetailResponse expected = new CampaignDetailResponse(
+                    id, "Summer Promo 2026", "email", template.getId(),
+                    "DRAFT", null, null, now, now, null);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(campaignMapper.toCampaignDetailResponse(entity)).thenReturn(expected);
+
+            CampaignDetailResponse result = campaignServiceImpl.getById(id);
+
+            assertAll("getById",
+                    () -> assertThat(result).isNotNull(),
+                    () -> assertThat(result.id()).isEqualTo(id),
+                    () -> assertThat(result.name()).isEqualTo("Summer Promo 2026"),
+                    () -> assertThat(result.channelType()).isEqualTo("email"),
+                    () -> assertThat(result.status()).isEqualTo("DRAFT")
+            );
+            verify(campaignRepository).findById(id);
+            verify(campaignMapper).toCampaignDetailResponse(entity);
+        }
+
+        @Test
+        @DisplayName("throws CampaignNotFoundException when campaign does not exist")
+        void getById_notFound() {
+            UUID unknown = UUID.randomUUID();
+            when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignServiceImpl.getById(unknown));
+            verify(campaignRepository).findById(unknown);
         }
     }
 }
