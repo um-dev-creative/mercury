@@ -28,3 +28,4 @@ htmlReport/
 .idea/
 .sonarlint/
 .ai/*
+/.github/agents/

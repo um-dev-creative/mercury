@@ -1,6 +1,6 @@
 FROM amazoncorretto:21-alpine3.23
 LABEL version="0.0.1"
-LABEL description="Directory Backend API"
+LABEL description="Mercury API"
 LABEL mantainer="Luis Mata luis.antonio.mata@gmail.com"
 
 ARG TARGET_FILE=target/
