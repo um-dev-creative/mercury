@@ -11,34 +11,34 @@ import java.util.UUID;
 
 @Tag(name = "channel-types", description = "Channel Type Management API")
 public interface ChannelTypeApi {
-    @Operation(description = "Get all channel types")
+    @Operation(description = "Get all channel types", operationId = "getAllChannelTypes")
     @GetMapping()
     ResponseEntity<List<ChannelTypeTO>> getAllChannelTypes();
 
-    @Operation(description = "Get enabled channel types only")
+    @Operation(description = "Get enabled channel types only", operationId = "getEnabledChannelTypes")
     @GetMapping("/enabled")
     ResponseEntity<List<ChannelTypeTO>> getEnabledChannelTypes();
 
-    @Operation(description = "Get channel type by code")
+    @Operation(description = "Get channel type by code", operationId = "getChannelTypeByCode")
     @GetMapping("/code/{code}")
     ResponseEntity<ChannelTypeTO> getChannelTypeByCode(@PathVariable String code);
 
-    @Operation(description = "Get channel type by ID")
+    @Operation(description = "Get channel type by ID", operationId = "getChannelTypeById")
     @GetMapping("/{id}")
     ResponseEntity<ChannelTypeTO> getChannelTypeById(@PathVariable UUID id);
 
-    @Operation(description = "Create new channel type")
+    @Operation(description = "Create new channel type", operationId = "createChannelType")
     @PostMapping()
     ResponseEntity<ChannelTypeTO> createChannelType(@RequestBody ChannelTypeTO channelTypeTO);
 
-    @Operation(description = "Update channel type")
+    @Operation(description = "Update channel type", operationId = "updateChannelType")
     @PutMapping("/{id}")
     ResponseEntity<ChannelTypeTO> updateChannelType(
             @PathVariable UUID id,
             @RequestBody ChannelTypeTO channelTypeTO
     );
 
-    @Operation(description = "Enable/Disable channel type")
+    @Operation(description = "Enable/Disable channel type", operationId = "toggleChannelType")
     @PatchMapping("/{id}/toggle")
     ResponseEntity<Void> toggleChannelType(
             @PathVariable UUID id,

@@ -7,14 +7,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
+import java.util.List;
+import org.springframework.web.bind.annotation.RequestHeader;
 import java.util.UUID;
 
 /**
@@ -36,12 +32,13 @@ public interface CampaignApi {
      * @param request the campaign creation request containing the channel,
      *                template, recipients and optional scheduling information.
      *                Must not be {@code null} and must pass bean validation.
-     * @return a {@link ResponseEntity} containing a {@link CreateCampaignResponse}
+     * @return a ResponseEntity containing a CreateCampaignResponse
      *         with the newly created campaign details and HTTP status {@code 201 Created}.
      */
     @Operation(
             summary = "Create a new campaign",
-            description = "Creates a new messaging campaign and publishes messages to recipients via the specified channel."
+            description = "Creates a new messaging campaign and publishes messages to recipients via the specified channel.",
+            operationId = "createCampaign"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Campaign created successfully."),
@@ -51,11 +48,7 @@ public interface CampaignApi {
             @ApiResponse(responseCode = "422", description = "Channel type not found or disabled."),
             @ApiResponse(responseCode = "500", description = "Unexpected internal error.")
     })
-    @PostMapping(
-            produces = MediaType.APPLICATION_JSON_VALUE,
-            consumes = MediaType.APPLICATION_JSON_VALUE
-    )
-    ResponseEntity<CreateCampaignResponse> createCampaign(@RequestBody @Valid CreateCampaignRequest request);
+    ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request);
 
     /**
      * Retrieves a campaign by its unique identifier.
@@ -64,12 +57,13 @@ public interface CampaignApi {
      * audit timestamps, status and optional metadata.</p>
      *
      * @param id the UUID of the campaign to retrieve; must be a valid UUID.
-     * @return a {@link ResponseEntity} containing a {@link CampaignDetailResponse}
+     * @return a ResponseEntity containing a CampaignDetailResponse
      *         with HTTP status {@code 200 OK}.
      */
     @Operation(
             summary = "Get campaign by ID",
-            description = "Retrieves the full details of a campaign identified by its UUID."
+            description = "Retrieves the full details of a campaign identified by its UUID.",
+            operationId = "getCampaignById"
     )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Campaign found and returned."),
@@ -79,9 +73,22 @@ public interface CampaignApi {
             @ApiResponse(responseCode = "404", description = "Campaign with the given id does not exist."),
             @ApiResponse(responseCode = "500", description = "Unexpected internal error.")
     })
-    @GetMapping(
-            value = "/{id}",
-            produces = MediaType.APPLICATION_JSON_VALUE
+    ResponseEntity<CampaignDetailResponse> getById(UUID id);
+
+    /**
+     * Retrieves campaigns for the authenticated user filtered by application id.
+     *
+     * <p>The user id is extracted from the session token provided in the request
+     * header identified by the session token header key.</p>
+     *
+     * @param applicationId the application UUID used to filter campaigns
+     * @param sessionToken the session token header containing the user id
+     * @return a list of {@link CampaignDetailResponse} for the user and application
+     */
+    @Operation(
+            summary = "Get campaigns by application for current user",
+            description = "Retrieves campaigns filtered by application id for the authenticated user. User id is obtained from the session token header."
+            ,operationId = "getCampaignsByApplication"
     )
-    ResponseEntity<CampaignDetailResponse> getById(@PathVariable UUID id);
+    ResponseEntity<List<CampaignDetailResponse>> getByApplication(UUID applicationId, @RequestHeader("session-token") String sessionToken);
 }

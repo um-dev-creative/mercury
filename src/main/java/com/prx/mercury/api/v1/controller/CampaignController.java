@@ -1,17 +1,18 @@
 package com.prx.mercury.api.v1.controller;
 
 import com.prx.mercury.api.v1.service.CampaignService;
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.api.v1.to.CampaignTO;
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.CreateCampaignRequest;
-import com.prx.mercury.api.v1.to.CreateCampaignResponse;
+import com.prx.mercury.api.v1.to.*;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
+
+import static com.prx.commons.util.JwtUtil.getUidFromToken;
+import static com.prx.security.constant.ConstantApp.SESSION_TOKEN_KEY;
 
 /**
  * REST controller that handles campaign lifecycle operations.
@@ -24,7 +25,7 @@ import java.util.UUID;
  */
 @RestController
 @RequestMapping("/api/v1/campaigns")
-public class CampaignController implements CampaignApi {
+public class CampaignController {
 
     private final CampaignService campaignService;
 
@@ -44,8 +45,8 @@ public class CampaignController implements CampaignApi {
      * delegates to {@link CampaignService#createCampaign(CampaignTO)} and maps the
      * resulting {@link CampaignProgressTO} to a {@link CreateCampaignResponse}.</p>
      */
-    @Override
-    public ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request) {
+    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CreateCampaignResponse> createCampaign(@RequestBody @Valid CreateCampaignRequest request) {
         CampaignTO campaignTO = new CampaignTO(
                 request.name(),
                 request.channelTypeCode(),
@@ -78,8 +79,18 @@ public class CampaignController implements CampaignApi {
      * <p>Delegates to {@link CampaignService#getById(UUID)} and wraps the result
      * in a {@code 200 OK} response.</p>
      */
-    @Override
-    public ResponseEntity<CampaignDetailResponse> getById(UUID id) {
+    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CampaignDetailResponse> getById(@PathVariable UUID id) {
         return ResponseEntity.ok(campaignService.getById(id));
     }
+
+    @GetMapping(value = "/application/{applicationId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<CampaignDetailResponse>> getByApplication(@PathVariable UUID applicationId, @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+        // extract user id from token
+        UUID userId = getUidFromToken(sessionToken);
+        // delegate to service
+        List<CampaignDetailResponse> responses = campaignService.getByUserIdAndApplicationId(userId, applicationId);
+        return ResponseEntity.ok(responses);
+    }
 }
+

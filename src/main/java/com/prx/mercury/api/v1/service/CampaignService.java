@@ -5,9 +5,9 @@ import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
 
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-
 public interface CampaignService {
 
     String PARSE_MODE_KEY = "parseMode";
@@ -29,5 +29,7 @@ public interface CampaignService {
      * @throws com.prx.mercury.api.v1.exception.CampaignNotFoundException if no campaign with the given id exists.
      */
     CampaignDetailResponse getById(UUID id);
+
+    List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId);
 
 }

@@ -31,7 +31,7 @@ public interface MailApi {
      * @param requestMail the request document containing the email details
      * @return a ResponseEntity with the result of the email sending operation
      */
-    @Operation(description = "Send a email")
+    @Operation(description = "Send a email", operationId = "sendEmail")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "To send a email.")
     })
