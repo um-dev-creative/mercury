@@ -388,4 +388,56 @@ class CampaignServiceImplTest {
             verify(campaignRepository).findById(unknown);
         }
     }
+
+    // ── GetByUserAndApplication ─────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("getByUserIdAndApplicationId tests")
+    class GetByUserAndApplication {
+
+        @Test
+        @DisplayName("returns mapped list when repository finds campaigns")
+        void getByUserAndApplication_success() {
+            UUID userId = UUID.randomUUID();
+            UUID appId = UUID.randomUUID();
+            CampaignEntity e = new CampaignEntity();
+            e.setId(UUID.randomUUID());
+            e.setName("User Campaign");
+            e.setStatus("DRAFT");
+            ChannelTypeEntity channel = new ChannelTypeEntity();
+            channel.setCode("email");
+            e.setChannelType(channel);
+            TemplateDefinedEntity template = new TemplateDefinedEntity();
+            template.setId(UUID.randomUUID());
+            e.setTemplateDefined(template);
+
+            CampaignDetailResponse dto = new CampaignDetailResponse(
+                    e.getId(), e.getName(), "email", template.getId(), e.getStatus(), null, null, null, null, null);
+
+            when(campaignRepository.findByCreatedByAndApplicationId(userId, appId)).thenReturn(List.of(e));
+            when(campaignMapper.toCampaignDetailResponse(e)).thenReturn(dto);
+
+            List<CampaignDetailResponse> result = campaignServiceImpl.getByUserIdAndApplicationId(userId, appId);
+
+            assertThat(result).isNotNull();
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).id()).isEqualTo(e.getId());
+            verify(campaignRepository).findByCreatedByAndApplicationId(userId, appId);
+            verify(campaignMapper).toCampaignDetailResponse(e);
+        }
+
+        @Test
+        @DisplayName("returns empty list when repository returns none")
+        void getByUserAndApplication_empty() {
+            UUID userId = UUID.randomUUID();
+            UUID appId = UUID.randomUUID();
+            when(campaignRepository.findByCreatedByAndApplicationId(userId, appId)).thenReturn(List.of());
+
+            List<CampaignDetailResponse> result = campaignServiceImpl.getByUserIdAndApplicationId(userId, appId);
+
+            assertThat(result).isNotNull();
+            assertThat(result).isEmpty();
+            verify(campaignRepository).findByCreatedByAndApplicationId(userId, appId);
+        }
+    }
 }

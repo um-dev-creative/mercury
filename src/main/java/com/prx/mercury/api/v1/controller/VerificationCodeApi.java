@@ -28,7 +28,7 @@ public interface VerificationCodeApi {
      * @param verificationCodeRequest the request document containing the verification code details
      * @return a ResponseEntity with the result of the verification code sending operation
      */
-    @Operation(description = "Send verification code to user")
+    @Operation(description = "Send verification code to user", operationId = "sendVerificationCode")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Verification code sent successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid phone number"),
@@ -45,7 +45,7 @@ public interface VerificationCodeApi {
      * @param userId the user ID
      * @return ResponseEntity<Boolean> is_verified status or null if not found
      */
-    @Operation(description = "Get the is_verified status of the latest verification code for a user")
+    @Operation(description = "Get the is_verified status of the latest verification code for a user", operationId = "getLatestIsVerifiedStatus")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Status retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "No verification code found for user"),

@@ -19,6 +19,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -142,7 +143,13 @@ public class CampaignServiceImpl implements CampaignService {
         return campaignMapper.toCampaignDetailResponse(entity);
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────────
+    @Override
+    public List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId) {
+        logger.debug("Fetching campaigns by user and application. userId={}, applicationId={}", userId, applicationId);
+        List<CampaignEntity> entities = campaignRepository.findByCreatedByAndApplicationId(userId, applicationId);
+        return entities.stream().map(campaignMapper::toCampaignDetailResponse).toList();
+    }
+
 
     private void validateRecipients(CampaignTO campaignTO) {
         if (campaignTO.recipients().isEmpty()) {

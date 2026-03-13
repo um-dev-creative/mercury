@@ -23,4 +23,7 @@ public interface CampaignRepository extends JpaRepository<CampaignEntity, UUID> 
             String status,
             Pageable pageable
     );
+
+    java.util.List<CampaignEntity> findByCreatedByAndApplicationId(java.util.UUID createdBy, java.util.UUID applicationId);
+
 }

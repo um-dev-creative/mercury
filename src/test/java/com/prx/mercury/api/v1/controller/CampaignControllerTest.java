@@ -9,6 +9,7 @@ import com.prx.mercury.api.v1.to.CreateCampaignRequest;
 import com.prx.mercury.api.v1.to.CreateCampaignResponse;
 import com.prx.mercury.api.v1.to.RecipientTO;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -48,6 +51,7 @@ class CampaignControllerTest {
     private UUID templateId;
     private UUID userId;
     private UUID applicationId;
+    private MockedStatic<com.prx.commons.util.JwtUtil> jwtUtilStatic;
 
     @BeforeEach
     void setUp() {
@@ -65,6 +69,12 @@ class CampaignControllerTest {
                 "DRAFT",
                 applicationId
         );
+        jwtUtilStatic = Mockito.mockStatic(com.prx.commons.util.JwtUtil.class);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (jwtUtilStatic != null) jwtUtilStatic.close();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -262,6 +272,43 @@ class CampaignControllerTest {
 
             assertThrows(CampaignNotFoundException.class,
                     () -> campaignController.getById(id));
+        }
+    }
+
+    @Nested
+    @DisplayName("getByApplication tests")
+    class GetByApplication {
+
+        @Test
+        @DisplayName("parses session-token header and returns campaigns for user and application")
+        void getByApplication_success() {
+            UUID userIdLocal = UUID.randomUUID();
+            UUID appIdLocal = UUID.randomUUID();
+            UUID campaignId = UUID.randomUUID();
+
+            CampaignDetailResponse detail = new CampaignDetailResponse(campaignId, "Name", "email", UUID.randomUUID(), "DRAFT", null, null, null, null, null);
+
+            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
+
+            when(campaignService.getByUserIdAndApplicationId(userIdLocal, appIdLocal)).thenReturn(List.of(detail));
+
+            var resp = campaignController.getByApplication(appIdLocal, "token-value");
+
+            assertThat(resp).isNotNull();
+            assertThat(resp.getStatusCode().value()).isEqualTo(200);
+            assertThat(resp.getBody()).hasSize(1);
+            verify(campaignService).getByUserIdAndApplicationId(userIdLocal, appIdLocal);
+        }
+
+        @Test
+        @DisplayName("propagates exception when token parsing fails")
+        void getByApplication_invalidToken() {
+            UUID appIdLocal = UUID.randomUUID();
+            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+
+            assertThrows(RuntimeException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
+
+            Mockito.verifyNoInteractions(campaignService);
         }
     }
 }
