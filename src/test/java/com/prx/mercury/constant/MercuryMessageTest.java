@@ -451,8 +451,8 @@ class MercuryMessageTest {
             int hash1 = MercuryMessage.METHOD_NOT_IMPLEMENTED.hashCode();
             int hash2 = MercuryMessage.RUNTIME_EXCEPTION.hashCode();
             // We don't assert inequality here since it's not guaranteed
-            assertNotNull(hash1);
-            assertNotNull(hash2);
+            assertNotEquals(-1, hash1);
+            assertNotEquals(-1, hash2);
         }
     }
 

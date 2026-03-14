@@ -29,3 +29,4 @@ htmlReport/
 .sonarlint/
 .ai/*
 /.github/agents/
+/docs/

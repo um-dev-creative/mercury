@@ -303,13 +303,13 @@ class MercuryKeyTest {
         @Test
         @DisplayName("APPLICATION_ID should not equal null")
         void applicationIdNotEqualsNull() {
-            assertNotEquals(MercuryKey.APPLICATION_ID, null);
+            assertNotEquals(null, MercuryKey.APPLICATION_ID);
         }
 
         @Test
         @DisplayName("APPLICATION_ID should not equal a string")
         void applicationIdNotEqualsString() {
-            assertNotEquals(MercuryKey.APPLICATION_ID, "APPLICATION_ID");
+            assertNotEquals("APPLICATION_ID", MercuryKey.APPLICATION_ID);
         }
 
         @Test

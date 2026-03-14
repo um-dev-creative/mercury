@@ -43,15 +43,19 @@ class CampaignTOTest {
     @Test
     @DisplayName("Create CampaignTO with null name throws IllegalArgumentException")
     void createWithNullNameThrows() {
+        var recipients = recipients();
+        var applicationId = UUID.randomUUID();
         assertThrows(IllegalArgumentException.class,
-                () -> new CampaignTO(null, "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID()));
+                () -> new CampaignTO(null, "email", TEMPLATE_ID, USER_ID, recipients, null, null, "DRAFT", applicationId));
     }
 
     @Test
     @DisplayName("Create CampaignTO with blank name throws IllegalArgumentException")
     void createWithBlankNameThrows() {
+        var recipients = recipients();
+        var applicationId = UUID.randomUUID();
         assertThrows(IllegalArgumentException.class,
-                () -> new CampaignTO("  ", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, "DRAFT", UUID.randomUUID()));
+                () -> new CampaignTO("  ", "email", TEMPLATE_ID, USER_ID, recipients, null, null, "DRAFT", applicationId));
     }
 
     @Test

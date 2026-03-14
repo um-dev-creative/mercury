@@ -671,13 +671,13 @@ class ChannelTypeTest {
         @Test
         @DisplayName("EMAIL should not equal null")
         void emailNotEqualsNull() {
-            assertNotEquals(ChannelType.EMAIL, null);
+            assertNotEquals(null, ChannelType.EMAIL);
         }
 
         @Test
         @DisplayName("EMAIL should not equal a string")
         void emailNotEqualsString() {
-            assertNotEquals(ChannelType.EMAIL, "EMAIL");
+            assertNotEquals("EMAIL", ChannelType.EMAIL);
         }
 
         @Test
