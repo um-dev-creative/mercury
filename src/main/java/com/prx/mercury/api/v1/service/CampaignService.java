@@ -43,6 +43,15 @@ public interface CampaignService {
      */
     CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId);
 
+    /**
+     * Enables or disables (pauses/resumes) a campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param enabled desired enabled state
+     * @param requesterId the user requesting the change (for permission/audit)
+     */
+    void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId);
+
 }
 
 

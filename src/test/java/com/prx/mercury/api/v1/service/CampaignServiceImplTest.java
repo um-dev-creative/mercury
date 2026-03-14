@@ -418,8 +418,7 @@ class CampaignServiceImplTest {
 
             List<CampaignDetailResponse> result = campaignServiceImpl.getByUserIdAndApplicationId(userId, appId);
 
-            assertThat(result).isNotNull();
-            assertThat(result).hasSize(1);
+            assertThat(result).isNotNull().hasSize(1);
             assertThat(result.get(0).id()).isEqualTo(e.getId());
             verify(campaignRepository).findByCreatedByAndApplicationId(userId, appId);
             verify(campaignMapper).toCampaignDetailResponse(e);
@@ -633,5 +632,68 @@ class CampaignServiceImplTest {
             verify(campaignRepository).save(any(CampaignEntity.class));
         }
 
+    }
+
+    @Nested
+    @DisplayName("toggleCampaign tests")
+    class ToggleCampaignTests {
+
+        @Test
+        @DisplayName("successfully disables a campaign when requester is owner")
+        void toggle_disable_success() {
+            UUID campaignId = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            UUID owner = UUID.randomUUID();
+            entity.setCreatedBy(owner);
+            entity.setTemplateDefined(new TemplateDefinedEntity());
+            entity.setEnabled(true);
+
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+            when(campaignRepository.save(any(CampaignEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            campaignServiceImpl.toggleCampaign(campaignId, false, owner);
+
+            assertThat(entity.getEnabled()).isFalse();
+            verify(campaignRepository).save(entity);
+        }
+
+        @Test
+        @DisplayName("throws CampaignNotFoundException when campaign missing")
+        void toggle_notFound() {
+            UUID unknown = UUID.randomUUID();
+            var requestId = UUID.randomUUID();
+            when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
+
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.toggleCampaign(unknown, false, requestId));
+        }
+
+        @Test
+        @DisplayName("throws ForbiddenException when requester is not owner")
+        void toggle_forbidden() {
+            UUID campaignId = UUID.randomUUID();
+            UUID requestId = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            entity.setCreatedBy(UUID.randomUUID());
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+
+            assertThrows(ForbiddenException.class, () -> campaignServiceImpl.toggleCampaign(campaignId, false, requestId));
+        }
+
+        @Test
+        @DisplayName("throws IllegalStateException when enabling a campaign without template")
+        void toggle_enable_missingTemplate() {
+            UUID campaignId = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            UUID owner = UUID.randomUUID();
+            entity.setCreatedBy(owner);
+            entity.setTemplateDefined(null);
+            entity.setEnabled(false);
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+
+            assertThrows(IllegalStateException.class, () -> campaignServiceImpl.toggleCampaign(campaignId, true, owner));
+        }
     }
 }

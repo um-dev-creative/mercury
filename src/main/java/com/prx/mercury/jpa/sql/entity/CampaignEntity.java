@@ -76,6 +76,10 @@ public class CampaignEntity {
     @Column(name = "application_id")
     private UUID applicationId;
 
+    @ColumnDefault("true")
+    @Column(name = "enabled")
+    private Boolean enabled;
+
     public UUID getId() {
         return id;
     }
@@ -194,5 +198,13 @@ public class CampaignEntity {
 
     public void setApplicationId(UUID applicationId) {
         this.applicationId = applicationId;
+    }
+
+    public Boolean getEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(Boolean enabled) {
+        this.enabled = enabled;
     }
 }

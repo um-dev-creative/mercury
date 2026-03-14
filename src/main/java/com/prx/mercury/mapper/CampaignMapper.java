@@ -38,6 +38,7 @@ public interface CampaignMapper {
     @Mapping(target = "updatedAt", source = "now")
     @Mapping(target = "completedAt", ignore = true)
     @Mapping(target = "batchSize", source = "batchSize")
+    @Mapping(target = "enabled", expression = "java(Boolean.TRUE)")
     @Mapping(target = "name", source = "campaignTO.name")
     @Mapping(target = "channelType", source = "channelType")
     @Mapping(target = "templateDefined", source = "templateDefined")

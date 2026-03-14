@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.controller;
 
+import com.prx.commons.util.JwtUtil;
 import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
 import com.prx.mercury.api.v1.service.CampaignService;
 import com.prx.mercury.api.v1.to.CampaignDetailResponse;
@@ -309,6 +310,31 @@ class CampaignControllerTest {
             assertThrows(RuntimeException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
 
             Mockito.verifyNoInteractions(campaignService);
+        }
+    }
+
+    @Nested
+    @DisplayName("toggleCampaign endpoint tests")
+    class ToggleEndpointTests {
+
+        @Test
+        @DisplayName("returns 204 No Content when toggle succeeds")
+        void toggle_returns204() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(UUID.randomUUID());
+            // service should not throw
+            // call controller
+            ResponseEntity<Void> resp = campaignController.toggleCampaign(campaignId, false, "token-value");
+            assertThat(resp.getStatusCode().value()).isEqualTo(204);
+        }
+
+        @Test
+        @DisplayName("propagates exception when token parsing fails")
+        void toggle_invalidToken() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+
+            assertThrows(RuntimeException.class, () -> campaignController.toggleCampaign(campaignId, false, "bad-token"));
         }
     }
 }

@@ -342,6 +342,44 @@ paths:
         '204':
           description: Channel type toggled successfully.
 
+  /api/v1/campaigns/{id}/toggle:
+    patch:
+      tags:
+        - campaigns
+      summary: Enable or disable a campaign
+      description: Enable or disable (pause/resume) a campaign by id.
+      operationId: toggleCampaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: enabled
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Campaign toggled successfully.
+        '400':
+          description: Invalid parameters.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission.
+        '404':
+          description: Campaign not found.
+        '422':
+          description: Business rule violation.
+
 components:
   schemas:
     CreateCampaignRequest:

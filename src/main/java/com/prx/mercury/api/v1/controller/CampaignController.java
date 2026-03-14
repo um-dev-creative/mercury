@@ -102,5 +102,15 @@ public class CampaignController {
         List<CampaignDetailResponse> responses = campaignService.getByUserIdAndApplicationId(userId, applicationId);
         return ResponseEntity.ok(responses);
     }
+
+    @PatchMapping(value = "/{id}/toggle")
+    public ResponseEntity<Void> toggleCampaign(
+            @PathVariable UUID id,
+            @RequestParam(name = "enabled") boolean enabled,
+            @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+        UUID userId = getUidFromToken(sessionToken);
+        campaignService.toggleCampaign(id, enabled, userId);
+        return ResponseEntity.noContent().build();
+    }
 }
 
