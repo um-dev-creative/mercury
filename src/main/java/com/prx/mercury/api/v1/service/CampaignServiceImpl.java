@@ -230,6 +230,37 @@ public class CampaignServiceImpl implements CampaignService {
         return entities.stream().map(campaignMapper::toCampaignDetailResponse).toList();
     }
 
+    @Override
+    public void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId) {
+        logger.info("Toggle campaign request. campaignId={}, requesterId={}, enabled={}", campaignId, requesterId, enabled);
+
+        CampaignEntity entity = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new CampaignNotFoundException("Campaign not found: " + campaignId));
+
+        // permission check: only owner can toggle
+        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
+            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
+            throw new ForbiddenException("Caller lacks permission to toggle this campaign");
+        }
+
+        Boolean previous = entity.getEnabled();
+        if (Objects.isNull(previous)) previous = Boolean.TRUE;
+
+        // business rule example: enabling requires template to be present
+        if (enabled && Objects.isNull(entity.getTemplateDefined())) {
+            logger.warn("Cannot enable campaign without template. campaignId={}", campaignId);
+            throw new IllegalStateException("Cannot enable campaign without associated template");
+        }
+
+        entity.setEnabled(enabled);
+        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedBy(requesterId);
+        campaignRepository.save(entity);
+
+        logger.info("Campaign toggled. campaignId={}, previousEnabled={}, newEnabled={}, requestedBy={}", campaignId, previous, enabled, requesterId);
+        // TODO: emit audit event if needed
+    }
+
 
     private void validateRecipients(CampaignTO campaignTO) {
         if (campaignTO.recipients().isEmpty()) {
