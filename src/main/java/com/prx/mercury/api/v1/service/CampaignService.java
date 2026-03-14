@@ -4,6 +4,7 @@ package com.prx.mercury.api.v1.service;
 import com.prx.mercury.api.v1.to.CampaignDetailResponse;
 import com.prx.mercury.api.v1.to.CampaignProgressTO;
 import com.prx.mercury.api.v1.to.CampaignTO;
+import com.prx.mercury.api.v1.to.UpdateCampaignRequest;
 
 import java.util.List;
 import java.util.UUID;
@@ -32,4 +33,17 @@ public interface CampaignService {
 
     List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId);
 
+    /**
+     * Updates mutable fields of an existing campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param updateRequest the request containing partial fields to update
+     * @param requesterId the user making the request (for auditing/permission checks)
+     * @return the updated CampaignDetailResponse
+     */
+    CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId);
+
 }
+
+
+

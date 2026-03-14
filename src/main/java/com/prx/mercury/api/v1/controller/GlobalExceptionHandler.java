@@ -131,6 +131,15 @@ public class GlobalExceptionHandler {
                 .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
     }
 
+    @ExceptionHandler(com.prx.mercury.api.v1.exception.ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(com.prx.mercury.api.v1.exception.ForbiddenException ex,
+                                                    HttpServletRequest request) {
+        logger.warn("Forbidden request for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.FORBIDDEN)
+                .body(buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI()));
+    }
+
     /**
      * Handles state violations such as disabled channel types.
      */

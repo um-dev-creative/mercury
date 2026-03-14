@@ -1,10 +1,8 @@
 package com.prx.mercury.api.v1.service;
 
 import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.CampaignTO;
-import com.prx.mercury.api.v1.to.RecipientTO;
+import com.prx.mercury.api.v1.exception.ForbiddenException;
+import com.prx.mercury.api.v1.to.*;
 import com.prx.mercury.jpa.sql.entity.CampaignEntity;
 import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
 import com.prx.mercury.jpa.sql.repository.CampaignMetricsRepository;
@@ -19,9 +17,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -144,6 +140,90 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
+    public CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId) {
+        logger.info("Updating campaign. campaignId={}, requesterId={}", campaignId, requesterId);
+
+        CampaignEntity entity = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new CampaignNotFoundException("Campaign not found: " + campaignId));
+
+        // simple permission check: only owner can update (createdBy) or same application admin - placeholder
+        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
+            // In real app, more sophisticated role checks would be applied
+            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
+            throw new ForbiddenException("Caller lacks permission to update this campaign");
+        }
+
+        boolean changed = false;
+
+        if (Objects.nonNull(updateRequest.name()) && !updateRequest.name().isBlank()) {
+            entity.setName(updateRequest.name());
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.templateId())) {
+            var template = templateDefinedRepository.findById(updateRequest.templateId())
+                    .orElseThrow(() -> new IllegalArgumentException("Template not found: " + updateRequest.templateId()));
+            entity.setTemplateDefined(template);
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.applicationId())) {
+            entity.setApplicationId(updateRequest.applicationId());
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.scheduledAt())) {
+            entity.setScheduledAt(updateRequest.scheduledAt());
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.status()) && !updateRequest.status().isBlank()) {
+            entity.setStatus(updateRequest.status());
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.templateParams())) {
+            Map<String, Object> metadata = entity.getMetadata();
+            if (metadata == null) {
+                metadata = new LinkedHashMap<>();
+            }
+            // Store template parameters under a simple key to avoid complex nested types
+            metadata.put("templateParams", updateRequest.templateParams());
+            entity.setMetadata(metadata);
+            changed = true;
+        }
+
+        if (Objects.nonNull(updateRequest.recipients())) {
+            // deduplicate recipients by identifier
+            List<RecipientTO> recipients = updateRequest.recipients();
+            Set<String> seen = new LinkedHashSet<>();
+            List<RecipientTO> deduped = new ArrayList<>();
+            for (RecipientTO r : recipients) {
+                if (r == null || r.identifier() == null || r.identifier().isBlank()) continue;
+                if (seen.add(r.identifier())) {
+                    deduped.add(r);
+                }
+            }
+            if (deduped.isEmpty()) {
+                throw new IllegalArgumentException("At least one recipient is required");
+            }
+            entity.setTotalRecipients(deduped.size());
+            changed = true;
+        }
+
+        if (changed) {
+            entity.setUpdatedAt(LocalDateTime.now());
+            entity.setUpdatedBy(requesterId);
+            entity = campaignRepository.save(entity);
+            logger.info("Campaign updated. id={}, updatedBy={}", entity.getId(), requesterId);
+        } else {
+            logger.info("No mutable fields provided for update. campaignId={}", campaignId);
+        }
+
+        return campaignMapper.toCampaignDetailResponse(entity);
+    }
+
+    @Override
     public List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId) {
         logger.debug("Fetching campaigns by user and application. userId={}, applicationId={}", userId, applicationId);
         List<CampaignEntity> entities = campaignRepository.findByCreatedByAndApplicationId(userId, applicationId);
@@ -162,7 +242,7 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     private String resolveStatus(String status) {
-        String resolvedStatus = status == null || status.isBlank() ? DEFAULT_STATUS : status;
+        String resolvedStatus = Objects.isNull(status) || status.isBlank() ? DEFAULT_STATUS : status;
         logger.debug("Resolved campaign status. inputStatus={}, resolvedStatus={}", status, resolvedStatus);
         return resolvedStatus;
     }

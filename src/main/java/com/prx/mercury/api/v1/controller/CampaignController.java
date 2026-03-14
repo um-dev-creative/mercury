@@ -84,6 +84,16 @@ public class CampaignController {
         return ResponseEntity.ok(campaignService.getById(id));
     }
 
+    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<CampaignDetailResponse> updateCampaign(
+            @PathVariable UUID id,
+            @RequestHeader(SESSION_TOKEN_KEY) String sessionToken,
+            @RequestBody @Valid UpdateCampaignRequest request) {
+        UUID userId = getUidFromToken(sessionToken);
+        CampaignDetailResponse updated = campaignService.updateCampaign(id, request, userId);
+        return ResponseEntity.ok(updated);
+    }
+
     @GetMapping(value = "/application/{applicationId}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<List<CampaignDetailResponse>> getByApplication(@PathVariable UUID applicationId, @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
         // extract user id from token

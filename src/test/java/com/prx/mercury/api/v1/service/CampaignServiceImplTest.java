@@ -1,10 +1,8 @@
 package com.prx.mercury.api.v1.service;
 
 import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.CampaignTO;
-import com.prx.mercury.api.v1.to.RecipientTO;
+import com.prx.mercury.api.v1.exception.ForbiddenException;
+import com.prx.mercury.api.v1.to.*;
 import com.prx.mercury.jpa.sql.entity.CampaignEntity;
 import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
 import com.prx.mercury.jpa.sql.entity.ChannelTypeEntity;
@@ -27,10 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CampaignServiceImpl unit tests")
@@ -86,7 +82,9 @@ class CampaignServiceImplTest {
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    /** Stubs the template lookup and mapper for tests that exercise the full createCampaign path. */
+    /**
+     * Stubs the template lookup and mapper for tests that exercise the full createCampaign path.
+     */
     private void stubTemplateAndMapper() {
         TemplateDefinedEntity defaultTemplate = new TemplateDefinedEntity();
         defaultTemplate.setId(UUID.randomUUID());
@@ -146,9 +144,10 @@ class CampaignServiceImplTest {
         @Test
         @DisplayName("throws when channel not found")
         void createCampaign_channelNotFound() {
+            var campaign = makeCampaignTO();
             when(channelTypeRepository.findByCode("email")).thenReturn(Optional.empty());
             assertThrows(IllegalArgumentException.class,
-                    () -> campaignServiceImpl.createCampaign(makeCampaignTO()));
+                    () -> campaignServiceImpl.createCampaign(campaign));
         }
 
         @Test
@@ -435,9 +434,204 @@ class CampaignServiceImplTest {
 
             List<CampaignDetailResponse> result = campaignServiceImpl.getByUserIdAndApplicationId(userId, appId);
 
-            assertThat(result).isNotNull();
-            assertThat(result).isEmpty();
+            assertThat(result).isNotNull().isEmpty();
             verify(campaignRepository).findByCreatedByAndApplicationId(userId, appId);
         }
+    }
+
+    // ── UpdateCampaign ───────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("updateCampaign tests")
+    class UpdateCampaign {
+
+        @Test
+        @DisplayName("partial update changes mutable fields and persists")
+        void partialUpdate_changesFields() {
+            UUID id = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setName("OldName");
+            entity.setCreatedBy(userId);
+            entity.setTotalRecipients(1);
+            CampaignDetailResponse campaign = new CampaignDetailResponse(
+                    UUID.randomUUID(),
+                    "NewName",
+                    "email",
+                    UUID.randomUUID(),
+                    "SCHEDULED",
+                    1,
+                    LocalDateTime.now().plusDays(1),
+                    LocalDateTime.now(), LocalDateTime.now(),
+                    Map.of("k", "v")
+            );
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(campaignRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+            when(campaignMapper.toCampaignDetailResponse(entity)).thenReturn(campaign);
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest("NewName", null, null, Map.of("k", "v"), LocalDateTime.now().plusDays(1), "SCHEDULED", null);
+
+            var resp = campaignServiceImpl.updateCampaign(id, req, userId);
+
+            assertThat(resp).isNotNull();
+            verify(campaignRepository).save(any(CampaignEntity.class));
+        }
+
+        @Test
+        @DisplayName("throws ForbiddenException when requester is not owner")
+        void forbidden_whenNotOwner() {
+            UUID id = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setCreatedBy(UUID.randomUUID());
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest(null, null, null, null, null, null, null);
+            var otherId = UUID.randomUUID();
+
+            assertThrows(ForbiddenException.class, () -> campaignServiceImpl.updateCampaign(id, req, otherId));
+        }
+
+        @Test
+        @DisplayName("full update applies all mutable fields and persists")
+        void fullUpdate_appliesAllFields() {
+            UUID id = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UUID newTemplateId = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setName("OldName");
+            entity.setCreatedBy(userId);
+            entity.setTotalRecipients(1);
+
+            TemplateDefinedEntity templateEntity = new TemplateDefinedEntity();
+            templateEntity.setId(newTemplateId);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(templateDefinedRepository.findById(newTemplateId)).thenReturn(Optional.of(templateEntity));
+            when(campaignRepository.save(any(CampaignEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            List<RecipientTO> recipients = List.of(
+                    new RecipientTO("a@example.com", "A", Map.of()),
+                    new RecipientTO("a@example.com", "A2", Map.of()),
+                    new RecipientTO("b@example.com", "B", Map.of())
+            );
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest(
+                    "NewName",
+                    newTemplateId,
+                    recipients,
+                    Map.of("p", "v"),
+                    LocalDateTime.now().plusDays(2),
+                    "SCHEDULED",
+                    UUID.randomUUID()
+            );
+
+            CampaignDetailResponse expectedDto = new CampaignDetailResponse(id, "NewName", "email", newTemplateId, "SCHEDULED", 2, req.scheduledAt(), LocalDateTime.now(), LocalDateTime.now(), Map.of());
+            when(campaignMapper.toCampaignDetailResponse(any(CampaignEntity.class))).thenReturn(expectedDto);
+
+            CampaignDetailResponse result = campaignServiceImpl.updateCampaign(id, req, userId);
+
+            assertThat(result).isSameAs(expectedDto);
+
+            ArgumentCaptor<CampaignEntity> captor = ArgumentCaptor.forClass(CampaignEntity.class);
+            verify(campaignRepository).save(captor.capture());
+            CampaignEntity saved = captor.getValue();
+            assertThat(saved.getName()).isEqualTo("NewName");
+            assertThat(saved.getTemplateDefined()).isSameAs(templateEntity);
+            assertThat(saved.getTotalRecipients()).isEqualTo(2);
+            assertThat(saved.getUpdatedBy()).isEqualTo(userId);
+            assertThat(saved.getUpdatedAt()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("throws when template id does not exist")
+        void templateNotFound_throws() {
+            UUID id = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            UUID missingTemplate = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setCreatedBy(userId);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(templateDefinedRepository.findById(missingTemplate)).thenReturn(Optional.empty());
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest(null, missingTemplate, null, null, null, null, null);
+
+            assertThrows(IllegalArgumentException.class, () -> campaignServiceImpl.updateCampaign(id, req, userId));
+        }
+
+        @Test
+        @DisplayName("throws when recipients dedupe results in empty list")
+        void recipientsDedup_empty_throws() {
+            UUID id = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setCreatedBy(userId);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+
+            // recipients with only blank identifiers
+            List<RecipientTO> badRecipients = List.of(new RecipientTO("", "X", Map.of()), new RecipientTO(null, "Y", Map.of()));
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest(null, null, badRecipients, null, null, null, null);
+
+            assertThrows(IllegalArgumentException.class, () -> campaignServiceImpl.updateCampaign(id, req, userId));
+        }
+
+        @Test
+        @DisplayName("no mutable fields provided does not persist and returns mapping")
+        void noMutableFields_noSave_returnsMapped() {
+            UUID id = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setCreatedBy(userId);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+
+            CampaignDetailResponse mapped = new CampaignDetailResponse(id, "Old", "email", null, null, null, null, null, null, Map.of());
+            when(campaignMapper.toCampaignDetailResponse(entity)).thenReturn(mapped);
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest(null, null, null, null, null, null, null);
+
+            CampaignDetailResponse resp = campaignServiceImpl.updateCampaign(id, req, userId);
+
+            assertThat(resp).isSameAs(mapped);
+            verify(campaignRepository, never()).save(any(CampaignEntity.class));
+        }
+
+        @Test
+        @DisplayName("allows update when createdBy is null (no owner)")
+        void allowsUpdate_whenCreatedByNull() {
+            UUID id = UUID.randomUUID();
+
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setCreatedBy(null);
+
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(campaignRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            UpdateCampaignRequest req = new UpdateCampaignRequest("NameX", null, null, null, null, null, null);
+
+            CampaignDetailResponse mapped = new CampaignDetailResponse(id, "NameX", "email", null, null, null, null, null, null, Map.of());
+            when(campaignMapper.toCampaignDetailResponse(any(CampaignEntity.class))).thenReturn(mapped);
+
+            CampaignDetailResponse out = campaignServiceImpl.updateCampaign(id, req, UUID.randomUUID());
+
+            assertThat(out).isSameAs(mapped);
+            verify(campaignRepository).save(any(CampaignEntity.class));
+        }
+
     }
 }

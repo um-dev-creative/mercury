@@ -95,6 +95,47 @@ paths:
           description: Campaign with the given id does not exist.
         '500':
           description: Unexpected internal error.
+    put:
+      tags:
+        - campaigns
+      summary: Update campaign by ID
+      description: Update mutable fields of a campaign identified by UUID.
+      operationId: updateCampaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCampaignRequest'
+      responses:
+        '200':
+          description: Campaign updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetailResponse'
+        '400':
+          description: Invalid request payload.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to update this campaign.
+        '404':
+          description: Campaign not found.
+        '422':
+          description: Business rule violation.
 
   /api/v1/mail:
     post:
@@ -559,4 +600,32 @@ components:
         metadata:
           type: object
           additionalProperties: true
+
+    UpdateCampaignRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipientTO'
+        templateParams:
+          type: object
+          additionalProperties: true
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+      example:
+        name: "Updated Campaign Name"
+        scheduledAt: "2026-03-20T13:00:00Z"
+        status: "SCHEDULED"
 
