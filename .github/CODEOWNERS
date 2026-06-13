@@ -1,0 +1,38 @@
+# Mercury CODEOWNERS
+# Each line maps a path pattern to the owners who must review changes to those paths.
+# Owners are notified when a PR touches their areas.
+
+# Global fallback — all files
+* @lmata
+
+# API contracts — api-reviewer agent required; Luis reviews all *Api.java changes
+src/main/java/com/prx/mercury/api/v1/controller/*Api.java @lmata
+
+# Security-sensitive — security-reviewer agent required
+src/main/java/com/prx/mercury/client/ @lmata
+src/main/java/com/prx/mercury/security/ @lmata
+src/main/java/com/prx/mercury/config/ @lmata
+src/main/resources/bootstrap.yml @lmata
+default.env @lmata
+
+# Persistence layer — database-architect agent required
+src/main/java/com/prx/mercury/jpa/ @lmata
+src/main/resources/db/ @lmata
+
+# Kafka / channel services — devops-engineer agent for config changes
+src/main/java/com/prx/mercury/kafka/ @lmata
+src/main/java/com/prx/mercury/scheduler/ @lmata
+src/main/java/com/prx/mercury/processor/ @lmata
+
+# CI/CD workflows — devops-engineer agent required
+.github/workflows/ @lmata
+
+# Agent infrastructure — requires orchestrator sign-off
+.github/agents/ @lmata
+.github/prompts/ @lmata
+.claude/ @lmata
+.continue/ @lmata
+
+# Build configuration
+pom.xml @lmata
+ruleset.xml @lmata
