@@ -60,23 +60,23 @@ prx:
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
   security:
     keystore:
-      location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the keystore
-      type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the keystore
-      password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the keystore
+      location: ${SSL_KEYSTORE_LOCATION}  # Location of the keystore
+      type: ${SSL_KEYSTORE_TYPE}  # Type of the keystore
+      password: ${SSL_KEYSTORE_PASSWORD}  # Password for the keystore
     truststore:
-      location: ${SSL_JKS_CNFS_TRUSTSTORE_LOCATION}  # Location of the truststore
-      type: ${SSL_JKS_CNFS_TRUSTSTORE_TYPE}  # Type of the truststore
-      password: ${SSL_JKS_CNFS_TRUSTSTORE_PASSWORD}  # Password for the truststore
+      location: ${SSL_TRUSTSTORE_LOCATION}  # Location of the truststore
+      type: ${SSL_TRUSTSTORE_TYPE}  # Type of the truststore
+      password: ${SSL_TRUSTSTORE_PASSWORD}  # Password for the truststore
     management-authenticator:
       enabled: true  # Enable management authenticator
       keystore:
-        location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the keystore for management
-        type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the keystore for management
-        password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the keystore for management
+        location: ${SSL_KEYSTORE_LOCATION}  # Location of the keystore for management
+        type: ${SSL_KEYSTORE_TYPE}  # Type of the keystore for management
+        password: ${SSL_KEYSTORE_PASSWORD}  # Password for the keystore for management
       truststore:
-        location: ${SSL_JKS_CNFS_KEYSTORE_LOCATION}  # Location of the truststore for management
-        type: ${SSL_JKS_CNFS_KEYSTORE_TYPE}  # Type of the truststore for management
-        password: ${SSL_JKS_CNFS_KEYSTORE_PASSWORD}  # Password for the truststore for management
+        location: ${SSL_TRUSTSTORE_LOCATION}  # Location of the truststore for management
+        type: ${SSL_TRUSTSTORE_TYPE}  # Type of the truststore for management
+        password: ${SSL_TRUSTSTORE_PASSWORD}  # Password for the truststore for management
 app:
   clientRoles: ${AUTH_ROLE_ID}
   # The environments for the application
@@ -142,7 +142,7 @@ spring:
   datasource:
     username: ${MERCURY_DB_USERNAME}  # Username for the database
     password: ${MERCURY_DB_PASSWORD}  # Password for the database
-    url: jdbc:postgresql://${MERCURY_DB_URI}:${MERCURY_DB_PORT}/${MERCURY_DB_NAME}  # JDBC URL for the database
+    url: jdbc:postgresql://${MERCURY_DB_URI}:${MERCURY_DB_PORT}/${MERCURY_DB_NAME}?prepareThreshold=0  # JDBC URL for the database
     driver-class-name: org.postgresql.Driver  # Driver class name for PostgresSQL
   # JPA (Java Persistence API) settings
   jpa:
@@ -222,11 +222,15 @@ spring:
     #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>
     vault:
       token: ${VAULT_TOKEN}
-      uri: ${VAULT_SERVER_URL}
+      uri: ${VAULT_URI}
       kv:
-        backend: PRX
+        backend: dev
         default-context: ${app.name}
       application-name: ${app.name}
+      ssl:
+        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION}
+        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+        trust-store-type: ${SSL_TRUSTSTORE_TYPE}
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
@@ -242,7 +246,14 @@ spring:
       port: ${CNFS_PORT}
       # Enables sending of state for the Spring Cloud Config
       send-state: true
-
+      tls:
+        enabled: true
+        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION}
+        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
+        trust-store-type: ${SSL_TRUSTSTORE_TYPE}
+logging:
+  level:
+    org.springframework.cloud.configuration.SSLContextFactory: ERROR
 
 swagger:
   base-package: 'com.prx.mercury.api.v1.controller'
