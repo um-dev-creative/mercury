@@ -1,6 +1,7 @@
 package com.prx.mercury.kafka.to;
 
-import com.prx.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.kafka.to.EmailMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

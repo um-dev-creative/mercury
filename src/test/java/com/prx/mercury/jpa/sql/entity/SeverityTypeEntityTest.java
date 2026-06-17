@@ -1,5 +1,6 @@
 package com.prx.mercury.jpa.sql.entity;
 
+import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

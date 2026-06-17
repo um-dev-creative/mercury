@@ -1,6 +1,7 @@
 package com.prx.mercury.benchmark;
 
-import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.api.v1.service.VerificationCodeServiceImpl;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -12,7 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Benchmarks the in-memory streaming logic of
- * {@link com.prx.mercury.api.v1.service.VerificationCodeServiceImpl#confirmCode}.
+ * {@link VerificationCodeServiceImpl#confirmCode}.
  *
  * <p>The <em>current</em> implementation performs <b>two full passes</b> over the list:
  * <ol>

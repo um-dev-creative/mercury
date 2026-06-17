@@ -1,5 +1,6 @@
 package com.prx.mercury.constant;
 
+import com.umdc.mercury.constant.MercuryMessage;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -301,7 +302,7 @@ class MercuryMessageTest {
         @Test
         @DisplayName("MercuryMessage should implement MessageType interface")
         void implementsMessageType() {
-            assertTrue(MercuryMessage.METHOD_NOT_IMPLEMENTED instanceof com.prx.commons.constants.httpstatus.type.MessageType);
+            assertTrue(MercuryMessage.METHOD_NOT_IMPLEMENTED instanceof com.umdc.commons.constants.httpstatus.type.MessageType);
         }
 
         @Test
@@ -589,8 +590,8 @@ class MercuryMessageTest {
         @Test
         @DisplayName("Constants can be used as MessageType in standardized error handling")
         void usableAsMessageType() {
-            com.prx.commons.constants.httpstatus.type.MessageType methodNotImpl = MercuryMessage.METHOD_NOT_IMPLEMENTED;
-            com.prx.commons.constants.httpstatus.type.MessageType runtimeException = MercuryMessage.RUNTIME_EXCEPTION;
+            com.umdc.commons.constants.httpstatus.type.MessageType methodNotImpl = MercuryMessage.METHOD_NOT_IMPLEMENTED;
+            com.umdc.commons.constants.httpstatus.type.MessageType runtimeException = MercuryMessage.RUNTIME_EXCEPTION;
 
             assertNotNull(methodNotImpl);
             assertNotNull(runtimeException);

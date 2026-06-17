@@ -1,6 +1,7 @@
 package com.prx.mercury.benchmark;
 
-import com.prx.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.mapper.MessageRecordMapper;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -12,7 +13,7 @@ import java.util.function.IntFunction;
 import java.util.stream.Collectors;
 
 /**
- * Benchmarks the {@code listToString} logic inside {@link com.prx.mercury.mapper.MessageRecordMapper}.
+ * Benchmarks the {@code listToString} logic inside {@link MessageRecordMapper}.
  *
  * <p>The <em>current</em> implementation converts a {@code List<EmailContact>} to a delimited
  * string via {@code Arrays.toString(stream.toArray(...))} which:

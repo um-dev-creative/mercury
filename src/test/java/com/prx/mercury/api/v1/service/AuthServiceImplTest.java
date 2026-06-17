@@ -1,9 +1,10 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.client.BackboneClient;
-import com.prx.mercury.security.SessionJwtServiceImpl;
-import com.prx.security.to.AuthRequest;
-import com.prx.security.to.AuthResponse;
+import com.umdc.mercury.api.v1.service.AuthServiceImpl;
+import com.umdc.mercury.client.BackboneClient;
+import com.umdc.mercury.security.SessionJwtServiceImpl;
+import com.umdc.security.to.AuthRequest;
+import com.umdc.security.to.AuthResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;

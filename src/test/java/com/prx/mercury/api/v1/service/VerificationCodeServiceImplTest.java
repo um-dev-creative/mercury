@@ -1,11 +1,12 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.VerificationCodeRequest;
-import com.prx.mercury.api.v1.to.VerificationCodeTO;
-import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
-import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
-import com.prx.mercury.jpa.sql.repository.VerificationCodeRepository;
-import com.prx.mercury.mapper.VerificationCodeMapper;
+import com.umdc.mercury.api.v1.service.VerificationCodeServiceImpl;
+import com.umdc.mercury.api.v1.to.VerificationCodeRequest;
+import com.umdc.mercury.api.v1.to.VerificationCodeTO;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.jpa.sql.repository.VerificationCodeRepository;
+import com.umdc.mercury.mapper.VerificationCodeMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

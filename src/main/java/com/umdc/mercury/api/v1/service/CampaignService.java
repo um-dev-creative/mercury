@@ -1,0 +1,59 @@
+// src/main/java/com/prx/mercury/api/v1/service/ChannelTypeService.java
+package com.umdc.mercury.api.v1.service;
+
+import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.CampaignTO;
+import com.umdc.mercury.api.v1.to.UpdateCampaignRequest;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+public interface CampaignService {
+
+    String PARSE_MODE_KEY = "parseMode";
+    String SENDER_ID_KEY = "senderId";
+    String MESSAGE_KEY = "message";
+    String SUBJECT_KEY = "subject";
+    String BODY_KEY = "body";
+    String FROM_KEY = "from";
+
+    CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request);
+
+    CampaignProgressTO getProgress(UUID campaignId);
+
+    /**
+     * Retrieves a campaign by its unique identifier.
+     *
+     * @param id the campaign UUID; must not be {@code null}.
+     * @return the {@link CampaignDetailResponse} populated from the stored entity.
+     * @throws CampaignNotFoundException if no campaign with the given id exists.
+     */
+    CampaignDetailResponse getById(UUID id);
+
+    List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId);
+
+    /**
+     * Updates mutable fields of an existing campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param updateRequest the request containing partial fields to update
+     * @param requesterId the user making the request (for auditing/permission checks)
+     * @return the updated CampaignDetailResponse
+     */
+    CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId);
+
+    /**
+     * Enables or disables (pauses/resumes) a campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param enabled desired enabled state
+     * @param requesterId the user requesting the change (for permission/audit)
+     */
+    void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId);
+
+}
+
+
+

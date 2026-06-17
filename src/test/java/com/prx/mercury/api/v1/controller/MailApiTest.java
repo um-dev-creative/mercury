@@ -1,9 +1,10 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.prx.mercury.api.v1.service.EmailService;
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.api.v1.to.SendEmailRequest;
-import com.prx.mercury.api.v1.to.SendEmailResponse;
+import com.umdc.mercury.api.v1.controller.MailApi;
+import com.umdc.mercury.api.v1.service.EmailService;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.SendEmailRequest;
+import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -47,7 +48,7 @@ class MailApiTest {
 
         ResponseEntity<SendEmailResponse> result = mailApi.send(request);
 
-        assertEquals(200, result.getStatusCodeValue());
+        assertEquals(200, result.getStatusCode().value());
         assertEquals("Delivered", result.getBody().status());
     }
 

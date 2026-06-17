@@ -1,15 +1,16 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.ChannelTypeTO;
-import com.prx.mercury.jpa.sql.entity.ChannelTypeEntity;
-import com.prx.mercury.jpa.sql.repository.ChannelTypeRepository;
-import com.prx.mercury.mapper.ChannelTypeMapper;
+import com.umdc.mercury.api.v1.service.ChannelTypeServiceImpl;
+import com.umdc.mercury.api.v1.to.ChannelTypeTO;
+import com.umdc.mercury.jpa.sql.entity.ChannelTypeEntity;
+import com.umdc.mercury.jpa.sql.repository.ChannelTypeRepository;
+import com.umdc.mercury.mapper.ChannelTypeMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith(MockitoExtension.class)
 class ChannelTypeServiceImplTest {
 
     @Mock

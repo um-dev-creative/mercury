@@ -2,7 +2,14 @@
 log:
   debug: ${LOGGING_TRACE_ENABLED}
 
-prx:
+umdc:
+  management:
+    clientRoles: ${AUTH_ROLE_ID}  # Client roles for management
+  api:
+    excludes: none
+    exclude:
+      methods: accessToken,generateTokenSession
+    endpoint: /api/v1  # API endpoint for the application
   consumer:
     group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
     topics:
@@ -14,16 +21,29 @@ prx:
   # Kafka related toggles (allow disabling consumers or preventing auto-start)
   kafka:
     # Set to false to disable creating Kafka consumer beans entirely
-    enabled: ${PRX_KAFKA_ENABLED:true}
+    enabled: ${UMDC_KAFKA_ENABLED:true}
     # Controls whether listener containers auto-start on context refresh. Set to false for local dev when Kafka is unavailable
-    auto-startup: ${PRX_KAFKA_AUTO_STARTUP:false}
+    auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
+    # Aiven Kafka uses mTLS over SSL. Set KAFKA_SECURITY_PROTOCOL=SSL in deployed envs;
+    # leave PLAINTEXT for local dev without a broker.
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    ssl:
+      endpoint:
+        identification:
+          algorithm: ${KAFKA_SSL_ENDPOINT_ID_ALGO:https}
+      keystore:
+        location: ${KAFKA_SSL_KEYSTORE_LOCATION:classpath:aiven-kafka.p12}
+        password: ${KAFKA_SSL_KEYSTORE_PASSWORD:${SSL_KEYSTORE_PASSWORD:changeit}}
+        type: ${KAFKA_SSL_KEYSTORE_TYPE:PKCS12}
+      truststore:
+        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:umdc-truststore.jks}
+        password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:${SSL_TRUSTSTORE_PASSWORD:changeit}}
+        type: ${KAFKA_SSL_TRUSTSTORE_TYPE:${SSL_TRUSTSTORE_TYPE:PKCS12}}
   # Default consumer group id used by listeners that reference ${prx.consumer.group-id}
   logging:
     trace:
       enabled: ${LOGGING_TRACE_ENABLED}
-  jwt:
-    secret: ${APP_TOKEN_SECRET}
-    expirationMs: ${APP_TOKEN_EXPIRATION}
   auth:
     converter:
       resource-id: ${AUTH_CLIENT_ID}  # Resource ID for the authentication client
@@ -34,7 +54,7 @@ prx:
         scope: ${BACKBONE_SCOPE}
         client-secret: ${BACKBONE_CLIENT_SECRET}
         client-id: ${BACKBONE_CLIENT_ID}
-        redirect-uri: ${AUTH_SERVER_URI}${AUTH_TOKEN_URI}
+        redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
         username: ${BACKBONE_USERNAME}
         password: ${BACKBONE_PASSWORD}
       - id: mercury
@@ -42,7 +62,7 @@ prx:
         scope: ${MERCURY_SCOPE}
         client-secret: ${MERCURY_CLIENT_SECRET}
         client-id: ${MERCURY_CLIENT_ID}
-        redirect-uri: ${AUTH_SERVER_URI}${AUTH_TOKEN_URI}
+        redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
         username: ${MERCURY_USERNAME}
         password: ${MERCURY_PASSWORD}
   verification:
@@ -59,6 +79,9 @@ prx:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
   security:
+    jwt:
+      secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
+      expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
     keystore:
       location: ${SSL_KEYSTORE_LOCATION}  # Location of the keystore
       type: ${SSL_KEYSTORE_TYPE}  # Type of the keystore
@@ -94,8 +117,8 @@ app:
 server:
   port: ${APP_PORT}
   ssl:
-    # Enables SSL for the server
-    enabled: true
+    # Enables SSL for the server; defaults to false for local dev, set SSL_ENABLED=true in deployed environments
+    enabled: ${SSL_ENABLED:false}
     # The SSL bundle for the server
     bundle: mercury-security
     enabled-protocols: TLSv1.3
@@ -118,10 +141,11 @@ spring:
     listener:
       # Mirror prx.kafka.auto-startup so the Spring-Boot-autoconfigured factory
       # also does NOT auto-start when Kafka is unavailable locally
-      auto-startup: ${PRX_KAFKA_AUTO_STARTUP:false}
+      auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
   freemarker:
     template-loader-path: ${TEMPLATE_PATH}
     suffix: ${TEMPLATE_SUFFIX}
+    check-template-location: false
 
   mail:
     smtp:
@@ -133,8 +157,8 @@ spring:
     password: ${MAIL_PASSWORD}  # Password for the mail server
     protocol: ${MAIL_PROTOCOL}  # Protocol for the mail server
     properties:
-      mail.smtp.auth: ${MAIL_PROPERTIES_SMTP_AUTH}  # Enable SMTP authentication
-      mail.smtp.starttls.enable: ${MAIL_PROPERTIES_STARTTLS_ENABLED}  # Enable STARTTLS
+      mail.smtp.auth: ${MAIL_PROPERTIES_SMTP_AUTH:true}  # Enable SMTP authentication
+      mail.smtp.starttls.enable: ${MAIL_PROPERTIES_STARTTLS_ENABLED:true}  # Enable STARTTLS
 #      mail.smtp.ssl.trust: ${MAIL_HOST}  # Trust the mail host
       mail.smtp.connectiontimeout: 5000  # Connection timeout in milliseconds
       mail.smtp.timeout: 5000  # Timeout in milliseconds
@@ -158,15 +182,6 @@ spring:
                   allow_jdbc_metadata_access: true
     log-level: error
     defer-datasource-initialization: true
-  data:
-    mongodb:
-      uuidRepresentation: STANDARD
-      host: ${MONGO_HOST}
-      port: ${MONGO_PORT}
-      database: ${MONGO_DATABASE}
-      username: ${MONGO_USERNAME}
-      password: ${MONGO_PASSWORD}
-      uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/${MONGO_DATABASE}?retryWrites=true&w=majority
   ssl:
     bundle:
       jks:
@@ -211,26 +226,29 @@ spring:
             authorization-grant-type: password
         provider:
           external:
-            issuer-uri: ${AUTH_SERVER_URI}
+            issuer-uri: ${AUTH_URI}
             jwk-set-uri: ${spring.security.oauth2.client.provider.external.issuer-uri}/protocol/openid-connect/certs
       resourceserver:
         jwt:
-          issuer-uri: ${AUTH_SERVER_URI}
+          issuer-uri: ${AUTH_URI}
           jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}${AUTH_CERT_URI}
   cloud:
     # The Spring Cloud Config specific configurations
     #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>
     vault:
+      enabled: ${VAULT_ENABLED:false}
+      uri: ${VAULT_URI:https://vault.umdc-qa.tst}
+      authentication: TOKEN
       token: ${VAULT_TOKEN}
-      uri: ${VAULT_URI}
       kv:
-        backend: dev
-        default-context: ${app.name}
-      application-name: ${app.name}
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        default-context: ${spring.application.name}
+        profile-separator: /
       ssl:
-        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE}
+        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION:truststore-no-present}
+        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
+        trust-store-type: ${SSL_TRUSTSTORE_TYPE:JKS}
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
@@ -251,12 +269,21 @@ spring:
         trust-store: classpath:${SSL_TRUSTSTORE_LOCATION}
         trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
         trust-store-type: ${SSL_TRUSTSTORE_TYPE}
+  mongodb:
+    representation:
+      uuid: STANDARD
+    port: ${MONGO_PORT}
+    database: ${MONGO_DATABASE}
+    username: ${MONGO_USERNAME}
+    host: ${MONGO_HOST}
+    password: ${MONGO_PASSWORD}
+    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/${MONGO_DATABASE}?retryWrites=true&w=majority
 logging:
   level:
     org.springframework.cloud.configuration.SSLContextFactory: ERROR
 
 swagger:
-  base-package: 'com.prx.mercury.api.v1.controller'
+  base-package: 'com.umdc.mercury.api.v1.controller'
   api-info:
     title: ${app.name}
     version: ${app.version}

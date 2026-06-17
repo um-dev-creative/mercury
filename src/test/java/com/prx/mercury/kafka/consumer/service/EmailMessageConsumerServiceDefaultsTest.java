@@ -1,8 +1,9 @@
 package com.prx.mercury.kafka.consumer.service;
 
-import com.prx.commons.exception.StandardException;
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.kafka.to.EmailMessageTO;
+import com.umdc.commons.exception.StandardException;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerService;
+import com.umdc.mercury.kafka.to.EmailMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -1,5 +1,7 @@
 package com.prx.mercury.api.v1.controller;
 
+import com.umdc.mercury.api.v1.controller.CampaignApi;
+import com.umdc.mercury.api.v1.to.CreateCampaignRequest;
 import org.junit.jupiter.api.Test;
 
 import java.io.InputStream;
@@ -48,7 +50,7 @@ class OpenApiSpecTest {
     void interfacesContainOperationAnnotations() throws Exception {
         // reflectively inspect CampaignApi methods
         var cls = CampaignApi.class;
-        var m1 = cls.getMethod("createCampaign", com.prx.mercury.api.v1.to.CreateCampaignRequest.class);
+        var m1 = cls.getMethod("createCampaign", CreateCampaignRequest.class);
         Operation op = m1.getAnnotation(Operation.class);
         assertNotNull(op);
         assertEquals("createCampaign", op.operationId());

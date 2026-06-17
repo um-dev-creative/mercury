@@ -1,9 +1,10 @@
 package com.prx.mercury.kafka.router;
 
-import com.prx.mercury.kafka.consumer.service.EmailChannelService;
-import com.prx.mercury.kafka.consumer.service.SmsChannelService;
-import com.prx.mercury.kafka.consumer.service.TelegramChannelService;
-import com.prx.mercury.kafka.consumer.service.WhatsAppChannelService;
+import com.umdc.mercury.kafka.consumer.service.EmailChannelService;
+import com.umdc.mercury.kafka.consumer.service.SmsChannelService;
+import com.umdc.mercury.kafka.consumer.service.TelegramChannelService;
+import com.umdc.mercury.kafka.consumer.service.WhatsAppChannelService;
+import com.umdc.mercury.kafka.router.MessageChannelRouter;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

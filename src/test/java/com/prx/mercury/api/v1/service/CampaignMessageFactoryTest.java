@@ -1,13 +1,15 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.RecipientTO;
-import com.prx.mercury.constant.ChannelType;
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
-import com.prx.mercury.jpa.nosql.document.SmsMessageDocument;
-import com.prx.mercury.jpa.nosql.document.TelegramMessageDocument;
-import com.prx.mercury.kafka.to.PushNotificationMessageTO;
-import com.prx.mercury.kafka.to.WhatsAppMessageTO;
+import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
+import com.umdc.mercury.api.v1.service.CampaignService;
+import com.umdc.mercury.api.v1.to.RecipientTO;
+import com.umdc.mercury.constant.ChannelType;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
+import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
+import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
+import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

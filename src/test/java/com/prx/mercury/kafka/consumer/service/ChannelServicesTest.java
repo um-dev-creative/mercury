@@ -1,10 +1,14 @@
 package com.prx.mercury.kafka.consumer.service;
 
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
-import com.prx.mercury.jpa.nosql.document.SmsMessageDocument;
-import com.prx.mercury.jpa.nosql.document.TelegramMessageDocument;
-import com.prx.mercury.kafka.to.WhatsAppMessageTO;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
+import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
+import com.umdc.mercury.kafka.consumer.service.EmailChannelService;
+import com.umdc.mercury.kafka.consumer.service.SmsChannelService;
+import com.umdc.mercury.kafka.consumer.service.TelegramChannelService;
+import com.umdc.mercury.kafka.consumer.service.WhatsAppChannelService;
+import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

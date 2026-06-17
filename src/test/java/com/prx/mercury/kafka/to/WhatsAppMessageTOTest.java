@@ -1,5 +1,6 @@
 package com.prx.mercury.kafka.to;
 
+import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

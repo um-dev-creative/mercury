@@ -1,8 +1,8 @@
 package com.prx.mercury.jpa.entity;
 
-import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
-import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;
-import com.prx.mercury.jpa.sql.entity.TemplateEntity;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
+import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -1,14 +1,15 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.prx.commons.util.JwtUtil;
-import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.service.CampaignService;
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.api.v1.to.CampaignTO;
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.CreateCampaignRequest;
-import com.prx.mercury.api.v1.to.CreateCampaignResponse;
-import com.prx.mercury.api.v1.to.RecipientTO;
+import com.umdc.commons.util.JwtUtil;
+import com.umdc.mercury.api.v1.controller.CampaignController;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.service.CampaignService;
+import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
+import com.umdc.mercury.api.v1.to.CampaignTO;
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.CreateCampaignRequest;
+import com.umdc.mercury.api.v1.to.CreateCampaignResponse;
+import com.umdc.mercury.api.v1.to.RecipientTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,7 +53,7 @@ class CampaignControllerTest {
     private UUID templateId;
     private UUID userId;
     private UUID applicationId;
-    private MockedStatic<com.prx.commons.util.JwtUtil> jwtUtilStatic;
+    private MockedStatic<com.umdc.commons.util.JwtUtil> jwtUtilStatic;
 
     @BeforeEach
     void setUp() {
@@ -70,7 +71,7 @@ class CampaignControllerTest {
                 "DRAFT",
                 applicationId
         );
-        jwtUtilStatic = Mockito.mockStatic(com.prx.commons.util.JwtUtil.class);
+        jwtUtilStatic = Mockito.mockStatic(com.umdc.commons.util.JwtUtil.class);
     }
 
     @AfterEach
@@ -289,7 +290,7 @@ class CampaignControllerTest {
 
             CampaignDetailResponse detail = new CampaignDetailResponse(campaignId, "Name", "email", UUID.randomUUID(), "DRAFT", null, null, null, null, null);
 
-            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
+            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
 
             when(campaignService.getByUserIdAndApplicationId(userIdLocal, appIdLocal)).thenReturn(List.of(detail));
 
@@ -305,7 +306,7 @@ class CampaignControllerTest {
         @DisplayName("propagates exception when token parsing fails")
         void getByApplication_invalidToken() {
             UUID appIdLocal = UUID.randomUUID();
-            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
 
             assertThrows(RuntimeException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
 

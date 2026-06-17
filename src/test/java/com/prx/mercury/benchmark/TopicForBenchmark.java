@@ -1,6 +1,7 @@
 package com.prx.mercury.benchmark;
 
-import com.prx.mercury.constant.ChannelType;
+import com.umdc.mercury.constant.ChannelType;
+import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -9,7 +10,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Benchmarks {@link com.prx.mercury.api.v1.service.CampaignMessageFactory#topicFor}.
+ * Benchmarks {@link CampaignMessageFactory#topicFor}.
  *
  * <p>The <em>current</em> implementation concatenates three strings on <b>every call</b>:
  * {@code "mercury-" + channelCode + "-messages"}.  For a campaign with 10 000 recipients

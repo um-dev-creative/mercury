@@ -1,9 +1,10 @@
 package com.prx.mercury.mapper;
 
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.jpa.sql.entity.CampaignEntity;
-import com.prx.mercury.jpa.sql.entity.ChannelTypeEntity;
-import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;
+import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
+import com.umdc.mercury.jpa.sql.entity.CampaignEntity;
+import com.umdc.mercury.jpa.sql.entity.ChannelTypeEntity;
+import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
+import com.umdc.mercury.mapper.CampaignMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.to;
 
+import com.umdc.mercury.api.v1.to.ChannelMetrics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

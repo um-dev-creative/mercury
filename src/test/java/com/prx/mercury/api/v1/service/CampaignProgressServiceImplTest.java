@@ -1,13 +1,14 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.ChannelTypeTO;
-import com.prx.mercury.jpa.sql.entity.CampaignEntity;
-import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
-import com.prx.mercury.jpa.sql.entity.ChannelTypeEntity;
-import com.prx.mercury.jpa.sql.repository.CampaignMetricsRepository;
-import com.prx.mercury.jpa.sql.repository.CampaignRepository;
-import com.prx.mercury.mapper.CampaignMapper;
+import com.umdc.mercury.api.v1.service.CampaignProgressServiceImpl;
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.ChannelTypeTO;
+import com.umdc.mercury.jpa.sql.entity.CampaignEntity;
+import com.umdc.mercury.jpa.sql.entity.CampaignMetricsEntity;
+import com.umdc.mercury.jpa.sql.entity.ChannelTypeEntity;
+import com.umdc.mercury.jpa.sql.repository.CampaignMetricsRepository;
+import com.umdc.mercury.jpa.sql.repository.CampaignRepository;
+import com.umdc.mercury.mapper.CampaignMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

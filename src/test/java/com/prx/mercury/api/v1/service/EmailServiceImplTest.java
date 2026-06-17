@@ -1,11 +1,12 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.api.v1.to.TemplateTO;
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
-import com.prx.mercury.jpa.nosql.repository.EmailMessageNSRepository;
+import com.umdc.mercury.api.v1.service.EmailServiceImpl;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.api.v1.to.TemplateTO;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.jpa.nosql.repository.EmailMessageNSRepository;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import org.junit.jupiter.api.DisplayName;
@@ -14,7 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.StringReader;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith(MockitoExtension.class)
 class EmailServiceImplTest {
 
     @Mock
@@ -75,30 +76,11 @@ class EmailServiceImplTest {
     @Test
     @DisplayName("Find by delivery status with ABORTED status")
     void findByDeliveryStatusWithAbortedStatus() {
-        String id = UUID.randomUUID().toString();
-        UUID messageId = UUID.randomUUID();
-        UUID templateDefinedId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        String from = "test@example.com";
-        List<EmailContact> to = List.of(new EmailContact("to@example.com", "To Name", "To Type"));
-        List<EmailContact> cc = List.of(new EmailContact("cc@example.com", "Cc Name", "Cc Type"));
-        String subject = "Test Subject";
-        String body = "Test Body";
-        LocalDateTime sendDate = LocalDateTime.now();
-        Map<String, Object> params = Map.of("key", "value");
-        DeliveryStatusType deliveryStatus = DeliveryStatusType.ABORTED;
-
-        EmailMessageDocument emailMessageDocument = new EmailMessageDocument(
-                id, messageId, templateDefinedId, userId, from, to, cc, subject, body, sendDate, params, deliveryStatus
-        );
-        List<EmailMessageDocument> expectedDocuments = List.of(emailMessageDocument);
-
-        when(emailMessageNSRepository.findByDeliveryStatus(any(DeliveryStatusType.class))).thenReturn(expectedDocuments);
-
-        List<EmailMessageDocument> result = emailServiceImpl.findByDeliveryStatus(deliveryStatus);
+        List<EmailMessageDocument> result = emailServiceImpl.findByDeliveryStatus(DeliveryStatusType.ABORTED);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
+        verifyNoInteractions(emailMessageNSRepository);
     }
 
     @Test

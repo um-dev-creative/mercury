@@ -1,7 +1,8 @@
 package com.prx.mercury.jpa.nosql.document;
 
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

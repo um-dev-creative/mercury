@@ -1,7 +1,7 @@
 package com.prx.mercury.jpa.entity;
 
-import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
-import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

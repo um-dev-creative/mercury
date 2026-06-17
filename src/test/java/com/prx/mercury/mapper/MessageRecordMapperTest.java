@@ -1,8 +1,12 @@
 package com.prx.mercury.mapper;
 
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.api.v1.to.MessageRecordTO;
-import com.prx.mercury.jpa.sql.entity.MessageRecordEntity;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.MessageRecordTO;
+import com.umdc.mercury.api.v1.to.MessageStatusTypeTO;
+import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.mapper.MessageRecordMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -26,12 +30,12 @@ class MessageRecordMapperTest {
         }
 
         @Override
-        public MessageRecordEntity toMessageRecordEntity(com.prx.mercury.jpa.nosql.document.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO, com.prx.mercury.api.v1.to.TemplateDefinedTO templateDefinedTO) {
+        public MessageRecordEntity toMessageRecordEntity(EmailMessageDocument emailMessageDocument, MessageStatusTypeTO messageStatusTypeTO, TemplateDefinedTO templateDefinedTO) {
             throw new UnsupportedOperationException("not implemented");
         }
 
         @Override
-        public MessageRecordTO toMessageRecordTO(com.prx.mercury.jpa.nosql.document.EmailMessageDocument emailMessageDocument, com.prx.mercury.api.v1.to.MessageStatusTypeTO messageStatusTypeTO) {
+        public MessageRecordTO toMessageRecordTO(EmailMessageDocument emailMessageDocument, MessageStatusTypeTO messageStatusTypeTO) {
             throw new UnsupportedOperationException("not implemented");
         }
     };
@@ -58,7 +62,7 @@ class MessageRecordMapperTest {
     @DisplayName("toTemplateDefinedEntity should set id from TemplateDefinedTO")
     void toTemplateDefinedEntityFromTO() {
         UUID id = UUID.randomUUID();
-        var tdto = new com.prx.mercury.api.v1.to.TemplateDefinedTO(id, null, null, null, null, null, null, null, null);
+        var tdto = new TemplateDefinedTO(id, null, null, null, null, null, null, null, null);
         var entity = mapper.toTemplateDefinedEntity(tdto);
 
         assertNotNull(entity);
@@ -84,7 +88,7 @@ class MessageRecordMapperTest {
         var entityFromMto = mapper.toMessageStatusTypeEntity(mto);
         assertEquals(id, entityFromMto.getId());
 
-        var msdto = new com.prx.mercury.api.v1.to.MessageStatusTypeTO(id, "code", "desc", LocalDateTime.now(), LocalDateTime.now(), true);
+        var msdto = new MessageStatusTypeTO(id, "code", "desc", LocalDateTime.now(), LocalDateTime.now(), true);
         var entityFromMsdto = mapper.toMessageStatusTypeEntity(msdto);
         assertEquals(id, entityFromMsdto.getId());
     }
