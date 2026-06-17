@@ -1,73 +1,129 @@
 ---
-name: Improve Coverage
-description: >
-  Raise Mercury JaCoCo coverage above the 70% line / 50% branch gate by identifying
-  the most impactful uncovered classes and adding targeted tests.
+name: improve-coverage
+description: Identify and close coverage gaps across Mercury to meet JaCoCo thresholds
 mode: agent
 agent: test-writer
-tools: [read_file, grep_search, run_in_terminal, create_file, insert_edit_into_file]
+tools:
+  - run_in_terminal
+  - read_file
+  - grep_search
+  - file_search
+  - insert_edit_into_file
+  - replace_string_in_file
+  - create_file
+  - get_errors
 ---
+# Improve Coverage
 
 ## Input Variables
+- `${targetPackage}` — package to improve (e.g., `com.umdc.mercury.api.v1.service`) or `all`
+- `${currentLineCoverage}` — current overall line coverage percentage (e.g., `62`)
+- `${currentBranchCoverage}` — current overall branch coverage percentage (e.g., `45`)
+- `${targetLineCoverage}` — target (default: `70`)
+- `${targetBranchCoverage}` — target (default: `50`)
 
-- `${currentLinePercent}` — current LINE coverage percentage (from JaCoCo report or CI output)
-- `${currentBranchPercent}` — current BRANCH coverage percentage
-- `${failingModule}` — module or package with the largest gap (optional; agent will identify if not provided)
+## Step 1: Generate Coverage Report
+```bash
+mvn -Pcoverage clean test
+# Opens: target/site/jacoco/index.html
+# XML:   target/site/jacoco/jacoco.xml
+```
 
-## Steps
+## Step 2: Identify Classes Below Threshold
+Parse `target/site/jacoco/jacoco.xml`:
+```bash
+# Classes with missed lines > 0
+grep -A3 'type="LINE"' target/site/jacoco/jacoco.xml | \
+  grep -B2 'missed="[^0]' | grep 'class name'
+```
 
-1. **Generate the coverage report**:
-   ```bash
-   mvn -Pcoverage clean test
-   ```
-   Open `target/site/jacoco/index.html` or parse `target/site/jacoco/jacoco.xml`.
+Create priority list:
+1. Classes with 0% coverage (no tests at all) — highest priority
+2. Classes below 70% line with complex logic — high priority
+3. Classes with many uncovered branches — medium priority
 
-2. **Identify top uncovered classes** — sort by missed lines descending:
-   ```bash
-   # Extract from jacoco.xml — classes with most missed lines
-   grep -o 'name="[^"]*" sourcefilename[^/]*/>' target/site/jacoco/jacoco.xml | head -20
-   ```
-   Prioritize: services → controllers → mappers → channel services.
+## Step 3: For Each Undercovered Class
 
-3. **For each target class, add tests** following the `write-unit-tests.prompt.md` pattern:
-   - Focus on uncovered branches first (highest branch-coverage payoff)
-   - Exception paths are usually the cheapest coverage wins
-   - `@ParameterizedTest` for boundary values
+### Read the class
+Identify:
+- Uncovered methods (no test exists)
+- Uncovered exception branches (exception thrown but not tested)
+- Uncovered conditional branches (if/else not fully exercised)
 
-4. **Re-run after each class** to track incremental gain:
-   ```bash
-   mvn -Pcoverage clean test
-   ```
+### Write targeted tests
+Focus on branch coverage — these are the hardest to reach:
 
-5. **Stop when**:
-   - LINE ≥ 75% (5% above the 70% gate for safety margin)
-   - BRANCH ≥ 55% (5% above the 50% gate)
+```java
+// Branch: empty Optional
+@Test
+void shouldThrowNotFoundWhenEntityMissing() {
+    when(repo.findById(anyLong())).thenReturn(Optional.empty());
+    assertThrows(CampaignNotFoundException.class, () -> service.get(99L));
+}
 
-6. **Run full verify to confirm gates pass**:
-   ```bash
-   mvn -B -V -e clean verify
-   ```
+// Branch: null check
+@Test
+void shouldThrowIllegalArgumentWhenInputNull() {
+    assertThrows(IllegalArgumentException.class, () -> service.create(null));
+}
 
-## Prioritization Guide
+// Branch: channel disabled
+@Test
+void shouldThrowIllegalStateWhenChannelDisabled() {
+    when(channel.isEnabled()).thenReturn(false);
+    assertThrows(IllegalStateException.class, () -> service.send(msg));
+}
 
-| Class type | Coverage payoff |
-|---|---|
-| `*ServiceImpl` | HIGH — complex logic, many branches |
-| `*Controller` | MEDIUM — thin, but `@Valid` paths need testing |
-| `*Mapper` | LOW — MapStruct-generated, but custom methods need coverage |
-| `MessageProcessor` | HIGH — email lifecycle branches |
-| `ChannelService` impls | HIGH — `send`/`updateStatus`/`findByDeliveryStatus` all need coverage |
+// Branch: CompletableFuture exception path
+@Test
+void shouldHandleExceptionInAsyncOperation() {
+    when(repo.save(any())).thenThrow(new RuntimeException("DB error"));
+    CompletableFuture<Response> future = service.create(request);
+    assertThrows(ExecutionException.class, future::get);
+}
+```
+
+## Step 4: Prioritized Classes in `${targetPackage}`
+
+Cover these Mercury service classes (highest business logic density):
+- `CampaignServiceImpl` — campaign CRUD + progress
+- `EmailServiceImpl` — email channel service
+- `VerificationCodeServiceImpl` — code generation/validation
+- `CampaignProgressServiceImpl` — progress calculation
+- `MessageRecordServiceImpl` — message tracking
+- `AuthServiceImpl` — auth checks
+
+Cover these Kafka classes:
+- `MultiChannelListener` — `consume()` routing
+- `MessageChannelRouter` — routing logic
+
+## Step 5: Iterate Until Threshold Met
+After each batch of new tests:
+```bash
+mvn -Pcoverage clean test
+# Check overall coverage in target/site/jacoco/index.html
+```
+
+Repeat until:
+- Line coverage ≥ ${targetLineCoverage}%
+- Branch coverage ≥ ${targetBranchCoverage}%
+
+## Step 6: Final Verify
+```bash
+mvn -B -V -e clean verify
+```
+Must produce `BUILD SUCCESS` (coverage gates enforced).
 
 ## Constraints
+- NEVER write tests that only exercise constructors/getters/setters for coverage inflation
+- NEVER use `@SpringBootTest` for unit test coverage — use `MockitoExtension`
+- NEVER write assertions that always pass regardless of logic (`assertThat(true).isTrue()`)
+- Focus on branch coverage — it's harder to reach and more valuable
 
-- Do not lower `@JacocoIgnore` thresholds — raise coverage instead
-- Do not add empty/trivial tests that inflate numbers without testing real behavior
-- Do not modify production code for testability
-
-## Output
-
-Before/after table:
-| Class | Before LINE% | After LINE% | Before BRANCH% | After BRANCH% |
-|---|---|---|---|---|
-
-Final: `mvn -B -V -e clean verify` → PASS / FAIL
+## Output Format
+1. Coverage baseline: Line ${currentLineCoverage}% / Branch ${currentBranchCoverage}%
+2. Top 10 classes by coverage gap (table: Class | Line% | Branch% | Gap)
+3. Tests added per class
+4. Coverage after fix: Line% / Branch% per class
+5. Overall coverage: Line% / Branch% final
+6. `mvn -B -V -e clean verify` result

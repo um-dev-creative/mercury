@@ -20,7 +20,7 @@ updates:
     ignore:
       # Private PRX libraries — update manually
       - dependency-name: "com.prx:*"
-      - dependency-name: "com.prx.commons:*"
+      - dependency-name: "com.umdc.commons:*"
 
   # GitHub Actions
   - package-ecosystem: github-actions

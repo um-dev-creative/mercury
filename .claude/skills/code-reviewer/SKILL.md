@@ -38,9 +38,9 @@ Review that:
 ## 4. Key Files
 
 - `ruleset.xml` — full PMD ruleset
-- `src/main/java/com/prx/mercury/api/v1/controller/GlobalExceptionHandler.java` — exception mapping
-- `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java` — reference for correct OpenAPI placement
-- `src/main/java/com/prx/mercury/api/v1/service/CampaignServiceImpl.java` — reference service implementation
+- `../../../src/main/java/com/umdc/api/v1/controller/GlobalExceptionHandler.java` — exception mapping
+- `../../../src/main/java/com/umdc/api/v1/controller/CampaignApi.java` — reference for correct OpenAPI placement
+- `../../../src/main/java/com/umdc/api/v1/service/CampaignServiceImpl.java` — reference service implementation
 
 ## 5. Constraints
 

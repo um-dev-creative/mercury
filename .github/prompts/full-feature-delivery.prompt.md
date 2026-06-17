@@ -1,90 +1,120 @@
 ---
-name: Full Feature Delivery
-description: >
-  Orchestrate end-to-end delivery of a Mercury feature: schema, API contract,
-  implementation, tests, code review, and PR creation.
+name: full-feature-delivery
+description: End-to-end orchestrated delivery of a Mercury feature from plan to merged PR
 mode: agent
 agent: orchestrator
-tools: [run_subagent, read_file, run_in_terminal, codebase_search]
+tools:
+  - run_in_terminal
+  - read_file
+  - grep_search
+  - file_search
+  - insert_edit_into_file
+  - replace_string_in_file
+  - create_file
+  - get_errors
+  - run_subagent
 ---
+# Full Feature Delivery
 
 ## Input Variables
+- `${featureName}` — short feature identifier (e.g., `campaign-progress`)
+- `${featureDescription}` — full description of what to build
+- `${layersAffected}` — comma-separated: `persistence,api,service,controller,kafka,mapper,scheduler`
+- `${securitySensitive}` — `true` | `false` (involves auth/JWT/Vault/ForbiddenException)
+- `${newDependencies}` — `none` | comma-separated new Maven dependencies
 
-- `${featureName}` — human-readable name (e.g., "Campaign Pause/Resume")
-- `${issueId}` — issue ID (e.g., `ds-174`)
-- `${httpMethod}` — HTTP method
-- `${endpointPath}` — full REST path (e.g., `/api/v1/campaigns/{id}/pause`)
-- `${channelScope}` — `ALL` or specific channel (EMAIL, SMS, TELEGRAM, WHATSAPP, PUSH)
-- `${requiresNewTable}` — `yes` | `no`
-- `${isUserScoped}` — `yes` | `no` (does it require `BackboneClient` auth validation?)
+## Phase 0: Delivery Plan
 
-## Delivery Plan
+Produce the delivery plan table BEFORE any delegation:
 
-Before delegating, produce this table:
+| Step | Agent | Input | Expected Output | Blocking |
+|---|---|---|---|---|
+| 1 | database-architect | Feature description + affected entities | Flyway migration + Entity/Repository | Steps 2, 3 |
+| 2 | api-reviewer | Feature description + DTO requirements | `*Api` interface + DTO records | Step 3 |
+| 3 | developer | Migration ✓ + API contract ✓ + feature description | All source layers implemented | Step 4 |
+| 4 | test-writer | Implemented source | Unit tests, ≥70% line, ≥50% branch | Step 5 |
+| 5 | code-reviewer | Full diff | APPROVE / REQUEST_CHANGES | Step 6 |
+| 6 | security-reviewer | Full diff (if ${securitySensitive}=true) | APPROVE / BLOCK | Step 7 |
+| 7 | devops-engineer | bootstrap.yml changes (if Kafka/scheduler) | Config validated | Step 8 |
+| 8 | orchestrator | All steps passed | PR created | — |
 
+Adjust table: remove steps for layers not in `${layersAffected}`.
+Add security-reviewer step only if `${securitySensitive}=true`.
+Add devops-engineer step only if Kafka topics or scheduler rates need adding.
+
+## Phase 1: Persistence (if `persistence` in ${layersAffected})
+Delegate to `database-architect` via prompt `.github/prompts/implement-feature.prompt.md` (persistence section).
+
+Wait for:
+- Flyway migration file created
+- JPA entities / MongoDB documents defined
+- Repositories created
+
+## Phase 2: API Contract (if `api` or `controller` in ${layersAffected})
+Delegate to `api-reviewer` via prompt `.github/prompts/review-api-contract.prompt.md`.
+
+Wait for:
+- `*Api` interface with OpenAPI annotations
+- DTO records defined
+- HTTP status codes confirmed
+
+## Phase 3: Implementation
+Delegate to `developer` via prompt `.github/prompts/implement-feature.prompt.md`.
+
+Inputs: Phase 1 artifacts + Phase 2 artifacts.
+
+Wait for:
+- All source layers compiled successfully
+- PMD = 0 violations
+- `mvn -U clean package -DskipTests` → BUILD SUCCESS
+
+## Phase 4: Tests
+Delegate to `test-writer` via prompt `.github/prompts/write-unit-tests.prompt.md` for each new/changed class.
+
+Wait for:
+- All tests pass
+- Line coverage ≥ 70%, branch coverage ≥ 50%
+- `mvn clean test` → BUILD SUCCESS
+
+If coverage insufficient: re-delegate to `test-writer` via `.github/prompts/improve-coverage.prompt.md`.
+
+## Phase 5: Code Review
+Delegate to `code-reviewer` via prompt `.github/prompts/review-code.prompt.md`.
+
+If APPROVE → proceed to Phase 6.
+If REQUEST_CHANGES → route specific fixes back to `developer` or `test-writer`, then re-review.
+
+## Phase 6: Security Review (if ${securitySensitive}=true)
+Delegate to `security-reviewer` via prompt `.github/prompts/security-audit.prompt.md`.
+
+If APPROVE → proceed to Phase 7.
+If BLOCK → halt; route remediation to `developer`, repeat from Phase 5.
+
+## Phase 7: DevOps Config (if Kafka or scheduler changes)
+Delegate to `devops-engineer`:
+- Add new Kafka topics to `bootstrap.yml` under `prx.consumer.topics.*`
+- Add new scheduler rates to `bootstrap.yml` under `prx.scheduler.*`
+
+## Phase 8: Create Pull Request
+```bash
+gh pr create \
+  --base main \
+  --head feature/${featureName} \
+  --title "feat(${featureName}): ${featureDescription}" \
+  --body "$(cat .github/PULL_REQUEST_TEMPLATE.md)"
 ```
-Delivery Plan — ${featureName} (${issueId})
-${httpMethod} ${endpointPath}
 
-Step | Agent              | Prompt / Input                         | Blocking Next?
------|--------------------|-----------------------------------------|---------------
-1    | database-architect | Schema for ${featureName}               | yes (if requiresNewTable=yes)
-2    | api-reviewer       | review-api-contract.prompt.md           | yes
-3    | developer          | implement-feature.prompt.md             | yes
-4    | test-writer        | write-unit-tests.prompt.md              | yes
-5    | code-reviewer      | review-code.prompt.md                   | yes
-6    | security-reviewer  | security-audit.prompt.md (auth-only)    | yes (if isUserScoped=yes)
-```
+## Constraints
+- NEVER proceed to Phase 3 without Phase 1 AND Phase 2 complete
+- NEVER create PR if any phase returned FAIL/BLOCK/REQUEST_CHANGES unresolved
+- NEVER skip security review if `${securitySensitive}=true`
+- NEVER create PR without `mvn -B -V -e clean verify` passing
 
-## Execution
-
-Run each step sequentially. For each:
-- If PASS: proceed to next
-- If FAIL: invoke the remediation prompt, fix, then re-run the step
-
-Remediation map:
-| Failure | Remediation |
-|---|---|
-| PMD violations | `fix-lint-violations.prompt.md` |
-| JaCoCo below threshold | `improve-coverage.prompt.md` |
-| API contract issues | `review-api-contract.prompt.md` + re-implement |
-| Security findings | `security-audit.prompt.md` → fix → re-audit |
-
-## Mercury Invariants to Enforce
-
-1. OpenAPI annotations only on `*Api` interfaces
-2. `${prx.scheduler.*}` placeholders for all scheduler rates
-3. Kafka topics from `bootstrap.yml` — never hardcoded
-4. `EmailMessageDocument` lifecycle: OPENED → SENT → deleted
-5. `ForbiddenException` → 403 for auth failures
-6. PMD `AtLeastOneConstructor` — explicit constructor in every class
-7. DDL strategy `none` — SQL migration in `src/main/resources/db/` for schema changes
-
-## Final Checklist
-
-- [ ] `mvn -B -V -e clean verify` passes
-- [ ] LINE coverage ≥ 70%, BRANCH coverage ≥ 50%
-- [ ] PMD: zero violations
-- [ ] API contract: APPROVED by api-reviewer
-- [ ] Code: APPROVED by code-reviewer
-- [ ] Security: PASS (if isUserScoped=yes)
-- [ ] PR opened targeting `main` or `develop`
-
-## Output
-
-```
-Delivery Summary — ${featureName} (${issueId})
-
-Step results:
-  Step 1 — database-architect: PASS / SKIP
-  Step 2 — api-reviewer:       PASS
-  Step 3 — developer:          PASS
-  Step 4 — test-writer:        PASS
-  Step 5 — code-reviewer:      APPROVED
-  Step 6 — security-reviewer:  PASS / SKIP
-
-Files created: N
-Build: PASS
-Coverage: LINE X% / BRANCH Y%
-PR: #N opened
-```
+## Output Format
+1. Delivery Plan table (Phase 0)
+2. Per-phase execution summary: Phase | Agent | Status | Artifacts
+3. Final build: `mvn -B -V -e clean verify` → BUILD SUCCESS
+4. Coverage summary: overall line% and branch%
+5. PMD: 0 violations
+6. PR URL
+7. **Delivery Status: COMPLETE / BLOCKED** (with reason if blocked)

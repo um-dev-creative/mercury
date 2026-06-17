@@ -57,9 +57,9 @@ Add 404 for endpoints that retrieve by ID. Add 422 for endpoints that interact w
 
 ## 4. Key Files
 
-- `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java` — reference for complete OpenAPI annotation pattern
-- `src/main/java/com/prx/mercury/api/v1/controller/MailApi.java` — mail endpoint contract
-- `src/main/java/com/prx/mercury/api/v1/controller/GlobalExceptionHandler.java` — exception-to-status mapping
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java` — reference for complete OpenAPI annotation pattern
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/MailApi.java` — mail endpoint contract
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/GlobalExceptionHandler.java` — exception-to-status mapping
 - `src/main/java/com/prx/mercury/api/v1/to/` — all DTO records
 
 ## 5. Constraints

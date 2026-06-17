@@ -19,9 +19,9 @@ tools: [Read, Edit, Write, Bash]
 ## Steps
 
 1. **Read existing reference files** to understand the current pattern before writing anything:
-   - `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java`
-   - `src/main/java/com/prx/mercury/api/v1/service/CampaignServiceImpl.java`
-   - `src/main/java/com/prx/mercury/api/v1/to/CreateCampaignRequest.java`
+   - `../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java`
+   - `../../src/main/java/com/umdc/mercury/api/v1/service/CampaignServiceImpl.java`
+   - `../../src/main/java/com/umdc/mercury/api/v1/to/CreateCampaignRequest.java`
 
 2. **Create or update the `*Api` interface** at `src/main/java/com/prx/mercury/api/v1/controller/`:
    - Add method with `@Operation(summary, description, operationId)` and `@ApiResponses`
@@ -51,7 +51,7 @@ tools: [Read, Edit, Write, Bash]
    - No business logic in controller
 
 7. **Update MapStruct mapper** if new entity fields are mapped:
-   - `src/main/java/com/prx/mercury/mapper/CampaignMapper.java` or create new mapper
+   - `../../src/main/java/com/umdc/mercury/mapper/CampaignMapper.java` or create new mapper
 
 8. **Verify compilation**:
    ```bash

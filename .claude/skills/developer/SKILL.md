@@ -89,11 +89,11 @@ public class SmsChannelService implements ChannelService<SmsMessageTO> {
 
 ## 4. Key Files
 
-- `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java` — reference interface
-- `src/main/java/com/prx/mercury/api/v1/service/CampaignServiceImpl.java` — reference service
-- `src/main/java/com/prx/mercury/kafka/consumer/service/ChannelService.java` — channel contract
-- `src/main/java/com/prx/mercury/kafka/router/MessageChannelRouter.java` — routing logic
-- `src/main/java/com/prx/mercury/processor/MessageProcessor.java` — email lifecycle
+- `../../../src/main/java/com/umdc/api/v1/controller/CampaignApi.java` — reference interface
+- `../../../src/main/java/com/umdc/api/v1/service/CampaignServiceImpl.java` — reference service
+- `../../../src/main/java/com/umdc/kafka/consumer/service/ChannelService.java` — channel contract
+- `../../../src/main/java/com/umdc/kafka/router/MessageChannelRouter.java` — routing logic
+- `../../../src/main/java/com/umdc/processor/MessageProcessor.java` — email lifecycle
 - `src/main/resources/bootstrap.yml` — property placeholders
 
 ## 5. Constraints

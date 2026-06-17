@@ -12,9 +12,9 @@ Implement a new Mercury feature:
 ## Instructions
 
 Read these reference files first:
-- `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java`
-- `src/main/java/com/prx/mercury/api/v1/service/CampaignServiceImpl.java`
-- `src/main/java/com/prx/mercury/api/v1/to/CreateCampaignRequest.java`
+- `../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java`
+- `../../src/main/java/com/umdc/mercury/api/v1/service/CampaignServiceImpl.java`
+- `../../src/main/java/com/umdc/mercury/api/v1/to/CreateCampaignRequest.java`
 
 Then implement in this exact order:
 

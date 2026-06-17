@@ -1,72 +1,126 @@
 ---
-name: Prepare Release
-description: >
-  Cut a Mercury release: version bump, full build verification, Docker tag,
-  git tag, and GitHub release draft.
+name: prepare-release
+description: Execute the full Mercury release process from version bump to GitHub release
 mode: agent
 agent: devops-engineer
-tools: [read_file, replace_string_in_file, run_in_terminal, file_search]
+tools:
+  - run_in_terminal
+  - read_file
+  - insert_edit_into_file
+  - replace_string_in_file
+  - get_errors
 ---
+# Prepare Release
 
 ## Input Variables
+- `${releaseVersion}` — new version number, e.g., `1.4.0`
+- `${releaseSummary}` — one-line description of this release
+- `${releaseNotes}` — detailed changelog entries (Added / Fixed / Changed)
 
-- `${version}` — new version string (e.g., `1.3.0`)
-- `${releaseBranch}` — branch to release from (e.g., `main` or `release/1.3.0`)
+## Pre-Release Gate (ALL must pass before proceeding)
 
-## Steps
+### Step 1: Verify Main Branch is Clean
+```bash
+git checkout main && git pull origin main
+git --no-pager status
+git --no-pager log --oneline -5
+```
+No uncommitted changes allowed.
 
-1. **Verify the branch is clean and passing**:
-   ```bash
-   git status
-   mvn -B -V -e clean verify
-   ```
-   Must be `BUILD SUCCESS` before proceeding.
+### Step 2: Run Full Verify
+```bash
+mvn -B -V -e clean verify
+```
+Must produce `BUILD SUCCESS`. PMD violations = 0. JaCoCo line ≥ 70% / branch ≥ 50%.
 
-2. **Bump version in `pom.xml`**:
-   - Change `<version>...</version>` under `<groupId>com.prx</groupId><artifactId>mercury</artifactId>` to `${version}`
+### Step 3: SonarCloud Gate
+Confirm SonarCloud quality gate PASSED on latest `main` commit:
+```bash
+gh run list --workflow ci.yml --branch main --limit 3
+```
+Latest run must show success.
 
-3. **Build the release artifact**:
-   ```bash
-   mvn -U clean package -DskipTests
-   ```
-   Confirm `target/mercury-${version}.jar` exists.
+## Release Steps
 
-4. **Build and tag Docker image**:
-   ```bash
-   docker build -t prx/mercury:${version} -t prx/mercury:latest .
-   ```
+### Step 4: Bump Version in pom.xml
+```bash
+mvn versions:set -DnewVersion=${releaseVersion}
+mvn versions:commit
+```
+Verify `pom.xml` now shows `<version>${releaseVersion}</version>`.
 
-5. **Run full security audit** (invoke `security-reviewer` with `security-audit.prompt.md`, scope=`pre-release`).
+### Step 5: Update CHANGELOG
+Prepend to `CHANGELOG` file:
+```markdown
+## [v${releaseVersion}] - $(date +%Y-%m-%d)
+${releaseNotes}
+```
 
-6. **Create annotated git tag**:
-   ```bash
-   git tag -a v${version} -m "Release ${version}"
-   git push origin v${version}
-   ```
+### Step 6: Commit Version Bump
+```bash
+git add pom.xml CHANGELOG
+git commit -m "chore(release): bump version to ${releaseVersion}"
+```
 
-7. **Draft GitHub release**:
-   - Title: `v${version}`
-   - Body: changelog entries since last tag
-   - Attach: `target/mercury-${version}.jar`
+### Step 7: Final Build Verification
+```bash
+mvn -B -V -e clean verify
+```
+Must pass with new version. Do not proceed if this fails.
+
+### Step 8: Create and Push Release Tag
+```bash
+git tag -a v${releaseVersion} -m "Release v${releaseVersion}: ${releaseSummary}"
+git push origin main
+git push origin v${releaseVersion}
+```
+
+### Step 9: Create GitHub Release
+```bash
+gh release create v${releaseVersion} \
+  --title "Mercury v${releaseVersion}" \
+  --notes "${releaseNotes}" \
+  --latest
+```
+
+### Step 10: Build Docker Image (if applicable)
+```bash
+docker build -t mercury:${releaseVersion} -t mercury:latest .
+# Verify image starts
+docker run --rm mercury:${releaseVersion} --help 2>/dev/null || echo "Image built OK"
+```
+
+### Step 11: Verify CI on Tag
+```bash
+gh run list --workflow ci.yml --limit 5
+# Wait for tagged commit CI run to complete successfully
+```
+
+## Post-Release
+
+### Step 12: Bump to Next Development Version
+```bash
+# e.g., 1.4.0 → 1.4.1-SNAPSHOT
+mvn versions:set -DnewVersion=${nextDevVersion}-SNAPSHOT
+mvn versions:commit
+git add pom.xml
+git commit -m "chore: begin development on ${nextDevVersion}-SNAPSHOT"
+git push origin main
+```
 
 ## Constraints
+- NEVER tag a release if `mvn clean verify` fails
+- NEVER tag a release if SonarCloud quality gate is RED
+- NEVER skip the `CHANGELOG` update
+- NEVER use a non-semantic-versioning tag format
+- NEVER force-push to `main`
 
-- Do not tag if `mvn verify` fails
-- Do not push the tag before security audit passes
-- `VAULT_TOKEN` and real secrets must not appear in release notes or artifact config
-
-## Output
-
-```
-Release Preparation — Mercury v${version}
-
-Step 1 — Build verify: PASS / FAIL
-Step 2 — pom.xml bumped: ${oldVersion} → ${version}
-Step 3 — JAR built: target/mercury-${version}.jar ✓
-Step 4 — Docker tagged: prx/mercury:${version} ✓
-Step 5 — Security audit: PASS / FAIL
-Step 6 — Git tag: v${version} pushed ✓
-Step 7 — GitHub release: DRAFT / PUBLISHED
-
-Overall: READY / BLOCKED (reason)
-```
+## Output Format
+1. Pre-release gate results (all checks pass/fail)
+2. `pom.xml` version change confirmed
+3. `CHANGELOG` entry shown
+4. Git tag created: `v${releaseVersion}`
+5. GitHub release URL
+6. Docker image tag (if built)
+7. CI run status on tag
+8. Next development version set

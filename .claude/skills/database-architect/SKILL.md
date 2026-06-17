@@ -57,10 +57,10 @@ CREATE TABLE frequency_type (
 
 - `src/main/java/com/prx/mercury/jpa/sql/entity/` — all JPA entities
 - `src/main/java/com/prx/mercury/jpa/sql/repository/` — all SQL repositories
-- `src/main/java/com/prx/mercury/jpa/nosql/document/EmailMessageDocument.java` — primary MongoDB document
-- `src/main/java/com/prx/mercury/jpa/nosql/repository/EmailMessageNSRepository.java` — MongoDB repo
-- `src/main/java/com/prx/mercury/mapper/CampaignMapper.java` — entity ↔ TO reference mapper
-- `src/main/java/com/prx/mercury/config/DatabaseConfig.java` — dual-datasource config
+- `../../../src/main/java/com/umdc/mercury/jpa/nosql/document/EmailMessageDocument.java` — primary MongoDB document
+- `../../../src/main/java/com/umdc/mercury/jpa/nosql/repository/EmailMessageNSRepository.java` — MongoDB repo
+- `../../../src/main/java/com/umdc/mercury/mapper/CampaignMapper.java` — entity ↔ TO reference mapper
+- `../../../src/main/java/com/umdc/mercury/config/DatabaseConfig.java` — dual-datasource config
 - `src/main/resources/db/` — SQL migration scripts
 
 ## 5. Constraints

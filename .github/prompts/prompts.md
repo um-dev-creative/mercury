@@ -1,30 +1,43 @@
-# Mercury — GitHub Copilot Prompt Registry
+# Mercury Prompts — Index
 
-All prompts in `.github/prompts/`. Each prompt targets a specific agent and supports GitHub Copilot agent mode (`mode: agent`) or clarification mode (`mode: ask`).
+All executable prompt files for Mercury agent tasks.
 
-## Prompt Roster
-
-| File | Agent | Mode | Trigger |
+| Prompt | File | Agent | Use Case |
 |---|---|---|---|
-| `implement-feature.prompt.md` | developer | agent | New feature story or endpoint |
-| `fix-bug.prompt.md` | developer | agent | Bug report with stack trace |
-| `fix-lint-violations.prompt.md` | developer | agent | PMD build failure |
-| `write-unit-tests.prompt.md` | test-writer | agent | New code without tests / coverage gap |
-| `improve-coverage.prompt.md` | test-writer | agent | JaCoCo gate failure |
-| `review-code.prompt.md` | code-reviewer | ask | PR open / code change |
-| `security-audit.prompt.md` | security-reviewer | agent | Pre-release / new auth endpoint / dep change |
-| `prepare-release.prompt.md` | devops-engineer | agent | Release cut |
-| `review-api-contract.prompt.md` | api-reviewer | ask | `*Api.java` file changed |
-| `full-feature-delivery.prompt.md` | orchestrator | agent | Complex multi-layer feature |
-| `bootstrap-agent-infrastructure.prompt.md` | orchestrator | agent | Initial agent infrastructure setup |
+| Implement Feature | `implement-feature.prompt.md` | developer | Build a feature across Mercury layers |
+| Fix Bug | `fix-bug.prompt.md` | developer | Diagnose and fix a bug with tests |
+| Fix Lint Violations | `fix-lint-violations.prompt.md` | code-reviewer | Resolve all PMD violations |
+| Write Unit Tests | `write-unit-tests.prompt.md` | test-writer | Write JUnit 5 tests for a class |
+| Improve Coverage | `improve-coverage.prompt.md` | test-writer | Close JaCoCo coverage gaps |
+| Review Code | `review-code.prompt.md` | code-reviewer | Full PR code review |
+| Security Audit | `security-audit.prompt.md` | security-reviewer | Auth/Vault/secrets security review |
+| Prepare Release | `prepare-release.prompt.md` | devops-engineer | Version bump → tag → GitHub release |
+| Full Feature Delivery | `full-feature-delivery.prompt.md` | orchestrator | End-to-end orchestrated delivery |
+| Review API Contract | `review-api-contract.prompt.md` | api-reviewer | OpenAPI contract definition + review |
+| Bootstrap Agent Infrastructure | `bootstrap-agent-infrastructure.prompt.md` | orchestrator | Generate all `.github/` agent artifacts |
 
-## Input Variable Convention
+## Quick Reference — Prompt → Hook Relationship
 
-All prompts use `${variableName}` placeholders. Substitute before invoking:
-- `${featureName}` — human-readable name (e.g., "Campaign Pause")
-- `${issueId}` — issue tracker ID (e.g., `ds-174`)
-- `${httpMethod}` — GET | POST | PUT | PATCH | DELETE
-- `${endpointPath}` — full REST path
-- `${targetClass}` — fully qualified Java class name
-- `${prScope}` — PR number or branch name
-- `${version}` — semver string for releases
+| Hook | Prompts Referenced |
+|---|---|
+| `pre-pull-request.hook.md` | `fix-lint-violations`, `improve-coverage`, `review-code` |
+| `post-implementation-review.hook.md` | `fix-lint-violations`, `review-code`, `write-unit-tests`, `improve-coverage` |
+| `post-merge-security.hook.md` | `security-audit` |
+| `pre-release-gate.hook.md` | `security-audit`, `prepare-release` |
+
+## Input Variable Summary
+
+Each prompt uses `${variableName}` syntax for inputs:
+
+| Prompt | Key Variables |
+|---|---|
+| `implement-feature` | `${featureName}`, `${layersAffected}` |
+| `fix-bug` | `${bugDescription}`, `${affectedClass}` |
+| `fix-lint-violations` | `${targetScope}` |
+| `write-unit-tests` | `${targetClass}` |
+| `improve-coverage` | `${targetPackage}`, `${currentLineCoverage}` |
+| `review-code` | `${prBranch}`, `${baseBranch}` |
+| `security-audit` | `${auditScope}`, `${newDependencies}` |
+| `prepare-release` | `${releaseVersion}`, `${releaseNotes}` |
+| `full-feature-delivery` | `${featureName}`, `${layersAffected}`, `${securitySensitive}` |
+| `review-api-contract` | `${httpMethod}`, `${resourcePath}`, `${apiInterfaceName}` |

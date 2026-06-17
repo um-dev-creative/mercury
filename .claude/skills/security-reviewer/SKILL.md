@@ -45,11 +45,11 @@ Never return 401 from Mercury — `ForbiddenException` → 403 is the project co
 
 ## 4. Key Files
 
-- `src/main/java/com/prx/mercury/security/SessionJwtServiceImpl.java` — JWT token generation
-- `src/main/java/com/prx/mercury/client/BackboneClient.java` — Feign client for session validation
-- `src/main/java/com/prx/mercury/client/interceptor/BackendFeignClientInterceptor.java` — request auth injection
-- `src/main/java/com/prx/mercury/api/v1/service/AuthServiceImpl.java` — auth orchestration
-- `src/main/java/com/prx/mercury/api/v1/exception/ForbiddenException.java` — auth exception
+- `../../../src/main/java/com/umdc/security/SessionJwtServiceImpl.java` — JWT token generation
+- `../../../src/main/java/com/umdc/client/BackboneClient.java` — Feign client for session validation
+- `../../../src/main/java/com/umdc/client/interceptor/BackendFeignClientInterceptor.java` — request auth injection
+- `../../../src/main/java/com/umdc/api/v1/service/AuthServiceImpl.java` — auth orchestration
+- `../../../src/main/java/com/umdc/api/v1/exception/ForbiddenException.java` — auth exception
 - `src/main/resources/bootstrap.yml` — Vault env var placeholders
 - `environment_variables.md` — documentation of all env vars
 

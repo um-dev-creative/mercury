@@ -24,7 +24,7 @@ tools: [Read, Bash]
    - `src/main/java/com/prx/mercury/api/v1/to/` — check all referenced record types
 
 4. **Read `GlobalExceptionHandler`** to cross-reference status codes:
-   - `src/main/java/com/prx/mercury/api/v1/controller/GlobalExceptionHandler.java`
+   - `../../src/main/java/com/umdc/mercury/api/v1/controller/GlobalExceptionHandler.java`
 
 5. **Evaluate each endpoint method**:
 

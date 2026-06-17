@@ -20,8 +20,8 @@ tools: [Read, Edit, Write, Bash]
 
 ### Phase 1 — Analysis (run first)
 
-1. Read `src/main/java/com/prx/mercury/api/v1/controller/CampaignApi.java` to understand existing patterns
-2. Read `src/main/java/com/prx/mercury/jpa/sql/entity/CampaignEntity.java` to understand current schema
+1. Read `../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java` to understand existing patterns
+2. Read `../../src/main/java/com/umdc/mercury/jpa/sql/entity/CampaignEntity.java` to understand current schema
 3. Read `src/main/resources/bootstrap.yml` for config patterns
 4. Produce a Delivery Plan table before any code changes
 
