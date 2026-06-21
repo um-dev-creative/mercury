@@ -115,7 +115,15 @@ public class CampaignServiceImpl implements CampaignService {
                     recipient,
                     campaignTO.templateParams(),
                     campaignTO.templateId());
-            kafkaTemplate.send(topic, message);
+            kafkaTemplate.send(topic, message)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            logger.error("Failed to send Kafka message. topic={}, campaignId={}", topic, campaignId, ex);
+                        } else if (result != null) {
+                            var meta = result.getRecordMetadata();
+                            logger.debug("Message sent. topic={}, partition={}, offset={}", meta.topic(), meta.partition(), meta.offset());
+                        }
+                    });
         }
 
         logger.info("Campaign created successfully. campaignId={}, status={}", campaignId, campaign.getStatus());

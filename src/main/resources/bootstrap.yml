@@ -13,9 +13,11 @@ umdc:
   consumer:
     group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
     topics:
-      telegram: telegram-topic
-      sms: sms-topic
-      email: email-topic
+      telegram: mercury-telegram
+      sms: mercury-sms
+      email: mercury-email
+      whatsapp: mercury-whatsapp
+      notification: ${UMDC_NOTIFICATION_TOPIC:unified-message-notification}
     mercury:
       topic: ${MERCURY_EMAIL_TOPIC}
   # Kafka related toggles (allow disabling consumers or preventing auto-start)
@@ -24,22 +26,33 @@ umdc:
     enabled: ${UMDC_KAFKA_ENABLED:true}
     # Controls whether listener containers auto-start on context refresh. Set to false for local dev when Kafka is unavailable
     auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
-    # Aiven Kafka uses mTLS over SSL. Set KAFKA_SECURITY_PROTOCOL=SSL in deployed envs;
-    # leave PLAINTEXT for local dev without a broker.
+    client-id: ${KAFKA_CLIENT_ID:u5c06022c8c6@application-user.avns.net}
+    # Aiven Kafka with SASL_SSL: set KAFKA_SECURITY_PROTOCOL=SASL_SSL, KAFKA_SASL_MECHANISM=SCRAM-SHA-256,
+    # and KAFKA_SASL_JAAS_CONFIG via Vault. Leave PLAINTEXT for local dev without a broker.
     security:
       protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    sasl:
+      mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      jaas:
+        config: ${KAFKA_SASL_JAAS_CONFIG:}
     ssl:
       endpoint:
         identification:
           algorithm: ${KAFKA_SSL_ENDPOINT_ID_ALGO:https}
       keystore:
+        # Non-PEM fallback (PKCS12/JKS)
         location: ${KAFKA_SSL_KEYSTORE_LOCATION:classpath:aiven-kafka.p12}
         password: ${KAFKA_SSL_KEYSTORE_PASSWORD:${SSL_KEYSTORE_PASSWORD:changeit}}
-        type: ${KAFKA_SSL_KEYSTORE_TYPE:PKCS12}
+        type: ${KAFKA_SSL_KEYSTORE_TYPE:PEM}
+        # PEM: separate cert and key files (Aiven standard)
+        certificate:
+          location: ${KAFKA_SSL_KEYSTORE_CERT_LOCATION:classpath:aiven-kafka-7e59598.cert}
+        key:
+          location: ${KAFKA_SSL_KEYSTORE_KEY_LOCATION:classpath:aiven-kafka-7e59598.key}
       truststore:
-        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:umdc-truststore.jks}
+        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:aiven-kafka-7e59598.pem}
         password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:${SSL_TRUSTSTORE_PASSWORD:changeit}}
-        type: ${KAFKA_SSL_TRUSTSTORE_TYPE:${SSL_TRUSTSTORE_TYPE:PKCS12}}
+        type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PEM}
   # Default consumer group id used by listeners that reference ${prx.consumer.group-id}
   logging:
     trace:

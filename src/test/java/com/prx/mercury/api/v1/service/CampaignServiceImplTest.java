@@ -130,7 +130,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("email")).thenReturn("mercury-email-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "Test Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -187,7 +187,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("sms")).thenReturn("mercury-sms-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "SMS Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -216,7 +216,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("telegram")).thenReturn("mercury-telegram-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "TG Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -245,7 +245,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("whatsapp")).thenReturn("mercury-whatsapp-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "WA Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -280,7 +280,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("push")).thenReturn("mercury-push-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(pushMsg);
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "Push Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
