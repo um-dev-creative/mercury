@@ -1,10 +1,11 @@
 package com.prx.mercury.kafka.consumer.service;
 
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
-import com.prx.mercury.jpa.nosql.repository.EmailMessageNSRepository;
-import com.prx.mercury.kafka.to.EmailMessageTO;
-import com.prx.mercury.mapper.EmailMessageMapper;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.jpa.nosql.repository.EmailMessageNSRepository;
+import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerServiceImp;
+import com.umdc.mercury.kafka.to.EmailMessageTO;
+import com.umdc.mercury.mapper.EmailMessageMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

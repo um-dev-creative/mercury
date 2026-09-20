@@ -1,5 +1,8 @@
 package com.prx.mercury.jpa.sql.entity;
 
+import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
+import com.umdc.mercury.jpa.sql.entity.MessageStatusTypeEntity;
+import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

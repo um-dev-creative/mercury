@@ -1,14 +1,11 @@
 package com.prx.mercury.processor;
 
-import com.prx.mercury.api.v1.service.*;
-import com.prx.mercury.api.v1.to.MessageRecordTO;
-import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.api.v1.to.TemplateTO;
-import com.prx.mercury.api.v1.to.TemplateTypeTO;
-import com.prx.mercury.api.v1.to.VerificationCodeTO;
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
-import com.prx.mercury.mapper.MessageRecordMapper;
+import com.umdc.mercury.api.v1.service.*;
+import com.umdc.mercury.api.v1.to.*;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.mapper.MessageRecordMapper;
+import com.umdc.mercury.processor.MessageProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -128,7 +125,7 @@ class MessageProcessorTest {
         TemplateDefinedTO templateDefinedTO = new TemplateDefinedTO(UUID.randomUUID(), templateTO, UUID.randomUUID(), applicationId, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
 
         when(emailService.findByDeliveryStatus(DeliveryStatusType.SENT)).thenReturn(List.of(doc));
-        when(messageStatusTypeService.findByName(anyString())).thenReturn(new com.prx.mercury.api.v1.to.MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
+        when(messageStatusTypeService.findByName(anyString())).thenReturn(new MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
         when(templateDefinedService.find(templateId)).thenReturn(templateDefinedTO);
 
         MessageRecordTO recordTO = new MessageRecordTO(UUID.randomUUID(), templateId, "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());

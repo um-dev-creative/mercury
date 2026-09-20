@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.service;
 
+import com.umdc.mercury.api.v1.service.MessageRecordService;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 

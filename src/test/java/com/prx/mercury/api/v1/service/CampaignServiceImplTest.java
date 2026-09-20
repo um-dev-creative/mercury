@@ -1,25 +1,29 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.exception.ForbiddenException;
-import com.prx.mercury.api.v1.to.*;
-import com.prx.mercury.jpa.sql.entity.CampaignEntity;
-import com.prx.mercury.jpa.sql.entity.CampaignMetricsEntity;
-import com.prx.mercury.jpa.sql.entity.ChannelTypeEntity;
-import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;
-import com.prx.mercury.jpa.sql.repository.CampaignMetricsRepository;
-import com.prx.mercury.jpa.sql.repository.CampaignRepository;
-import com.prx.mercury.jpa.sql.repository.ChannelTypeRepository;
-import com.prx.mercury.jpa.sql.repository.TemplateDefinedRepository;
-import com.prx.mercury.kafka.to.PushNotificationMessageTO;
-import com.prx.mercury.mapper.CampaignMapper;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.ForbiddenException;
+import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
+import com.umdc.mercury.api.v1.service.CampaignProgressService;
+import com.umdc.mercury.api.v1.service.CampaignService;
+import com.umdc.mercury.api.v1.service.CampaignServiceImpl;
+import com.umdc.mercury.api.v1.service.CampaignUpdateApplier;
+import com.umdc.mercury.api.v1.to.*;
+import com.umdc.mercury.jpa.sql.entity.CampaignEntity;
+import com.umdc.mercury.jpa.sql.entity.CampaignMetricsEntity;
+import com.umdc.mercury.jpa.sql.entity.ChannelTypeEntity;
+import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
+import com.umdc.mercury.jpa.sql.repository.CampaignMetricsRepository;
+import com.umdc.mercury.jpa.sql.repository.CampaignRepository;
+import com.umdc.mercury.jpa.sql.repository.ChannelTypeRepository;
+import com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository;
+import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
+import com.umdc.mercury.mapper.CampaignMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -66,13 +70,18 @@ class CampaignServiceImplTest {
     @Mock
     private CampaignMessageFactory messageFactory;
 
-    @InjectMocks
     private CampaignServiceImpl campaignServiceImpl;
 
     private ChannelTypeEntity defaultChannel;
 
     @BeforeEach
     void setUp() {
+        campaignServiceImpl = new CampaignServiceImpl(
+                campaignRepository, metricsRepository, channelTypeRepository,
+                templateDefinedRepository, kafkaTemplate, campaignMapper,
+                campaignProgressService, messageFactory,
+                new CampaignUpdateApplier(templateDefinedRepository));
+
         defaultChannel = new ChannelTypeEntity();
         defaultChannel.setId(UUID.randomUUID());
         defaultChannel.setCode("email");
@@ -126,7 +135,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("email")).thenReturn("mercury-email-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "Test Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -183,7 +192,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("sms")).thenReturn("mercury-sms-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "SMS Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -212,7 +221,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("telegram")).thenReturn("mercury-telegram-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "TG Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -241,7 +250,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("whatsapp")).thenReturn("mercury-whatsapp-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "WA Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -276,7 +285,7 @@ class CampaignServiceImplTest {
             when(messageFactory.topicFor("push")).thenReturn("mercury-push-messages");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(pushMsg);
-            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(null);
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
             when(campaignProgressService.getProgress(campaignId)).thenReturn(
                     new CampaignProgressTO(campaignId, "Push Campaign", null, 1, 0, 0, 0, 0, 0, 0,
                             0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
@@ -694,6 +703,113 @@ class CampaignServiceImplTest {
             when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
 
             assertThrows(IllegalStateException.class, () -> campaignServiceImpl.toggleCampaign(campaignId, true, owner));
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteCampaign tests")
+    class DeleteCampaignTests {
+
+        @Test
+        @DisplayName("soft-deletes a campaign when requester is owner")
+        void delete_success() {
+            UUID campaignId = UUID.randomUUID();
+            UUID owner = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            entity.setCreatedBy(owner);
+
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+            when(campaignRepository.save(any(CampaignEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            campaignServiceImpl.deleteCampaign(campaignId, owner);
+
+            assertAll("soft-delete side effects",
+                    () -> assertThat(entity.getDeleted()).isTrue(),
+                    () -> assertThat(entity.getDeletedAt()).isNotNull(),
+                    () -> assertThat(entity.getUpdatedBy()).isEqualTo(owner)
+            );
+            verify(campaignRepository).save(entity);
+        }
+
+        @Test
+        @DisplayName("throws CampaignNotFoundException when campaign missing")
+        void delete_notFound() {
+            UUID unknown = UUID.randomUUID();
+            UUID requestId = UUID.randomUUID();
+            when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
+
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.deleteCampaign(unknown, requestId));
+            verify(campaignRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("is idempotent: deleting an already soft-deleted campaign throws CampaignNotFoundException")
+        void delete_alreadyDeleted_throwsNotFound() {
+            UUID campaignId = UUID.randomUUID();
+            UUID owner = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            entity.setCreatedBy(owner);
+            entity.setDeleted(true);
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.deleteCampaign(campaignId, owner));
+            verify(campaignRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("throws ForbiddenException when requester is not owner")
+        void delete_forbidden() {
+            UUID campaignId = UUID.randomUUID();
+            UUID requestId = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(campaignId);
+            entity.setCreatedBy(UUID.randomUUID());
+            when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
+
+            assertThrows(ForbiddenException.class, () -> campaignServiceImpl.deleteCampaign(campaignId, requestId));
+            verify(campaignRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("soft-deleted campaign visibility")
+    class SoftDeleteVisibilityTests {
+
+        @Test
+        @DisplayName("getById throws CampaignNotFoundException for a soft-deleted campaign")
+        void getById_softDeleted_notFound() {
+            UUID id = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setDeleted(true);
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id));
+        }
+
+        @Test
+        @DisplayName("getByUserIdAndApplicationId excludes soft-deleted campaigns")
+        void getByUserIdAndApplicationId_excludesSoftDeleted() {
+            UUID userId = UUID.randomUUID();
+            UUID appId = UUID.randomUUID();
+
+            CampaignEntity active = new CampaignEntity();
+            active.setId(UUID.randomUUID());
+            CampaignEntity deleted = new CampaignEntity();
+            deleted.setId(UUID.randomUUID());
+            deleted.setDeleted(true);
+
+            when(campaignRepository.findByCreatedByAndApplicationId(userId, appId))
+                    .thenReturn(List.of(active, deleted));
+            when(campaignMapper.toCampaignDetailResponse(active))
+                    .thenReturn(new CampaignDetailResponse(active.getId(), "Active", "email", null, null, null, null, null, null, Map.of()));
+
+            List<CampaignDetailResponse> result = campaignServiceImpl.getByUserIdAndApplicationId(userId, appId);
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).id()).isEqualTo(active.getId());
         }
     }
 }

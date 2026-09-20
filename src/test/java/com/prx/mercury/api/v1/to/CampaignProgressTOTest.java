@@ -1,5 +1,7 @@
 package com.prx.mercury.api.v1.to;
 
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.ChannelTypeTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

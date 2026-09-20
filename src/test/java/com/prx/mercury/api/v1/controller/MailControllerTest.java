@@ -1,9 +1,10 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.prx.mercury.api.v1.service.EmailServiceImpl;
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.api.v1.to.SendEmailRequest;
-import com.prx.mercury.api.v1.to.SendEmailResponse;
+import com.umdc.mercury.api.v1.controller.MailController;
+import com.umdc.mercury.api.v1.service.EmailServiceImpl;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.SendEmailRequest;
+import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

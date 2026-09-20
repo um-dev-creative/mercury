@@ -1,9 +1,10 @@
 package com.prx.mercury.mapper;
 
-import com.prx.mercury.api.v1.to.VerificationCodeTO;
-import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
-import com.prx.mercury.jpa.sql.entity.MessageRecordEntity;
-import com.prx.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.api.v1.to.VerificationCodeTO;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.mapper.VerificationCodeMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

@@ -1,14 +1,15 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.prx.commons.util.JwtUtil;
-import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.service.CampaignService;
-import com.prx.mercury.api.v1.to.CampaignDetailResponse;
-import com.prx.mercury.api.v1.to.CampaignTO;
-import com.prx.mercury.api.v1.to.CampaignProgressTO;
-import com.prx.mercury.api.v1.to.CreateCampaignRequest;
-import com.prx.mercury.api.v1.to.CreateCampaignResponse;
-import com.prx.mercury.api.v1.to.RecipientTO;
+import com.umdc.commons.util.JwtUtil;
+import com.umdc.mercury.api.v1.controller.CampaignController;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.service.CampaignService;
+import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
+import com.umdc.mercury.api.v1.to.CampaignTO;
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.CreateCampaignRequest;
+import com.umdc.mercury.api.v1.to.CreateCampaignResponse;
+import com.umdc.mercury.api.v1.to.RecipientTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CampaignController unit tests")
@@ -52,7 +53,7 @@ class CampaignControllerTest {
     private UUID templateId;
     private UUID userId;
     private UUID applicationId;
-    private MockedStatic<com.prx.commons.util.JwtUtil> jwtUtilStatic;
+    private MockedStatic<com.umdc.commons.util.JwtUtil> jwtUtilStatic;
 
     @BeforeEach
     void setUp() {
@@ -70,7 +71,7 @@ class CampaignControllerTest {
                 "DRAFT",
                 applicationId
         );
-        jwtUtilStatic = Mockito.mockStatic(com.prx.commons.util.JwtUtil.class);
+        jwtUtilStatic = Mockito.mockStatic(com.umdc.commons.util.JwtUtil.class);
     }
 
     @AfterEach
@@ -289,7 +290,7 @@ class CampaignControllerTest {
 
             CampaignDetailResponse detail = new CampaignDetailResponse(campaignId, "Name", "email", UUID.randomUUID(), "DRAFT", null, null, null, null, null);
 
-            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
+            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
 
             when(campaignService.getByUserIdAndApplicationId(userIdLocal, appIdLocal)).thenReturn(List.of(detail));
 
@@ -305,7 +306,7 @@ class CampaignControllerTest {
         @DisplayName("propagates exception when token parsing fails")
         void getByApplication_invalidToken() {
             UUID appIdLocal = UUID.randomUUID();
-            jwtUtilStatic.when(() -> com.prx.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
 
             assertThrows(RuntimeException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
 
@@ -335,6 +336,79 @@ class CampaignControllerTest {
             jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
 
             assertThrows(RuntimeException.class, () -> campaignController.toggleCampaign(campaignId, false, "bad-token"));
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteCampaign endpoint tests")
+    class DeleteEndpointTests {
+
+        @Test
+        @DisplayName("returns 204 No Content when delete succeeds")
+        void delete_returns204() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(UUID.randomUUID());
+
+            ResponseEntity<Void> resp = campaignController.deleteCampaign(campaignId, "token-value");
+
+            assertThat(resp.getStatusCode().value()).isEqualTo(204);
+            verify(campaignService).deleteCampaign(eq(campaignId), any(UUID.class));
+        }
+
+        @Test
+        @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
+        void delete_notFound() {
+            UUID campaignId = UUID.randomUUID();
+            UUID requester = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(requester);
+            doThrow(new CampaignNotFoundException("Campaign not found: " + campaignId))
+                    .when(campaignService).deleteCampaign(campaignId, requester);
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignController.deleteCampaign(campaignId, "token-value"));
+        }
+
+        @Test
+        @DisplayName("propagates exception when token parsing fails")
+        void delete_invalidToken() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+
+            assertThrows(RuntimeException.class, () -> campaignController.deleteCampaign(campaignId, "bad-token"));
+            Mockito.verifyNoInteractions(campaignService);
+        }
+    }
+
+    @Nested
+    @DisplayName("getProgress endpoint tests")
+    class GetProgressEndpointTests {
+
+        @Test
+        @DisplayName("returns 200 OK with progress body")
+        void getProgress_returns200WithBody() {
+            UUID campaignId = UUID.randomUUID();
+            CampaignProgressTO progress = buildProgress(campaignId, "Spring Promotion 2026", "IN_PROGRESS");
+            when(campaignService.getProgress(campaignId)).thenReturn(progress);
+
+            ResponseEntity<CampaignProgressTO> response = campaignController.getProgress(campaignId, "token-value");
+
+            assertAll("getProgress response",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().campaignId()).isEqualTo(campaignId),
+                    () -> assertThat(response.getBody().status()).isEqualTo("IN_PROGRESS")
+            );
+        }
+
+        @Test
+        @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
+        void getProgress_notFound() {
+            UUID campaignId = UUID.randomUUID();
+            when(campaignService.getProgress(campaignId))
+                    .thenThrow(new CampaignNotFoundException("Campaign not found: " + campaignId));
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignController.getProgress(campaignId, "token-value"));
         }
     }
 }

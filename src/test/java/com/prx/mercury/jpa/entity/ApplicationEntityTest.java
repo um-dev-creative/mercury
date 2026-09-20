@@ -1,6 +1,6 @@
 package com.prx.mercury.jpa.entity;
 
-import com.prx.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

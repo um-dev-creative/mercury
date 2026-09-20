@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.service;
 
+import com.umdc.mercury.api.v1.service.TemplateDefinedService;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

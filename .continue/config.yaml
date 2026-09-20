@@ -1,0 +1,137 @@
+name: Mercury
+version: 1.0.0
+schema: v1
+
+# ─── Models ──────────────────────────────────────────────────────────────────
+
+models:
+  # Primary: Gemma 4 via Ollama (local, fast, private)
+  - name: Gemma 4 27B
+    provider: ollama
+    model: gemma4:27b
+    defaultCompletionOptions:
+      temperature: 0.1
+      maxTokens: 8192
+    roles:
+      - chat
+      - edit
+      - summarize
+
+  # Lightweight autocomplete model (fast local inference)
+  - name: Gemma 4 2B (autocomplete)
+    provider: ollama
+    model: gemma4:2b
+    roles:
+      - autocomplete
+
+  # Fallback: Claude Sonnet for complex reasoning tasks
+  - name: Claude Sonnet 4.6
+    provider: anthropic
+    model: claude-sonnet-4-6
+    roles:
+      - chat
+      - summarize
+
+# ─── Tab Autocomplete ─────────────────────────────────────────────────────────
+
+tabAutocomplete:
+  model:
+    name: Gemma 4 2B (autocomplete)
+    provider: ollama
+    model: gemma4:2b
+  enabled: true
+  multilineCompletions: "auto"
+
+# ─── Always-On Rules ──────────────────────────────────────────────────────────
+# These are injected into every prompt automatically.
+
+rules:
+  - "Use SLF4J LoggerFactory.getLogger() for all logging. Never use System.out.println, java.util.logging, or Log4j directly."
+  - "All DTOs are Java records in com.prx.mercury.api.v1.to. Use *Request, *Response, *TO suffixes with Bean Validation annotations (@NotNull, @NotBlank, @Valid, @NotEmpty)."
+  - "OpenAPI annotations (@Operation, @ApiResponse, @Tag) belong on *Api interfaces only — never on *Controller classes."
+  - "Scheduler fixedRateString must use ${prx.scheduler.*} property placeholders. Never hardcode millisecond values."
+  - "MapStruct mappers (in com.prx.mercury.mapper) are Spring beans. Never instantiate with new. Always inject."
+  - "Every class must have at least one explicit constructor (PMD AtLeastOneConstructor rule)."
+  - "New ChannelService implementations must implement all three methods: send, updateStatus, and findByDeliveryStatus."
+  - "DDL strategy is none. Schema changes require SQL migration scripts placed in src/main/resources/db/."
+  - "Kafka topic strings come from bootstrap.yml ${prx.consumer.topics.*} properties — never hardcoded strings."
+  - "ForbiddenException maps to HTTP 403 (not 401) for authentication failures in Mercury."
+  - "Write operations in *ServiceImpl return CompletableFuture<T>. Read operations may return T or List<T> directly."
+  - "EmailMessageDocument lifecycle is OPENED → SENT → deleted. Never persist a MongoDB document beyond delivery confirmation."
+
+# ─── Context Providers ────────────────────────────────────────────────────────
+
+contextProviders:
+  - name: code
+  - name: docs
+  - name: git
+    params:
+      onlyDiff: true
+  - name: terminal
+  - name: problems
+  - name: folder
+
+# ─── Slash Commands ───────────────────────────────────────────────────────────
+
+slashCommands:
+  - name: implement-feature
+    description: "Implement a new Mercury REST endpoint end-to-end"
+    prompt: |
+      Implement a new Mercury feature using the following inputs:
+      Feature: {{{ input }}}
+
+      Follow these steps in order:
+      1. Read CampaignApi.java and CampaignServiceImpl.java as reference
+      2. Create/update the *Api interface with full @Operation + @ApiResponses (on interface only)
+      3. Create the request record in com.prx.mercury.api.v1.to with Bean Validation
+      4. Create/update the *Service interface (CompletableFuture for writes)
+      5. Implement *ServiceImpl with constructor injection, SLF4J logger, correct exception types
+      6. Update *Controller to delegate to service (no business logic in controller)
+      7. Update MapStruct mapper if new entity fields are needed
+      8. Verify: mvn -U clean package -DskipTests then mvn clean test
+
+  - name: fix-pmd
+    description: "Fix all PMD violations so mvn clean test passes"
+    prompt: |
+      Fix all PMD violations in the current changes.
+
+      Run: mvn clean test 2>&1 | grep -A 3 "PMD"
+      Then fix each violation:
+      - AtLeastOneConstructor → add explicit constructor
+      - UnusedImports → remove the import
+      - EmptyCatchBlock → add explanatory comment
+      - AvoidDuplicateLiterals → extract to private static final constant
+
+      Never use @SuppressWarnings("PMD.*") unless the rule produces a genuine false positive.
+      Verify with: mvn clean test (must reach Surefire phase)
+
+  - name: write-tests
+    description: "Write JUnit 5 tests for the specified class"
+    prompt: |
+      Write unit tests for: {{{ input }}}
+
+      Use @ExtendWith(MockitoExtension.class), @Mock for dependencies, @InjectMocks for subject.
+      Cover: happy path, not-found (CampaignNotFoundException), auth failure (ForbiddenException),
+      channel disabled (IllegalStateException), and validation errors.
+      Use AssertJ assertions. Unwrap CompletableFuture with .join() in async tests.
+      Run: mvn -Dtest=<ClassName>Test surefire:test
+
+  - name: review
+    description: "Review the current diff for Mercury convention violations"
+    prompt: |
+      Review the current code changes for:
+      1. OpenAPI annotations on *Api interfaces only (not controllers)
+      2. DTOs as records in com.prx.mercury.api.v1.to
+      3. PMD compliance: constructor, no unused imports, no empty catches
+      4. Exception types: CampaignNotFoundException→404, ForbiddenException→403, IllegalStateException→422
+      5. No hardcoded Kafka topics, scheduler rates, or secrets
+      Report BLOCKING issues and MINOR suggestions separately.
+
+  - name: fix-coverage
+    description: "Identify uncovered branches and add targeted tests"
+    prompt: |
+      Improve JaCoCo coverage above 70% line / 50% branch.
+      Run: mvn -Pcoverage clean test
+      Find classes with the most missed lines in target/site/jacoco/jacoco.xml.
+      Add tests for: exception paths, boundary values, CompletableFuture error cases.
+      Target: LINE ≥ 75%, BRANCH ≥ 55% (safety margin above gate).

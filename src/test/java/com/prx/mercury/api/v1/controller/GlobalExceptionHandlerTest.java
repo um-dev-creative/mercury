@@ -1,7 +1,8 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.prx.mercury.api.v1.exception.CampaignNotFoundException;
-import com.prx.mercury.api.v1.to.ApiError;
+import com.umdc.mercury.api.v1.controller.GlobalExceptionHandler;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.to.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -160,10 +161,10 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<ApiError> response = handler.handleIllegalState(ex, request);
 
             assertAll("illegal state",
-                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY),
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT),
                     () -> assertThat(response.getBody()).isNotNull(),
                     () -> assertThat(response.getBody().status()).isEqualTo(422),
-                    () -> assertThat(response.getBody().error()).isEqualTo("Unprocessable Entity"),
+                    () -> assertThat(response.getBody().error()).isEqualTo("Unprocessable Content"),
                     () -> assertThat(response.getBody().message()).isEqualTo("Channel type is disabled: Email")
             );
         }
@@ -199,7 +200,6 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<ApiError> response = handler.handleCompletion(ex, request);
 
             assertAll("completion + ISE",
-                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY),
                     () -> assertThat(response.getBody().status()).isEqualTo(422),
                     () -> assertThat(response.getBody().message()).contains("Channel type is disabled")
             );

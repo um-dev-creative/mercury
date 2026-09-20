@@ -1,17 +1,18 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.api.v1.to.TemplateTO;
-import com.prx.mercury.api.v1.to.TemplateTypeTO;
-import com.prx.mercury.jpa.sql.entity.TemplateDefinedEntity;
-import com.prx.mercury.jpa.sql.repository.TemplateDefinedRepository;
-import com.prx.mercury.mapper.TemplateDefinedMapper;
+import com.umdc.mercury.api.v1.service.TemplateDefinedServiceImpl;
+import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.api.v1.to.TemplateTO;
+import com.umdc.mercury.api.v1.to.TemplateTypeTO;
+import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
+import com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository;
+import com.umdc.mercury.mapper.TemplateDefinedMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -21,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith(MockitoExtension.class)
 class TemplateDefinedServiceImplTest {
 
     @Mock

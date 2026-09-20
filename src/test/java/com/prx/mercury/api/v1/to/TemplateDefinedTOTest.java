@@ -1,5 +1,8 @@
 package com.prx.mercury.api.v1.to;
 
+import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.api.v1.to.TemplateTO;
+import com.umdc.mercury.api.v1.to.TemplateTypeTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

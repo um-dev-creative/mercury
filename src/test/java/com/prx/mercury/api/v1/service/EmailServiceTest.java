@@ -1,8 +1,9 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.TemplateDefinedTO;
-import com.prx.mercury.constant.DeliveryStatusType;
-import com.prx.mercury.jpa.nosql.document.EmailMessageDocument;
+import com.umdc.mercury.api.v1.service.EmailService;
+import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;

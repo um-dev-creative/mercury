@@ -1,6 +1,8 @@
 package com.prx.mercury.mapper;
 
-import com.prx.mercury.jpa.sql.entity.TemplateEntity;
+import com.umdc.mercury.api.v1.to.TemplateTO;
+import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
+import com.umdc.mercury.mapper.TemplateMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -12,12 +14,12 @@ class TemplateMapperTest {
 
     private final TemplateMapper mapper = new TemplateMapper() {
         @Override
-        public TemplateEntity toSource(com.prx.mercury.api.v1.to.TemplateTO templateTO) {
+        public TemplateEntity toSource(TemplateTO templateTO) {
             throw new UnsupportedOperationException("not implemented");
         }
 
         @Override
-        public com.prx.mercury.api.v1.to.TemplateTO toTemplateTO(TemplateEntity templateEntity) {
+        public TemplateTO toTemplateTO(TemplateEntity templateEntity) {
             throw new UnsupportedOperationException("not implemented");
         }
     };

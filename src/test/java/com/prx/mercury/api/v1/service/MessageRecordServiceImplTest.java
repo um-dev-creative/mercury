@@ -1,16 +1,17 @@
 package com.prx.mercury.api.v1.service;
 
-import com.prx.mercury.api.v1.to.EmailContact;
-import com.prx.mercury.api.v1.to.MessageRecordTO;
-import com.prx.mercury.jpa.sql.entity.MessageRecordEntity;
-import com.prx.mercury.jpa.sql.repository.MessageRecordRepository;
-import com.prx.mercury.mapper.MessageRecordMapper;
+import com.umdc.mercury.api.v1.service.MessageRecordServiceImpl;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.MessageRecordTO;
+import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
+import com.umdc.mercury.jpa.sql.repository.MessageRecordRepository;
+import com.umdc.mercury.mapper.MessageRecordMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(SpringExtension.class)
+@ExtendWith(MockitoExtension.class)
 class MessageRecordServiceImplTest {
 
     @Mock
