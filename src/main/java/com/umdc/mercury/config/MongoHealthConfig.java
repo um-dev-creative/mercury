@@ -1,6 +1,7 @@
 package com.umdc.mercury.config;
 
 import org.bson.Document;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.health.contributor.AbstractHealthIndicator;
 import org.springframework.boot.health.contributor.Health;
 import org.springframework.context.annotation.Bean;
@@ -13,7 +14,7 @@ public class MongoHealthConfig {
 
     @Bean
     @Primary
-    public MongoHealthIndicatorOverride mongoHealthIndicator(MongoTemplate mongoTemplate) {
+    public AbstractHealthIndicator mongoHealthIndicator(MongoTemplate mongoTemplate) {
         return new MongoHealthIndicatorOverride(mongoTemplate);
     }
 
@@ -26,7 +27,7 @@ public class MongoHealthConfig {
         }
 
         @Override
-        protected void doHealthCheck(Health.Builder builder) {
+        protected void doHealthCheck(Health.@NonNull Builder builder) {
             try {
                 Document result = mongoTemplate.getDb().runCommand(new Document("ping", 1));
                 builder.up().withDetail("maxWireVersion", result.getInteger("ok", 0));

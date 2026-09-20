@@ -35,7 +35,7 @@ public class VerificationCodeEntity {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "expires_at", nullable = true)
+    @Column(name = "expires_at")
     private LocalDateTime expiresAt;
 
     @Column(name = "verified_at")

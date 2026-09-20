@@ -161,10 +161,10 @@ class GlobalExceptionHandlerTest {
             ResponseEntity<ApiError> response = handler.handleIllegalState(ex, request);
 
             assertAll("illegal state",
-                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY),
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT),
                     () -> assertThat(response.getBody()).isNotNull(),
                     () -> assertThat(response.getBody().status()).isEqualTo(422),
-                    () -> assertThat(response.getBody().error()).isEqualTo("Unprocessable Entity"),
+                    () -> assertThat(response.getBody().error()).isEqualTo("Unprocessable Content"),
                     () -> assertThat(response.getBody().message()).isEqualTo("Channel type is disabled: Email")
             );
         }

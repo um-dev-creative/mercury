@@ -147,7 +147,7 @@ spring:
       group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
       properties:
         spring.json.add.type.headers: true
         spring.json.trusted.packages: '*'
@@ -207,10 +207,8 @@ spring:
             location: classpath:${SSL_TRUSTSTORE_LOCATION}
             password: ${SSL_TRUSTSTORE_PASSWORD}
             type: ${SSL_TRUSTSTORE_TYPE}
-  mvc:
-    throw-exception-if-no-handler-found: true
   autoconfigure:
-    exclude: org.springframework.boot.autoconfigure.security.SecurityAutoConfiguration
+    exclude: org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
   mustache:
     check-template-location: false
   test:

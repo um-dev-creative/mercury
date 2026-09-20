@@ -62,7 +62,11 @@
         <rewrite.plugin.version>5.42.0</rewrite.plugin.version>
         <rewrite.recipe.version>5.21.0</rewrite.recipe.version>
         <asm.version>9.7</asm.version>
-        <poi.version>5.2.4</poi.version>
+        <poi.version>5.5.1</poi.version>
+        <!-- Transitive versions pinned above what telegrambots-webhook (via javalin/ssl-plugin) resolves,
+             to close known CVEs: CVE-2025-5115 (Jetty HTTP/2 MadeYouReset) and CVE-2026-5588 (BouncyCastle) -->
+        <jetty-http2.version>11.0.26</jetty-http2.version>
+        <bouncycastle.version>1.86</bouncycastle.version>
 
         <!--        Test Dependencies-->
         <!--        JUnit 5.x-->
@@ -354,6 +358,30 @@
                 <artifactId>postgresql</artifactId>
                 <version>${postgresql.version}</version>
                 <scope>runtime</scope>
+            </dependency>
+            <!-- CVE-2025-5115 (MadeYouReset): force the Jetty 11.x HTTP/2 modules pulled in
+                 transitively by telegrambots-webhook (via io.javalin) above the fixed 11.0.26 -->
+            <dependency>
+                <groupId>org.eclipse.jetty.http2</groupId>
+                <artifactId>http2-common</artifactId>
+                <version>${jetty-http2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.http2</groupId>
+                <artifactId>http2-server</artifactId>
+                <version>${jetty-http2.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.jetty.http2</groupId>
+                <artifactId>http2-hpack</artifactId>
+                <version>${jetty-http2.version}</version>
+            </dependency>
+            <!-- CVE-2026-5588: force BouncyCastle pulled in transitively by
+                 io.javalin.community.ssl:ssl-plugin above the fixed 1.84 -->
+            <dependency>
+                <groupId>org.bouncycastle</groupId>
+                <artifactId>bcpkix-jdk18on</artifactId>
+                <version>${bouncycastle.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

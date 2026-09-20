@@ -2,6 +2,7 @@ package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.to.VerificationCodeRequest;
 import com.umdc.mercury.api.v1.to.VerificationCodeTO;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import com.umdc.mercury.jpa.sql.repository.VerificationCodeRepository;
 import com.umdc.mercury.mapper.VerificationCodeMapper;
 import org.slf4j.Logger;
@@ -11,6 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Service implementation for managing verification codes.
@@ -50,7 +54,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         var verificationCodeEntityOptional = this.verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(
                 verificationCodeRequest.userId(),
                 verificationCodeRequest.applicationId(),
-                LocalDateTime.now(), false);
+                LocalDateTime.now(ZoneId.of("UTC")), false);
         if (verificationCodeEntityOptional.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .header("message", "No valid verification code found for the user and application")
@@ -58,28 +62,31 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         }
 
         // Single-pass: mutate each qualifying entity and track whether any was verified,
-        // eliminating the redundant second stream().filter().findFirst() pass.
-        final boolean[] anyVerified = {false};
-        var collectionResult = verificationCodeEntityOptional.stream()
-                .filter(verificationCodeEntity ->
-                        !verificationCodeEntity.getIsVerified()
-                                && verificationCodeEntity.getAttempts() < verificationCodeEntity.getMaxAttempts())
-                .map(verificationCodeEntity -> {
-                    verificationCodeEntity.setAttempts(verificationCodeEntity.getAttempts() + 1);
-                    verificationCodeEntity.setModifiedAt(LocalDateTime.now());
-                    verificationCodeEntity.setModifiedBy(verificationCodeRequest.userId().toString());
-                    if (verificationCodeEntity.getVerificationCode().equals(verificationCodeRequest.code())) {
-                        verificationCodeEntity.setIsVerified(true);
-                        verificationCodeEntity.setVerifiedAt(LocalDateTime.now());
-                        anyVerified[0] = true;
-                        logger.debug("Verification code confirmed: {}", verificationCodeEntity);
-                    }
-                    return verificationCodeEntity;
-                }).toList();
+        // eliminating the redundant second stream().filter().findFirst() pass. A plain loop
+        // is used deliberately instead of a stream, since the body performs mutation/side
+        // effects rather than a pure transformation.
+        boolean anyVerified = false;
+        List<VerificationCodeEntity> collectionResult = new ArrayList<>();
+        for (VerificationCodeEntity verificationCodeEntity : verificationCodeEntityOptional) {
+            if (Boolean.TRUE.equals(verificationCodeEntity.getIsVerified())
+                    || verificationCodeEntity.getAttempts() >= verificationCodeEntity.getMaxAttempts()) {
+                continue;
+            }
+            verificationCodeEntity.setAttempts(verificationCodeEntity.getAttempts() + 1);
+            verificationCodeEntity.setModifiedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            verificationCodeEntity.setModifiedBy(verificationCodeRequest.userId().toString());
+            if (verificationCodeEntity.getVerificationCode().equals(verificationCodeRequest.code())) {
+                verificationCodeEntity.setIsVerified(true);
+                verificationCodeEntity.setVerifiedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                anyVerified = true;
+                logger.debug("Verification code confirmed: {}", verificationCodeEntity);
+            }
+            collectionResult.add(verificationCodeEntity);
+        }
 
         verificationCodeRepository.saveAll(collectionResult);
 
-        return anyVerified[0]
+        return anyVerified
                 ? ResponseEntity.status(HttpStatus.ACCEPTED).build()
                 : ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
     }

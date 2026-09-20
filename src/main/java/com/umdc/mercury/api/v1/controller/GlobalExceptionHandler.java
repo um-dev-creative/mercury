@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
@@ -149,8 +150,8 @@ public class GlobalExceptionHandler {
                                                        HttpServletRequest request) {
         logger.warn("Unprocessable request for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
-                .unprocessableEntity()
-                .body(buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request.getRequestURI()));
+                .unprocessableContent()
+                .body(buildError(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -166,6 +167,6 @@ public class GlobalExceptionHandler {
     }
 
     private ApiError buildError(HttpStatus status, String message, String path) {
-        return new ApiError(LocalDateTime.now(), status.value(), status.getReasonPhrase(), message, path);
+        return new ApiError(LocalDateTime.now(ZoneId.of("UTC")), status.value(), status.getReasonPhrase(), message, path);
     }
 }

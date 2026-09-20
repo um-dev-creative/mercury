@@ -1,13 +1,12 @@
 package com.umdc.mercury.kafka.config;
 
-import io.jsonwebtoken.lang.Objects;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 
@@ -39,10 +38,12 @@ public class ProducerConfig {
     public ProducerFactory<String, Object> kafkaProducerFactory() throws IOException {
         Map<String, Object> props = new HashMap<>();
         props.put(BOOTSTRAP_SERVERS_CONFIG,
-                !Objects.isEmpty(bootstrapServerPort) ? bootstrapServer + ":" + bootstrapServerPort : bootstrapServer);
+                (bootstrapServerPort != null && !bootstrapServerPort.isEmpty())
+                        ? bootstrapServer + ":" + bootstrapServerPort
+                        : bootstrapServer);
         props.put(CLIENT_ID_CONFIG, clientId);
         props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        props.put(VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
         props.put("spring.json.add.type.headers", true);
         props.put("spring.json.trusted.packages", "*");
         props.putAll(kafkaSslProps.build());
