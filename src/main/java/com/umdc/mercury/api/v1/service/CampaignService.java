@@ -53,6 +53,18 @@ public interface CampaignService {
      */
     void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId);
 
+    /**
+     * Soft-deletes a campaign, marking it as deleted instead of removing the row.
+     * Soft-deleted campaigns are excluded from {@link #getById(UUID)},
+     * {@link #getByUserIdAndApplicationId(UUID, UUID)}, {@link #updateCampaign(UUID, UpdateCampaignRequest, UUID)}
+     * and {@link #toggleCampaign(UUID, boolean, UUID)}.
+     *
+     * @param campaignId the campaign UUID
+     * @param requesterId the user requesting the deletion (for permission/audit)
+     * @throws CampaignNotFoundException if the campaign does not exist or is already deleted
+     */
+    void deleteCampaign(UUID campaignId, UUID requesterId);
+
 }
 
 

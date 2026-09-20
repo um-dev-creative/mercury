@@ -17,6 +17,8 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
@@ -36,6 +38,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final CampaignMapper campaignMapper;
     private final CampaignProgressService campaignProgressService;
     private final CampaignMessageFactory messageFactory;
+    private final CampaignUpdateApplier campaignUpdateApplier;
 
     public CampaignServiceImpl(
             CampaignRepository campaignRepository,
@@ -45,7 +48,8 @@ public class CampaignServiceImpl implements CampaignService {
             KafkaTemplate<String, Object> kafkaTemplate,
             CampaignMapper campaignMapper,
             CampaignProgressService campaignProgressService,
-            CampaignMessageFactory messageFactory) {
+            CampaignMessageFactory messageFactory,
+            CampaignUpdateApplier campaignUpdateApplier) {
         this.campaignRepository = campaignRepository;
         this.metricsRepository = metricsRepository;
         this.channelTypeRepository = channelTypeRepository;
@@ -54,6 +58,7 @@ public class CampaignServiceImpl implements CampaignService {
         this.campaignMapper = campaignMapper;
         this.campaignProgressService = campaignProgressService;
         this.messageFactory = messageFactory;
+        this.campaignUpdateApplier = campaignUpdateApplier;
     }
 
     @Async
@@ -87,7 +92,7 @@ public class CampaignServiceImpl implements CampaignService {
         logger.debug("Resolved template. templateId={}", templateDefined.getId());
 
         // 2. Persist campaign
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
         CampaignEntity campaign = campaignMapper.toCampaignEntity(
                 campaignTO, channelType, templateDefined,
                 DEFAULT_BATCH_SIZE, resolveStatus(campaignTO.status()), now,
@@ -139,11 +144,7 @@ public class CampaignServiceImpl implements CampaignService {
     @Override
     public CampaignDetailResponse getById(UUID id) {
         logger.debug("Fetching campaign by id. id={}", id);
-        CampaignEntity entity = campaignRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.warn("Campaign not found. id={}", id);
-                    return new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + id);
-                });
+        CampaignEntity entity = requireExisting(id);
         logger.debug("{} id={}, name={}, status={}", CAMPAIGN_NOT_FOUND_MESSAGE, entity.getId(), entity.getName(), entity.getStatus());
         return campaignMapper.toCampaignDetailResponse(entity);
     }
@@ -152,8 +153,7 @@ public class CampaignServiceImpl implements CampaignService {
     public CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId) {
         logger.info("Updating campaign. campaignId={}, requesterId={}", campaignId, requesterId);
 
-        CampaignEntity entity = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId));
+        CampaignEntity entity = requireExisting(campaignId);
 
         // simple permission check: only owner can update (createdBy) or same application admin - placeholder
         if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
@@ -162,66 +162,10 @@ public class CampaignServiceImpl implements CampaignService {
             throw new ForbiddenException("Caller lacks permission to update this campaign");
         }
 
-        boolean changed = false;
-
-        if (Objects.nonNull(updateRequest.name()) && !updateRequest.name().isBlank()) {
-            entity.setName(updateRequest.name());
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.templateId())) {
-            var template = templateDefinedRepository.findById(updateRequest.templateId())
-                    .orElseThrow(() -> new IllegalArgumentException("Template not found: " + updateRequest.templateId()));
-            entity.setTemplateDefined(template);
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.applicationId())) {
-            entity.setApplicationId(updateRequest.applicationId());
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.scheduledAt())) {
-            entity.setScheduledAt(updateRequest.scheduledAt());
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.status()) && !updateRequest.status().isBlank()) {
-            entity.setStatus(updateRequest.status());
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.templateParams())) {
-            Map<String, Object> metadata = entity.getMetadata();
-            if (metadata == null) {
-                metadata = new LinkedHashMap<>();
-            }
-            // Store template parameters under a simple key to avoid complex nested types
-            metadata.put("templateParams", updateRequest.templateParams());
-            entity.setMetadata(metadata);
-            changed = true;
-        }
-
-        if (Objects.nonNull(updateRequest.recipients())) {
-            // deduplicate recipients by identifier
-            List<RecipientTO> recipients = updateRequest.recipients();
-            Set<String> seen = new LinkedHashSet<>();
-            List<RecipientTO> deduped = new ArrayList<>();
-            for (RecipientTO r : recipients) {
-                if (r == null || r.identifier() == null || r.identifier().isBlank()) continue;
-                if (seen.add(r.identifier())) {
-                    deduped.add(r);
-                }
-            }
-            if (deduped.isEmpty()) {
-                throw new IllegalArgumentException("At least one recipient is required");
-            }
-            entity.setTotalRecipients(deduped.size());
-            changed = true;
-        }
+        boolean changed = campaignUpdateApplier.apply(entity, updateRequest);
 
         if (changed) {
-            entity.setUpdatedAt(LocalDateTime.now());
+            entity.setUpdatedAt(LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
             entity.setUpdatedBy(requesterId);
             entity = campaignRepository.save(entity);
             logger.info("Campaign updated. id={}, updatedBy={}", entity.getId(), requesterId);
@@ -236,15 +180,17 @@ public class CampaignServiceImpl implements CampaignService {
     public List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId) {
         logger.debug("Fetching campaigns by user and application. userId={}, applicationId={}", userId, applicationId);
         List<CampaignEntity> entities = campaignRepository.findByCreatedByAndApplicationId(userId, applicationId);
-        return entities.stream().map(campaignMapper::toCampaignDetailResponse).toList();
+        return entities.stream()
+                .filter(entity -> !Boolean.TRUE.equals(entity.getDeleted()))
+                .map(campaignMapper::toCampaignDetailResponse)
+                .toList();
     }
 
     @Override
     public void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId) {
         logger.info("Toggle campaign request. campaignId={}, requesterId={}, enabled={}", campaignId, requesterId, enabled);
 
-        CampaignEntity entity = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId));
+        CampaignEntity entity = requireExisting(campaignId);
 
         // permission check: only owner can toggle
         if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
@@ -262,14 +208,46 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         entity.setEnabled(enabled);
-        entity.setUpdatedAt(LocalDateTime.now());
+        entity.setUpdatedAt(LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
         entity.setUpdatedBy(requesterId);
         campaignRepository.save(entity);
 
         logger.info("Campaign toggled. campaignId={}, previousEnabled={}, newEnabled={}, requestedBy={}", campaignId, previous, enabled, requesterId);
-        // TODO: emit audit event if needed
     }
 
+    @Override
+    public void deleteCampaign(UUID campaignId, UUID requesterId) {
+        logger.info("Soft-delete campaign request. campaignId={}, requesterId={}", campaignId, requesterId);
+
+        CampaignEntity entity = requireExisting(campaignId);
+
+        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
+            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
+            throw new ForbiddenException("Caller lacks permission to delete this campaign");
+        }
+
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
+        entity.setDeleted(true);
+        entity.setDeletedAt(now);
+        entity.setUpdatedAt(now);
+        entity.setUpdatedBy(requesterId);
+        campaignRepository.save(entity);
+
+        logger.info("Campaign soft-deleted. campaignId={}, requestedBy={}", campaignId, requesterId);
+    }
+
+    /**
+     * Fetches a campaign by id, treating a soft-deleted campaign the same as a missing one.
+     */
+    private CampaignEntity requireExisting(UUID campaignId) {
+        CampaignEntity entity = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId));
+        if (Boolean.TRUE.equals(entity.getDeleted())) {
+            logger.warn("Campaign is soft-deleted. id={}", campaignId);
+            throw new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId);
+        }
+        return entity;
+    }
 
     private void validateRecipients(CampaignTO campaignTO) {
         if (campaignTO.recipients().isEmpty()) {

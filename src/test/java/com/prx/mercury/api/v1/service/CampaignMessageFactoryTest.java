@@ -5,15 +5,17 @@ import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.RecipientTO;
 import com.umdc.mercury.constant.ChannelType;
 import com.umdc.mercury.constant.DeliveryStatusType;
-import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
+import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
 import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
@@ -73,15 +75,12 @@ class CampaignMessageFactoryTest {
 
         Object message = factory.createMessage("email", campaignId, recipient, params, templateId);
 
-        EmailMessageDocument email = assertInstanceOf(EmailMessageDocument.class, message);
-        assertNull(email.id());
-        assertNotNull(email.messageId());
+        EmailMessageTO email = assertInstanceOf(EmailMessageTO.class, message);
         assertEquals(templateId, email.templateDefinedId());
         assertEquals(userId, email.userId());
         assertEquals("noreply@example.com", email.from());
         assertEquals("Welcome", email.subject());
         assertEquals("Hello body", email.body());
-        assertEquals(DeliveryStatusType.OPENED, email.deliveryStatus());
         assertNotNull(email.sendDate());
         assertEquals("john@example.com", email.to().getFirst().email());
         assertEquals("John", email.to().getFirst().name());
@@ -233,7 +232,7 @@ class CampaignMessageFactoryTest {
                 templateId
         );
 
-        EmailMessageDocument email = assertInstanceOf(EmailMessageDocument.class, message);
+        EmailMessageTO email = assertInstanceOf(EmailMessageTO.class, message);
         assertNull(email.userId());
     }
 
@@ -257,7 +256,7 @@ class CampaignMessageFactoryTest {
     @Test
     @DisplayName("createMessage timestamps are generated close to now")
     void createMessageSetsCurrentTimestamp() {
-        LocalDateTime before = LocalDateTime.now().minusSeconds(1);
+        LocalDateTime before = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())).minusSeconds(1);
         Object message = factory.createMessage(
                 "sms",
                 UUID.randomUUID(),
@@ -265,7 +264,7 @@ class CampaignMessageFactoryTest {
                 Map.of(CampaignService.MESSAGE_KEY, "body"),
                 UUID.randomUUID()
         );
-        LocalDateTime after = LocalDateTime.now().plusSeconds(1);
+        LocalDateTime after = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())).plusSeconds(1);
 
         SmsMessageDocument sms = assertInstanceOf(SmsMessageDocument.class, message);
         assertNotNull(sms.getSendDate());

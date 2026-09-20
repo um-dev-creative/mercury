@@ -1,9 +1,11 @@
 package com.umdc.mercury.kafka.config;
 
+import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
+import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
-import io.jsonwebtoken.lang.Objects;
+import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -19,7 +21,7 @@ import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.DeserializationException;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
-import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.support.serializer.JacksonJsonDeserializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.io.IOException;
@@ -33,8 +35,6 @@ public class ConsumerConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(ConsumerConfig.class);
 
-    @Value("${umdc.consumer.mercury.topic}")
-    private String mercuryEmailTopic;
     @Value("${umdc.consumer.group-id:mercury-multi-channel}")
     private String groupId;
     @Value("${umdc.bootstrap.server.url}")
@@ -53,19 +53,26 @@ public class ConsumerConfig {
         this.kafkaSslProps = kafkaSslProps;
     }
 
-    @Bean
-    public ConsumerFactory<String, EmailMessageTO> emailMessageConsumerFactory() throws IOException {
+    private Map<String, Object> baseConsumerProps() throws IOException {
         Map<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                !Objects.isEmpty(bootstrapServerPort) ? bootstrapServer + ":" + bootstrapServerPort : bootstrapServer);
+                (bootstrapServerPort != null && !bootstrapServerPort.isEmpty())
+                        ? bootstrapServer + ":" + bootstrapServerPort
+                        : bootstrapServer);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, groupId);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.CLIENT_ID_CONFIG, clientId);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 20971520);
         props.put(org.apache.kafka.clients.consumer.ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 20971520);
         props.putAll(kafkaSslProps.build());
+        return props;
+    }
+
+    @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
+    public ConsumerFactory<String, EmailMessageTO> emailMessageConsumerFactory() throws IOException {
         ErrorHandlingDeserializer<EmailMessageTO> valueDeserializer =
-                new ErrorHandlingDeserializer<>(new JsonDeserializer<>(EmailMessageTO.class));
-        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), valueDeserializer);
+                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(EmailMessageTO.class));
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
     }
 
     @Bean
@@ -78,19 +85,60 @@ public class ConsumerConfig {
     }
 
     @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
+    public ConsumerFactory<String, SmsMessageDocument> smsMessageConsumerFactory() throws IOException {
+        ErrorHandlingDeserializer<SmsMessageDocument> valueDeserializer =
+                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(SmsMessageDocument.class));
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, SmsMessageDocument> smsMessageKafkaListenerContainerFactory() throws IOException {
+        ConcurrentKafkaListenerContainerFactory<String, SmsMessageDocument> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(smsMessageConsumerFactory());
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
+    public ConsumerFactory<String, TelegramMessageDocument> telegramMessageConsumerFactory() throws IOException {
+        ErrorHandlingDeserializer<TelegramMessageDocument> valueDeserializer =
+                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(TelegramMessageDocument.class));
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TelegramMessageDocument> telegramMessageKafkaListenerContainerFactory() throws IOException {
+        ConcurrentKafkaListenerContainerFactory<String, TelegramMessageDocument> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(telegramMessageConsumerFactory());
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
+    public ConsumerFactory<String, WhatsAppMessageTO> whatsAppMessageConsumerFactory() throws IOException {
+        ErrorHandlingDeserializer<WhatsAppMessageTO> valueDeserializer =
+                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(WhatsAppMessageTO.class));
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> whatsAppMessageKafkaListenerContainerFactory() throws IOException {
+        ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(whatsAppMessageConsumerFactory());
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
     public ConsumerFactory<String, NotificationEventTO> notificationEventConsumerFactory() throws IOException {
-        Map<String, Object> props = new HashMap<>();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
-                !Objects.isEmpty(bootstrapServerPort) ? bootstrapServer + ":" + bootstrapServerPort : bootstrapServer);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.CLIENT_ID_CONFIG, clientId);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, 20971520);
-        props.put(org.apache.kafka.clients.consumer.ConsumerConfig.FETCH_MAX_BYTES_CONFIG, 20971520);
-        props.putAll(kafkaSslProps.build());
-        JsonDeserializer<NotificationEventTO> jsonDeserializer = new JsonDeserializer<>(NotificationEventTO.class);
+        JacksonJsonDeserializer<NotificationEventTO> jsonDeserializer = new JacksonJsonDeserializer<>(NotificationEventTO.class);
         jsonDeserializer.setUseTypeHeaders(false);
         ErrorHandlingDeserializer<NotificationEventTO> valueDeserializer = new ErrorHandlingDeserializer<>(jsonDeserializer);
-        return new DefaultKafkaConsumerFactory<>(props, new StringDeserializer(), valueDeserializer);
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
     }
 
     @Bean

@@ -13,10 +13,10 @@ umdc:
   consumer:
     group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
     topics:
-      telegram: mercury-telegram
-      sms: mercury-sms
-      email: mercury-email
-      whatsapp: mercury-whatsapp
+      telegram: mercury-telegram-messages
+      sms: mercury-sms-messages
+      email: mercury-email-messages
+      whatsapp: mercury-whatsapp-messages
       notification: ${UMDC_NOTIFICATION_TOPIC:unified-message-notification}
     mercury:
       topic: ${MERCURY_EMAIL_TOPIC}

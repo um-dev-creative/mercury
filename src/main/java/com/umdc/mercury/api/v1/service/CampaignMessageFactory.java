@@ -4,9 +4,9 @@ import com.umdc.mercury.api.v1.to.EmailContact;
 import com.umdc.mercury.api.v1.to.RecipientTO;
 import com.umdc.mercury.constant.ChannelType;
 import com.umdc.mercury.constant.DeliveryStatusType;
-import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
+import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
 import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.slf4j.Logger;
@@ -14,6 +14,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -77,10 +79,10 @@ public class CampaignMessageFactory {
 
         ChannelType type = ChannelType.fromCode(channelCode);
         DeliveryStatusType initialStatus = DeliveryStatusType.OPENED;
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
 
         return switch (type) {
-            case EMAIL    -> createEmailMessage(recipient, params, templateId, initialStatus, now);
+            case EMAIL    -> createEmailMessage(recipient, params, templateId, now);
             case SMS      -> createSmsMessage(campaignId, recipient, params, templateId, initialStatus, now);
             case TELEGRAM -> createTelegramMessage(campaignId, recipient, params, templateId, initialStatus, now);
             case WHATSAPP -> createWhatsAppMessage(campaignId, recipient, params, templateId, now);
@@ -90,11 +92,10 @@ public class CampaignMessageFactory {
 
     // ── per-channel builders ──────────────────────────────────────────────────
 
-    private EmailMessageDocument createEmailMessage(
+    private EmailMessageTO createEmailMessage(
             RecipientTO recipient,
             Map<String, Object> params,
             UUID templateId,
-            DeliveryStatusType initialStatus,
             LocalDateTime now) {
 
         UUID userId = resolveUserId(recipient);
@@ -106,9 +107,7 @@ public class CampaignMessageFactory {
         String subject = stringParam(params, CampaignService.SUBJECT_KEY);
         String body    = stringParam(params, CampaignService.BODY_KEY);
 
-        return new EmailMessageDocument(
-                null,
-                UUID.randomUUID(),
+        return new EmailMessageTO(
                 templateId,
                 userId,
                 from,
@@ -117,8 +116,7 @@ public class CampaignMessageFactory {
                 subject,
                 body,
                 now,
-                params,
-                initialStatus
+                params
         );
     }
 

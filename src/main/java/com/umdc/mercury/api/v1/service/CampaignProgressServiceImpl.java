@@ -1,5 +1,6 @@
 package com.umdc.mercury.api.v1.service;
 
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.to.CampaignProgressTO;
 import com.umdc.mercury.jpa.sql.entity.CampaignEntity;
 import com.umdc.mercury.jpa.sql.entity.CampaignMetricsEntity;
@@ -30,7 +31,7 @@ public class CampaignProgressServiceImpl implements CampaignProgressService {
     @Transactional(readOnly = true)
     public CampaignProgressTO getProgress(UUID campaignId) {
         CampaignEntity campaign = campaignRepository.findById(campaignId)
-                .orElseThrow(() -> new IllegalArgumentException("Campaign not found: " + campaignId));
+                .orElseThrow(() -> new CampaignNotFoundException("Campaign not found: " + campaignId));
 
         CampaignMetricsEntity metrics = metricsRepository.findByCampaign_Id(campaignId)
                 .orElseGet(() -> {

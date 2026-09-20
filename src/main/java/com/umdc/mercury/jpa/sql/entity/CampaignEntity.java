@@ -80,6 +80,13 @@ public class CampaignEntity {
     @Column(name = "enabled")
     private Boolean enabled;
 
+    @ColumnDefault("false")
+    @Column(name = "deleted")
+    private Boolean deleted;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     public UUID getId() {
         return id;
     }
@@ -206,5 +213,21 @@ public class CampaignEntity {
 
     public void setEnabled(Boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Boolean getDeleted() {
+        return deleted;
+    }
+
+    public void setDeleted(Boolean deleted) {
+        this.deleted = deleted;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

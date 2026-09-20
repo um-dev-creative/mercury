@@ -36,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CampaignController unit tests")
@@ -336,6 +336,79 @@ class CampaignControllerTest {
             jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
 
             assertThrows(RuntimeException.class, () -> campaignController.toggleCampaign(campaignId, false, "bad-token"));
+        }
+    }
+
+    @Nested
+    @DisplayName("deleteCampaign endpoint tests")
+    class DeleteEndpointTests {
+
+        @Test
+        @DisplayName("returns 204 No Content when delete succeeds")
+        void delete_returns204() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(UUID.randomUUID());
+
+            ResponseEntity<Void> resp = campaignController.deleteCampaign(campaignId, "token-value");
+
+            assertThat(resp.getStatusCode().value()).isEqualTo(204);
+            verify(campaignService).deleteCampaign(eq(campaignId), any(UUID.class));
+        }
+
+        @Test
+        @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
+        void delete_notFound() {
+            UUID campaignId = UUID.randomUUID();
+            UUID requester = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(requester);
+            doThrow(new CampaignNotFoundException("Campaign not found: " + campaignId))
+                    .when(campaignService).deleteCampaign(campaignId, requester);
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignController.deleteCampaign(campaignId, "token-value"));
+        }
+
+        @Test
+        @DisplayName("propagates exception when token parsing fails")
+        void delete_invalidToken() {
+            UUID campaignId = UUID.randomUUID();
+            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+
+            assertThrows(RuntimeException.class, () -> campaignController.deleteCampaign(campaignId, "bad-token"));
+            Mockito.verifyNoInteractions(campaignService);
+        }
+    }
+
+    @Nested
+    @DisplayName("getProgress endpoint tests")
+    class GetProgressEndpointTests {
+
+        @Test
+        @DisplayName("returns 200 OK with progress body")
+        void getProgress_returns200WithBody() {
+            UUID campaignId = UUID.randomUUID();
+            CampaignProgressTO progress = buildProgress(campaignId, "Spring Promotion 2026", "IN_PROGRESS");
+            when(campaignService.getProgress(campaignId)).thenReturn(progress);
+
+            ResponseEntity<CampaignProgressTO> response = campaignController.getProgress(campaignId, "token-value");
+
+            assertAll("getProgress response",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().campaignId()).isEqualTo(campaignId),
+                    () -> assertThat(response.getBody().status()).isEqualTo("IN_PROGRESS")
+            );
+        }
+
+        @Test
+        @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
+        void getProgress_notFound() {
+            UUID campaignId = UUID.randomUUID();
+            when(campaignService.getProgress(campaignId))
+                    .thenThrow(new CampaignNotFoundException("Campaign not found: " + campaignId));
+
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignController.getProgress(campaignId, "token-value"));
         }
     }
 }

@@ -44,15 +44,21 @@ REST Controller (*Controller + *Api interface)
         ├─> NoSQL Repositories (MongoDB)
         └─> KafkaTemplate (publish per-recipient messages to channel topics)
 
-Kafka Listeners (MultiChannelListener)
-  └─> MessageChannelRouter
-        └─> ChannelService implementations (Email / SMS / Telegram / WhatsApp)
+Kafka Listeners (MultiChannelListener: SMS / Telegram / WhatsApp only)
+  └─> MessageChannelRouter (resolves the template, then dispatches)
+        └─> ChannelService implementations (Sms / Telegram / WhatsApp)
+              └─> MessageNSRepository (MongoDB, polymorphic "messages" collection)
 
 SendEmailScheduler (fixed-rate)
   └─> MessageProcessor
         ├─> processMessage()  — reads OPENED docs from MongoDB, sends via SMTP, updates status
         └─> updateMessageStatus() — reads SENT docs, writes MessageRecord to PostgreSQL, creates VerificationCode if applicable, deletes MongoDB doc
 ```
+
+> **Known gaps (as of the Spring Boot 4 upgrade branch):**
+> - `PUSH` has no `ChannelService`, no Kafka listener and no topic wired up yet — messages built for it by `CampaignMessageFactory` currently have no consumer.
+> - A second, unfinished messaging design ("Nexus") exists in parallel: `NotificationEventListener` actively consumes a unified `${umdc.consumer.topics.notification}` topic via `NotificationEventConsumerServiceImpl`, but nothing in the campaign-creation flow publishes to it yet, and its per-channel handlers only log (no persistence or send logic). Treat it as experimental/unwired until a decision is made to migrate the producer side to it.
+> - None of the `ChannelService` implementations (Email/SMS/Telegram/WhatsApp) call a real provider yet — they persist the message so it's ready once an SMTP/Twilio/Telegram Bot API/WhatsApp Cloud API integration is added.
 
 ### Key Package Map
 
@@ -62,11 +68,11 @@ SendEmailScheduler (fixed-rate)
 | `api/v1/service` | Business logic; async ops return `CompletableFuture` |
 | `api/v1/to` | Immutable Java records: `*Request`, `*Response`, `*TO` suffixes |
 | `jpa/sql/entity` + `jpa/sql/repository` | JPA entities and Spring Data repositories (PostgreSQL) |
-| `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents for in-flight email messages |
+| `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents for in-flight messages (`MessageDocument` is the polymorphic base for Sms/Telegram/WhatsApp; `EmailMessageDocument` is separate) |
 | `mapper` | MapStruct mappers bridging entities ↔ TOs |
-| `kafka/listener` | `@KafkaListener` entry points |
-| `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract) |
-| `kafka/router` | `MessageChannelRouter` dispatches to the correct channel service |
+| `kafka/listener` | `@KafkaListener` entry points — `MultiChannelListener` (SMS/Telegram/WhatsApp), `MercuryEmailListener` (email), `NotificationEventListener` (experimental unified "Nexus" topic, see Known gaps above) |
+| `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract); email is handled separately by `EmailMessageConsumerService`, not by a `ChannelService` |
+| `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp only) |
 | `scheduler` | `SendEmailScheduler` drives `MessageProcessor` on configurable fixed rates |
 | `processor` | `MessageProcessor` — orchestrates the email send-and-persist lifecycle |
 | `client` | `BackboneClient` — Feign client for auth/session validation against the Backbone service |
@@ -77,7 +83,7 @@ SendEmailScheduler (fixed-rate)
 ### Persistence Model
 
 - **PostgreSQL** (via JPA/Hibernate, DDL `none`): campaigns, campaign metrics, channel types, templates, message records, verification codes, users, applications.
-- **MongoDB**: transient `EmailMessageDocument` records. Messages are written here when received from Kafka, processed by `MessageProcessor`, then deleted after being moved to PostgreSQL.
+- **MongoDB**: transient `EmailMessageDocument` records (own `messages` collection lifecycle: written on Kafka receipt, processed by `MessageProcessor`, deleted after being moved to PostgreSQL) plus a separate polymorphic `messages` collection (`MessageDocument` and its `SmsMessageDocument`/`TelegramMessageDocument`/`WhatsAppMessageDocument` subtypes) written by the `ChannelService` implementations — these are persisted but not yet reconciled/deleted by any scheduler.
 - **Spring Cloud Config + HashiCorp Vault**: all credentials and environment-specific config come from Vault at startup via `bootstrap.yml`.
 
 ### Campaign Flow

@@ -2,17 +2,15 @@ package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.*;
-import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.UUID;
 
 import static com.umdc.commons.util.JwtUtil.getUidFromToken;
-import static com.umdc.security.constant.ConstantApp.SESSION_TOKEN_KEY;
 
 /**
  * REST controller that handles campaign lifecycle operations.
@@ -25,7 +23,7 @@ import static com.umdc.security.constant.ConstantApp.SESSION_TOKEN_KEY;
  */
 @RestController
 @RequestMapping("/api/v1/campaigns")
-public class CampaignController {
+public class CampaignController implements CampaignApi {
 
     private final CampaignService campaignService;
 
@@ -38,15 +36,8 @@ public class CampaignController {
         this.campaignService = campaignService;
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Converts the incoming {@link CreateCampaignRequest} to a {@link CampaignTO},
-     * delegates to {@link CampaignService#createCampaign(CampaignTO)} and maps the
-     * resulting {@link CampaignProgressTO} to a {@link CreateCampaignResponse}.</p>
-     */
-    @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CreateCampaignResponse> createCampaign(@RequestBody @Valid CreateCampaignRequest request) {
+    @Override
+    public ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request) {
         CampaignTO campaignTO = new CampaignTO(
                 request.name(),
                 request.channelTypeCode(),
@@ -73,44 +64,41 @@ public class CampaignController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>Delegates to {@link CampaignService#getById(UUID)} and wraps the result
-     * in a {@code 200 OK} response.</p>
-     */
-    @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CampaignDetailResponse> getById(@PathVariable UUID id) {
+    @Override
+    public ResponseEntity<CampaignDetailResponse> getById(UUID id) {
         return ResponseEntity.ok(campaignService.getById(id));
     }
 
-    @PutMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<CampaignDetailResponse> updateCampaign(
-            @PathVariable UUID id,
-            @RequestHeader(SESSION_TOKEN_KEY) String sessionToken,
-            @RequestBody @Valid UpdateCampaignRequest request) {
+    @Override
+    public ResponseEntity<List<CampaignDetailResponse>> getByApplication(UUID applicationId, String sessionToken) {
+        UUID userId = getUidFromToken(sessionToken);
+        List<CampaignDetailResponse> responses = campaignService.getByUserIdAndApplicationId(userId, applicationId);
+        return ResponseEntity.ok(responses);
+    }
+
+    @Override
+    public ResponseEntity<CampaignDetailResponse> updateCampaign(UUID id, String sessionToken, UpdateCampaignRequest request) {
         UUID userId = getUidFromToken(sessionToken);
         CampaignDetailResponse updated = campaignService.updateCampaign(id, request, userId);
         return ResponseEntity.ok(updated);
     }
 
-    @GetMapping(value = "/application/{applicationId}", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<List<CampaignDetailResponse>> getByApplication(@PathVariable UUID applicationId, @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
-        // extract user id from token
-        UUID userId = getUidFromToken(sessionToken);
-        // delegate to service
-        List<CampaignDetailResponse> responses = campaignService.getByUserIdAndApplicationId(userId, applicationId);
-        return ResponseEntity.ok(responses);
-    }
-
-    @PatchMapping(value = "/{id}/toggle")
-    public ResponseEntity<Void> toggleCampaign(
-            @PathVariable UUID id,
-            @RequestParam(name = "enabled") boolean enabled,
-            @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+    @Override
+    public ResponseEntity<Void> toggleCampaign(UUID id, boolean enabled, String sessionToken) {
         UUID userId = getUidFromToken(sessionToken);
         campaignService.toggleCampaign(id, enabled, userId);
         return ResponseEntity.noContent().build();
     }
-}
 
+    @Override
+    public ResponseEntity<Void> deleteCampaign(UUID id, String sessionToken) {
+        UUID userId = getUidFromToken(sessionToken);
+        campaignService.deleteCampaign(id, userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Override
+    public ResponseEntity<CampaignProgressTO> getProgress(UUID id, String sessionToken) {
+        return ResponseEntity.ok(campaignService.getProgress(id));
+    }
+}

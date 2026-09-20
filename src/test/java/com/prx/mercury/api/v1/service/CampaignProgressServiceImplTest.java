@@ -1,5 +1,6 @@
 package com.prx.mercury.api.v1.service;
 
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.service.CampaignProgressServiceImpl;
 import com.umdc.mercury.api.v1.to.CampaignProgressTO;
 import com.umdc.mercury.api.v1.to.ChannelTypeTO;
@@ -127,7 +128,7 @@ class CampaignProgressServiceImplTest {
             when(campaignRepository.findById(campaignId)).thenReturn(Optional.empty());
 
             // Then
-            assertThrows(IllegalArgumentException.class, () -> campaignProgressService.getProgress(campaignId));
+            assertThrows(CampaignNotFoundException.class, () -> campaignProgressService.getProgress(campaignId));
         }
     }
 }
