@@ -3,6 +3,7 @@ package com.umdc.mercury.kafka.listener;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.router.MessageChannelRouter;
+import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
 import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +11,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 /**
- * Kafka entry points for the SMS, Telegram and WhatsApp channels.
+ * Kafka entry points for the SMS, Telegram, WhatsApp and Push channels.
  *
  * <p>Email is consumed separately by {@link MercuryEmailListener}; it is not part of
  * this listener because it already has its own dedicated persistence path.</p>
@@ -51,5 +52,14 @@ public class MultiChannelListener {
     public void handleWhatsApp(WhatsAppMessageTO message) {
         logger.info("Received WhatsApp message. phoneNumber={}, campaignId={}", message.phoneNumber(), message.campaignId());
         messageChannelRouter.routeWhatsApp(message);
+    }
+
+    @KafkaListener(
+            topics = "${umdc.consumer.topics.push}",
+            groupId = "${umdc.consumer.group-id:mercury-multi-channel}",
+            containerFactory = "pushMessageKafkaListenerContainerFactory")
+    public void handlePush(PushNotificationMessageTO message) {
+        logger.info("Received Push message. platform={}, campaignId={}", message.platform(), message.campaignId());
+        messageChannelRouter.routePush(message);
     }
 }
