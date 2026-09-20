@@ -30,3 +30,15 @@ htmlReport/
 .ai/*
 /.github/agents/
 /docs/
+
+# TLS/SSL credentials and keystores — never commit real certs/keys
+*.pem
+*.key
+*.jks
+*.p12
+*.pfx
+*.cert
+*.crt
+
+# OS / tooling noise
+.DS_Store
