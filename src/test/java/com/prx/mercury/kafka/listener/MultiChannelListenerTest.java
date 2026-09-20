@@ -4,6 +4,7 @@ import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.listener.MultiChannelListener;
 import com.umdc.mercury.kafka.router.MessageChannelRouter;
+import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
 import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -60,5 +61,17 @@ class MultiChannelListenerTest {
         multiChannelListener.handleWhatsApp(message);
 
         verify(messageChannelRouter).routeWhatsApp(message);
+    }
+
+    @Test
+    @DisplayName("handlePush delegates the message to the router")
+    void handlePush_delegatesToRouter() {
+        PushNotificationMessageTO message = new PushNotificationMessageTO(
+                UUID.randomUUID(), UUID.randomUUID(), "device-token-1", "android", "Welcome", "Hello there",
+                null, null, null, null, null, null, LocalDateTime.now(), Map.of(), UUID.randomUUID());
+
+        multiChannelListener.handlePush(message);
+
+        verify(messageChannelRouter).routePush(message);
     }
 }

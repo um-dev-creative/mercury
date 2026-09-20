@@ -1,10 +1,12 @@
 package com.umdc.mercury.kafka.config;
 
+import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
+import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
 import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -128,6 +130,22 @@ public class ConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> whatsAppMessageKafkaListenerContainerFactory() throws IOException {
         ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(whatsAppMessageConsumerFactory());
+        factory.setAutoStartup(autoStartup);
+        return factory;
+    }
+
+    @Bean
+    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
+    public ConsumerFactory<String, PushNotificationMessageTO> pushMessageConsumerFactory() throws IOException {
+        ErrorHandlingDeserializer<PushNotificationMessageTO> valueDeserializer =
+                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(PushNotificationMessageTO.class));
+        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, PushNotificationMessageTO> pushMessageKafkaListenerContainerFactory() throws IOException {
+        ConcurrentKafkaListenerContainerFactory<String, PushNotificationMessageTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(pushMessageConsumerFactory());
         factory.setAutoStartup(autoStartup);
         return factory;
     }

@@ -17,6 +17,7 @@ umdc:
       sms: mercury-sms-messages
       email: mercury-email-messages
       whatsapp: mercury-whatsapp-messages
+      push: mercury-push-messages
       notification: ${UMDC_NOTIFICATION_TOPIC:unified-message-notification}
     mercury:
       topic: ${MERCURY_EMAIL_TOPIC}
