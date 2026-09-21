@@ -106,7 +106,9 @@ services:
     command: [ "server", "-config=/vault/config/vault.hcl" ]
     volumes:
       - vault-data:/vault/file
-      - C:/ambientes/vault/config:/vault/config
+      # Repo-relative bind mount (see vault/config/vault.hcl) instead of a
+      # Windows-host-specific absolute path — works the same on macOS/Linux/Windows.
+      - ./vault/config:/vault/config:ro
     environment:
       VAULT_API_ADDR: http://0.0.0.0:8200
       VAULT_LOG_LEVEL: info
