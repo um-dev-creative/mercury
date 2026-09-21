@@ -71,13 +71,25 @@ services:
       SD_PORT: 8763
       GIT_LABEL: Develop
       GIT_URI: https://gitlab.com/prx-open/stage-folder-config.git
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "--no-check-certificate", "https://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   mercury:
     build: .
     container_name: mercury
     depends_on:
-      - config-server
-      - vault-server
+      config-server:
+        # Plain depends_on only waits for the container to start, not for Spring Boot
+        # to finish booting (~7-8s here) — mercury's bootstrap-phase config fetch to
+        # CNFS_URI raced it and lost every time ("Connection refused"), well before
+        # config-server's Tomcat had opened its listening socket.
+        condition: service_healthy
+      vault-server:
+        condition: service_started
     networks:
       - umdc-net
     ports:
@@ -100,6 +112,11 @@ services:
       VAULT_URI: http://vault-server:8200
       # Relaxed-binding equivalent of -Dspring.cloud.vault.enabled=... (see Dockerfile).
       SPRING_CLOUD_VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      # default.env's CNFS_URI targets the real deployed config-server; point this at the
+      # local container instead. Its cert's SAN covers the bare docker-network hostname
+      # ("config-server", not just "config-server.umdc-qa.tst") and mercury's own
+      # SSL_TRUSTSTORE_LOCATION already trusts the CA that issued it, so plain HTTPS works.
+      CNFS_URI: https://config-server:8082
       # default.env's TEMPLATE_PATH is a host-machine absolute path (for running mercury
       # directly on a dev box), which doesn't exist inside the container — point it at the
       # bind-mounted copy of the repo's own src/main/resources/templates instead.

@@ -278,9 +278,11 @@ spring:
       profile: ${SPRING_BOOT_PROFILE_ACTIVE}
       # The label for the Spring Cloud Config
       label: ${SPRING_CLOUD_CONFIG_LABEL}
-      # The URI for the Spring Cloud Config server
+      # The URI for the Spring Cloud Config server — must be a full URL (scheme+host+port),
+      # e.g. https://config-server:8082. ConfigClientProperties has no "port" field (only
+      # "uri", a String[]), so a separate spring.cloud.config.port key binds to nothing —
+      # CNFS_PORT is real, but only as config-server's OWN server.port, not this client's.
       uri: ${CNFS_URI}
-      port: ${CNFS_PORT}
       # Enables sending of state for the Spring Cloud Config
       send-state: true
       tls:
