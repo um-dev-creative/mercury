@@ -47,17 +47,24 @@ REST Controller (*Controller + *Api interface)
 Kafka Listeners (MultiChannelListener: SMS / Telegram / WhatsApp / Push)
   └─> MessageChannelRouter (resolves the template, then dispatches)
         └─> ChannelService implementations (Sms / Telegram / WhatsApp / Push)
-              └─> MessageNSRepository (MongoDB, polymorphic "messages" collection)
+              └─> ChannelTemplateRenderer (FreeMarker) ─> MessageNSRepository (MongoDB, polymorphic "messages" collection, status OPENED)
 
 SendEmailScheduler (fixed-rate)
   └─> MessageProcessor
         ├─> processMessage()  — reads OPENED docs from MongoDB, sends via SMTP, updates status
         └─> updateMessageStatus() — reads SENT docs, writes MessageRecord to PostgreSQL, creates VerificationCode if applicable, deletes MongoDB doc
+
+MultiChannelScheduler (fixed-rate)
+  └─> MultiChannelMessageProcessor
+        └─> dispatchTelegram() — reads OPENED Telegram docs, sends via TelegramMessageDispatcher
+             (Bot API), writes back SENT/FAILED and advances CampaignMetricsService counters
 ```
 
-> **Known gaps (as of the Spring Boot 4 upgrade branch):**
+> **Known gaps:**
+> - Only **Email** and **Telegram** reach a real provider. SMS, WhatsApp and Push are persisted as `OPENED` and stay queued until their providers (Twilio / WhatsApp Cloud API / FCM-APNs) are integrated — add a dispatcher under `provider/` and a `dispatchX()` in `MultiChannelMessageProcessor`, mirroring Telegram.
+> - Non-email messages are never migrated to PostgreSQL as `MessageRecord` nor purged from MongoDB once terminal — the equivalent of `MessageProcessor.updateMessageStatus()` does not exist for them yet.
 > - A second, unfinished messaging design ("Nexus") exists in parallel: `NotificationEventListener` actively consumes a unified `${umdc.consumer.topics.notification}` topic via `NotificationEventConsumerServiceImpl`, but nothing in the campaign-creation flow publishes to it yet, and its per-channel handlers only log (no persistence or send logic). Treat it as experimental/unwired until a decision is made to migrate the producer side to it.
-> - None of the `ChannelService` implementations (Email/SMS/Telegram/WhatsApp/Push) call a real provider yet — they persist the message so it's ready once an SMTP/Twilio/Telegram Bot API/WhatsApp Cloud API/FCM-APNs integration is added.
+> - `EmailMessageDocument`/`EmailMessageTO` carry no `campaignId`, so email deliveries cannot be attributed to a campaign and do not advance the campaign metrics.
 
 ### Key Package Map
 
@@ -73,7 +80,8 @@ SendEmailScheduler (fixed-rate)
 | `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract); email is handled separately by `EmailMessageConsumerService`, not by a `ChannelService` |
 | `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp/Push) |
 | `scheduler` | `SendEmailScheduler` drives `MessageProcessor` on configurable fixed rates |
-| `processor` | `MessageProcessor` — orchestrates the email send-and-persist lifecycle |
+| `processor` | `MessageProcessor` (email) and `MultiChannelMessageProcessor` (Telegram, growing) — orchestrate the send-and-reconcile lifecycle per channel |
+| `provider` | Real outbound integrations, one class per channel (`TelegramMessageDispatcher` so far) — the actual HTTP/SDK call to the provider, kept separate from persistence (`kafka/consumer/service`) and orchestration (`processor`) |
 | `client` | `BackboneClient` — Feign client for auth/session validation against the Backbone service |
 | `constant` | `ChannelType` enum (EMAIL, SMS, TELEGRAM, WHATSAPP, PUSH) and delivery status types |
 | `config` | Spring `@Configuration` classes for Mail, FreeMarker, Database, Kafka |

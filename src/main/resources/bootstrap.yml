@@ -88,6 +88,12 @@ umdc:
       fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
     save-message-processed:
       fixed-rate: ${PRX_SCHEDULER_SAVE_MESSAGE_RATE:300000}     # Rate for persisting sent messages (ms); default 5 min
+    dispatch-telegram:
+      fixed-rate: ${UMDC_SCHEDULER_DISPATCH_TELEGRAM_RATE:60000} # Rate for dispatching queued Telegram messages (ms); default 60 s
+  telegram:
+    # Bot token issued by @BotFather. Empty disables Telegram dispatch: queued messages stay
+    # in OPENED instead of being marked FAILED, so a deployment without a token loses nothing.
+    bot-token: ${TELEGRAM_TOKEN:}
   bootstrap:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
