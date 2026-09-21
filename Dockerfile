@@ -3,7 +3,7 @@
 FROM amazoncorretto:21.0.11-alpine3.23
 LABEL version="0.0.2"
 LABEL description="Mercury API"
-LABEL mantainer="Luis Mata luis.antonio.mata@gmail.com"
+LABEL maintainer="Luis Mata luis.antonio.mata@gmail.com"
 
 ARG TARGET_FILE=target/
 ARG JAR_FILE=mercury.jar

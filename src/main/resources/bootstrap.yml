@@ -257,10 +257,17 @@ spring:
         backend: ${VAULT_KV_BACKEND:secret}
         default-context: ${spring.application.name}
         profile-separator: /
-      ssl:
-        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION:truststore-no-present}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE:JKS}
+      # No spring.cloud.vault.ssl block here on purpose. VaultConfiguration#createSslConfiguration
+      # only skips building a custom SslConfiguration when ssl.trust-store binds to null — and a
+      # YAML placeholder ALWAYS resolves to a non-null Resource once it has any default (even a
+      # sentinel), so "classpath:${SSL_TRUSTSTORE_LOCATION:some-default}" is fatal whenever the env
+      # var is unset: Spring resolves the sentinel path, KeyStoreConfiguration asserts it exists,
+      # and bean creation fails ("class path resource [...] does not exist"). Baking a real
+      # truststore file into the classpath to give it a valid default is exactly the anti-pattern
+      # removed from this repo after the keystore.jks incident. Instead, the container's own JVM
+      # trust store (see docker-entrypoint.sh / Dockerfile -Djavax.net.ssl.trustStore) already
+      # supplies whatever trust anchors Vault's HTTP client needs, since Vault falls back to the
+      # JVM default SSLContext when no vault-specific ssl config is present.
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
