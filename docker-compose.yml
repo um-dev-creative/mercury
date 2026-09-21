@@ -95,11 +95,19 @@ services:
       VAULT_URI: http://vault-server:8200
       # Relaxed-binding equivalent of -Dspring.cloud.vault.enabled=... (see Dockerfile).
       SPRING_CLOUD_VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      # default.env's TEMPLATE_PATH is a host-machine absolute path (for running mercury
+      # directly on a dev box), which doesn't exist inside the container — point it at the
+      # bind-mounted copy of the repo's own src/main/resources/templates instead.
+      TEMPLATE_PATH: /usr/local/runme/templates
+      # default.env's APP_PORT targets a different (deployed) topology; this compose file's
+      # port mapping and the Dockerfile's EXPOSE both assume 8118, so pin it here too.
+      APP_PORT: "8118"
     volumes:
       # Trust anchors imported by docker-entrypoint.sh at container start (see Dockerfile).
       # Empty/missing directory is fine — the app just makes no extra outbound TLS trust
       # available beyond the JDK's own cacerts.
       - ./certs/mercury:/usr/local/runme/certs:ro
+      - ./src/main/resources/templates:/usr/local/runme/templates:ro
 
   vault-server:
     image: hashicorp/vault:1.19
