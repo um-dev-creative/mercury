@@ -37,11 +37,20 @@ services:
       - "8082:8082"
     environment:
       VIRTUAL_HOST: config-server.umdc-qa.tst
-      SPRING_BOOT_PROFILE_ACTIVE: remote-supabase,ssl
+      # This image (lamata/config-server:1.0.1) only bundles application.yml and
+      # application-remotedev.yml — there is no application-remote-supabase.yml, so
+      # "remote-supabase" as an active profile silently loads nothing. That skipped
+      # the whole file, including both the SSL key-store/trust-store block AND
+      # spring.cloud.config.server.git.uri: ${GIT_URI} — meanwhile SERVER_SSL_ENABLED
+      # (a real Spring Boot property name) still relaxed-binds straight from the env
+      # var regardless of profile, so SSL ended up enabled with no trust material
+      # configured ("SSL is enabled but no trust material is configured for the
+      # default host"), and separately "you need to configure a uri for the git
+      # repository". Fixed by activating the profile that's actually bundled.
+      SPRING_BOOT_PROFILE_ACTIVE: remotedev,ssl
       SPRING_CLOUD_CONFIG_LABEL: Develop
       CRT_FILE: umdc-qa
       CNFS_PORT: 8082
-      SERVER_SSL_ENABLED: true
       # HTTPS keystore/truststore (JKS)
       SSL_JKS_CONFIG_SERVER_KEYSTORE_LOCATION: umdc-qa.config-server.jks
       SSL_JKS_CONFIG_SERVER_KEYSTORE_PASSWORD: changeit
