@@ -1,41 +1,45 @@
-FROM amazoncorretto:21-alpine3.23
-LABEL version="0.0.1"
+# Requires `mvn -DskipTests clean package` to have produced ${TARGET_FILE}${JAR_FILE} first —
+# this image packages an already-built jar, it does not compile from source.
+FROM amazoncorretto:21.0.11-alpine3.23
+LABEL version="0.0.2"
 LABEL description="Mercury API"
 LABEL mantainer="Luis Mata luis.antonio.mata@gmail.com"
 
 ARG TARGET_FILE=target/
-ARG KEYSTORE_FILE=keystore
-ARG BACKBONE_ALIAS=backbone
-ARG SRMN_CRT_FILE_NAME=srmn
 ARG JAR_FILE=mercury.jar
-ARG SRMN_CRT_ALIAS=servicemonitor
-ARG BACKBONE_FILE_NAME=backbone
-ARG AUTH_CRT_NAME=prx-qa.manager
-ARG APP_CRT_ALIAS=mercury-api-client
-ARG APP_CRT_FILE_NAME=mercury-backend
-ARG CNFS_CRT_NAME=prx-qa.config-server
-ARG RESOURCE_PATH=src/main/resources/
+ARG APP_USER=jvapps
+ARG APP_GROUP=appmng
+
 WORKDIR /usr/local/runme
+
 COPY ${TARGET_FILE}${JAR_FILE} ${JAR_FILE}
-COPY ${RESOURCE_PATH}${APP_CRT_FILE_NAME}.crt ${APP_CRT_FILE_NAME}.crt
-COPY ${RESOURCE_PATH}${AUTH_CRT_NAME}.crt ${AUTH_CRT_NAME}.crt
-COPY ${RESOURCE_PATH}${BACKBONE_FILE_NAME}.crt ${BACKBONE_FILE_NAME}.crt
-COPY ${RESOURCE_PATH}${SRMN_CRT_FILE_NAME}.crt ${SRMN_CRT_FILE_NAME}.crt
-COPY ${RESOURCE_PATH}${CNFS_CRT_NAME}.crt ${CNFS_CRT_NAME}.crt
-COPY ${RESOURCE_PATH}${KEYSTORE_FILE}.jks ${KEYSTORE_FILE}.jks
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN addgroup -S appmng && adduser -S jvapps -G appmng
-RUN chown -R jvapps:appmng .
-RUN chmod -R 740 .
+# No TLS material is baked into the image — it used to COPY *.crt/*.jks files straight out of
+# src/main/resources, which is exactly how they ended up committed to git history (see the
+# keystore.jks incident). Trust anchors for outbound calls (Backbone, Kafka, config-server) are
+# imported by docker-entrypoint.sh at container start, from whatever is bind-mounted/secret-
+# mounted at runtime into ./certs (see docker-compose.yml) — never from the build context, and
+# never persisted in an image layer.
+RUN addgroup -S ${APP_GROUP} && adduser -S ${APP_USER} -G ${APP_GROUP} && \
+    mkdir -p certs && \
+    cp "${JAVA_HOME}/lib/security/cacerts" cacerts && \
+    chown -R ${APP_USER}:${APP_GROUP} . && \
+    chmod -R 740 . && \
+    chmod 755 /usr/local/bin/docker-entrypoint.sh
 
-RUN keytool -import -alias ${APP_CRT_ALIAS} -keystore /usr/lib/jvm/default-jvm/jre/lib/security/cacerts -file ${APP_CRT_FILE_NAME}.crt -storepass changeit -noprompt && \
-    keytool -import -alias ${AUTH_CRT_NAME}.tst -keystore /usr/lib/jvm/default-jvm/jre/lib/security/cacerts -file ${AUTH_CRT_NAME}.crt -storepass changeit -noprompt && \
-    keytool -import -alias ${BACKBONE_ALIAS}.tst -keystore /usr/lib/jvm/default-jvm/jre/lib/security/cacerts -file ${BACKBONE_FILE_NAME}.crt -storepass changeit -noprompt && \
-    keytool -import -alias ${SRMN_CRT_FILE_NAME} -keystore /usr/lib/jvm/default-jvm/jre/lib/security/cacerts -file ${SRMN_CRT_FILE_NAME}.crt -storepass changeit -noprompt && \
-    keytool -import -alias ${CNFS_CRT_NAME} -keystore /usr/lib/jvm/default-jvm/jre/lib/security/cacerts -file ${CNFS_CRT_NAME}.crt -storepass changeit -noprompt && \
-    rm *.crt
-
-USER jvapps:appmng
+USER ${APP_USER}:${APP_GROUP}
 
 EXPOSE 8118
-CMD ["java", "-Dspring.application.name=mercury", "-Dspring.cloud.vault.enabled=${VAULT_ENABLED}", "-Dapi.info.version=1.0.0", "-jar", "mercury.jar"]
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+# spring.cloud.vault.enabled is intentionally not passed as -D here: in exec-form CMD, Docker
+# never expands ${VAULT_ENABLED} (no shell involved), so the JVM used to receive the literal
+# string "${VAULT_ENABLED}" as the property value. Set it as a plain SPRING_CLOUD_VAULT_ENABLED
+# env var instead — Spring Boot's relaxed binding maps it to the property on its own.
+CMD ["java", \
+     "-Djavax.net.ssl.trustStore=/usr/local/runme/cacerts", \
+     "-Djavax.net.ssl.trustStorePassword=changeit", \
+     "-Dspring.application.name=mercury", \
+     "-Dapi.info.version=1.0.0", \
+     "-jar", "mercury.jar"]

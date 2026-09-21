@@ -1,0 +1,119 @@
+# docker-compose.yml — Entorno de desarrollo local únicamente.
+# Para despliegue en Kubernetes (cert-manager, Ingress, etc.), ver k8s/
+services:
+  # En Kubernetes los certificados TLS son inyectados como Secrets por cert-manager.
+  # En desarrollo local se usa un bind-mount desde ./config/ssl.
+  nginx-proxy:
+    image: lamata/umdc-nginx:1.31
+    build: .
+    container_name: umdc-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./config/ssl:/etc/nginx/ssl:ro
+    networks:
+      - umdc-net
+
+  services-monitor:
+    image: lamata/services-monitor:1.0.2
+    container_name: services-monitor
+    networks:
+      - umdc-net
+    ports:
+      - "8763:8763"
+    environment:
+      VIRTUAL_HOST: monitor.umdc-qa.tst
+      SPRING_BOOT_PROFILE_ACTIVE: dev
+      CRT_FILE: umdc-qa
+
+  config-server:
+    image: lamata/config-server:1.0.1
+    container_name: config-server
+    networks:
+      - umdc-net
+    ports:
+      - "8082:8082"
+    environment:
+      VIRTUAL_HOST: config-server.umdc-qa.tst
+      SPRING_BOOT_PROFILE_ACTIVE: remote-supabase,ssl
+      SPRING_CLOUD_CONFIG_LABEL: Develop
+      CRT_FILE: umdc-qa
+      CNFS_PORT: 8082
+      SERVER_SSL_ENABLED: true
+      # HTTPS keystore/truststore (JKS)
+      SSL_JKS_CONFIG_SERVER_KEYSTORE_LOCATION: umdc-qa.config-server.jks
+      SSL_JKS_CONFIG_SERVER_KEYSTORE_PASSWORD: changeit
+      SSL_JKS_CONFIG_SERVER_KEY_ALIAS: config-server
+      SSL_JKS_CONFIG_SERVER_TRUSTSTORE_LOCATION: umdc-truststore.jks
+      SSL_JKS_CONFIG_SERVER_TRUSTSTORE_PASSWORD: changeit
+      SSL_JKS_CONFIG_SERVER_KEYSTORE_TYPE: PKCS12
+      SSL_JKS_SD_KEYSTORE_ALIAS: servicemonitor
+      SSL_JKS_SD_KEYSTORE_LOCATION: umdc-qa.config-server.jks
+      SSL_JKS_SD_KEYSTORE_PASSWORD: changeit
+      SSL_JKS_SD_KEY_PASSWORD: changeit
+      SSL_JKS_SD_KEYSTORE_TYPE: PKCS12
+      SSL_JKS_SD_TRUSTSTORE_LOCATION: umdc-truststore.jks
+      SSL_JKS_SD_TRUSTSTORE_PASSWORD: changeit
+      SSL_JKS_SD_TRUSTSTORE_TYPE: PKCS12
+      SD_URL: http://services-monitor:8763
+      SD_REGISTER_ENABLED: true
+      SD_PORT: 8763
+      GIT_LABEL: Develop
+      GIT_URI: https://gitlab.com/prx-open/stage-folder-config.git
+
+  mercury:
+    build: .
+    container_name: mercury
+    depends_on:
+      - config-server
+      - vault-server
+    networks:
+      - umdc-net
+    ports:
+      - "8118:8118"
+    # Local secrets/config not tracked in git — see default.env (gitignored) and
+    # environment_variables.md for the full list of variables this expects.
+    env_file:
+      - default.env
+    environment:
+      VIRTUAL_HOST: mercury.umdc-qa.tst
+      # Inside the compose network these must resolve by service name, not localhost —
+      # override whatever default.env has for standalone/host runs.
+      BOOTSTRAP_SERVER_URI: config-server
+      BOOTSTRAP_SERVER_PORT: "8082"
+      VAULT_URI: http://vault-server:8200
+      # Relaxed-binding equivalent of -Dspring.cloud.vault.enabled=... (see Dockerfile).
+      SPRING_CLOUD_VAULT_ENABLED: ${VAULT_ENABLED:-true}
+    volumes:
+      # Trust anchors imported by docker-entrypoint.sh at container start (see Dockerfile).
+      # Empty/missing directory is fine — the app just makes no extra outbound TLS trust
+      # available beyond the JDK's own cacerts.
+      - ./certs/mercury:/usr/local/runme/certs:ro
+
+  vault-server:
+    image: hashicorp/vault:1.19
+    container_name: vault-server
+    restart: on-failure:3
+    networks:
+      - umdc-net
+    ports:
+      - "8200:8200"
+    cap_add:
+      - IPC_LOCK
+    entrypoint: vault
+    command: [ "server", "-config=/vault/config/vault.hcl" ]
+    volumes:
+      - vault-data:/vault/file
+      - C:/ambientes/vault/config:/vault/config
+    environment:
+      VAULT_API_ADDR: http://0.0.0.0:8200
+      VAULT_LOG_LEVEL: info
+
+networks:
+  umdc-net:
+    driver: bridge
+
+volumes:
+  vault-data:
