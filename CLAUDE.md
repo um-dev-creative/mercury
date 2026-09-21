@@ -96,11 +96,11 @@ SendEmailScheduler (fixed-rate)
 
 - **Controller pattern**: every controller implements a `*Api` interface. OpenAPI (`@Operation`, `@ApiResponse`) annotations belong on the interface, not the controller class.
 - **DTO location**: all transfer objects go in `api/v1/to` as Java records with Bean Validation annotations.
-- **Scheduler rates**: use `${prx.scheduler.*}` property placeholders, not hardcoded `fixedRate` values.
+- **Scheduler rates**: use `${umdc.scheduler.*}` property placeholders, not hardcoded `fixedRate` values. Note the whole config namespace is `umdc.*` since the `com.prx` → `com.umdc` migration — `${prx.*}` placeholders no longer resolve.
 - **Channel services**: new channel implementations must implement `send`, `updateStatus`, and `findByDeliveryStatus`.
 - **Logging**: SLF4J `LoggerFactory` only — no other logging frameworks. Async methods use `CompletableFuture`.
 - **MapStruct mappers**: place in `mapper/` package; processor is on the annotation processing path, so no manual `new` instantiation of mappers.
-- **Kafka**: `PRX_KAFKA_AUTO_STARTUP=false` by default (set in `bootstrap.yml`) so listeners don't crash local dev without a running broker. Set to `true` in deployed environments.
+- **Kafka**: `UMDC_KAFKA_AUTO_STARTUP=false` by default (set in `bootstrap.yml`) so listeners don't crash local dev without a running broker. Set to `true` in deployed environments.
 
 ## External Dependencies
 

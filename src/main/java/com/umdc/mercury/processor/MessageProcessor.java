@@ -34,7 +34,7 @@ package com.umdc.mercury.processor;
                     /**
                      * ID of the verification code template, injected from application properties.
                      */
-                    @Value("${prx.verification.code.template.id}")
+                    @Value("${umdc.verification.code.template.id}")
                     private UUID verificationCodeId;
 
                     /**
