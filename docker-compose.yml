@@ -1,129 +1,36 @@
 # docker-compose.yml — Entorno de desarrollo local únicamente.
 # Para despliegue en Kubernetes (cert-manager, Ingress, etc.), ver k8s/
+#
+# Config split in two, by sensitivity:
+#   - config/local.env  (versioned) — bootstrap identity: which environment, and
+#     how to reach Vault/Config Server. No credentials.
+#   - secrets/local.env (gitignored, copy secrets/local.env.example) — the one
+#     bootstrap secret Vault can't hand us: VAULT_TOKEN. Everything else (DB,
+#     Mongo, mail, OAuth, Kafka SASL, etc.) is resolved from Vault's own KV store
+#     at runtime and never belongs in either file, nor in a Helm values file.
 services:
-  # En Kubernetes los certificados TLS son inyectados como Secrets por cert-manager.
-  # En desarrollo local se usa un bind-mount desde ./config/ssl.
-  nginx-proxy:
-    image: lamata/umdc-nginx:1.31
-    build: .
-    container_name: umdc-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/tmp/docker.sock:ro
-      - ./config/ssl:/etc/nginx/ssl:ro
-    networks:
-      - umdc-net
-
-  services-monitor:
-    image: lamata/services-monitor:1.0.2
-    container_name: services-monitor
-    networks:
-      - umdc-net
-    ports:
-      - "8763:8763"
-    environment:
-      VIRTUAL_HOST: monitor.umdc-qa.tst
-      SPRING_BOOT_PROFILE_ACTIVE: dev
-      CRT_FILE: umdc-qa
-
-  config-server:
-    image: lamata/config-server:1.0.1
-    container_name: config-server
-    networks:
-      - umdc-net
-    ports:
-      - "8082:8082"
-    environment:
-      VIRTUAL_HOST: config-server.umdc-qa.tst
-      # This image (lamata/config-server:1.0.1) only bundles application.yml and
-      # application-remotedev.yml — there is no application-remote-supabase.yml, so
-      # "remote-supabase" as an active profile silently loads nothing. That skipped
-      # the whole file, including both the SSL key-store/trust-store block AND
-      # spring.cloud.config.server.git.uri: ${GIT_URI} — meanwhile SERVER_SSL_ENABLED
-      # (a real Spring Boot property name) still relaxed-binds straight from the env
-      # var regardless of profile, so SSL ended up enabled with no trust material
-      # configured ("SSL is enabled but no trust material is configured for the
-      # default host"), and separately "you need to configure a uri for the git
-      # repository". Fixed by activating the profile that's actually bundled.
-      SPRING_BOOT_PROFILE_ACTIVE: remotedev,ssl
-      SPRING_CLOUD_CONFIG_LABEL: Develop
-      CRT_FILE: umdc-qa
-      CNFS_PORT: 8082
-      # HTTPS keystore/truststore (JKS)
-      SSL_JKS_CONFIG_SERVER_KEYSTORE_LOCATION: umdc-qa.config-server.jks
-      SSL_JKS_CONFIG_SERVER_KEYSTORE_PASSWORD: changeit
-      SSL_JKS_CONFIG_SERVER_KEY_ALIAS: config-server
-      SSL_JKS_CONFIG_SERVER_TRUSTSTORE_LOCATION: umdc-truststore.jks
-      SSL_JKS_CONFIG_SERVER_TRUSTSTORE_PASSWORD: changeit
-      SSL_JKS_CONFIG_SERVER_KEYSTORE_TYPE: PKCS12
-      SSL_JKS_SD_KEYSTORE_ALIAS: servicemonitor
-      SSL_JKS_SD_KEYSTORE_LOCATION: umdc-qa.config-server.jks
-      SSL_JKS_SD_KEYSTORE_PASSWORD: changeit
-      SSL_JKS_SD_KEY_PASSWORD: changeit
-      SSL_JKS_SD_KEYSTORE_TYPE: PKCS12
-      SSL_JKS_SD_TRUSTSTORE_LOCATION: umdc-truststore.jks
-      SSL_JKS_SD_TRUSTSTORE_PASSWORD: changeit
-      SSL_JKS_SD_TRUSTSTORE_TYPE: PKCS12
-      SD_URL: http://services-monitor:8763
-      SD_REGISTER_ENABLED: true
-      SD_PORT: 8763
-      GIT_LABEL: Develop
-      GIT_URI: https://gitlab.com/prx-open/stage-folder-config.git
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "--no-check-certificate", "https://localhost:8082/actuator/health"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
-
   mercury:
     build: .
     container_name: mercury
-    depends_on:
-      config-server:
-        # Plain depends_on only waits for the container to start, not for Spring Boot
-        # to finish booting (~7-8s here) — mercury's bootstrap-phase config fetch to
-        # CNFS_URI raced it and lost every time ("Connection refused"), well before
-        # config-server's Tomcat had opened its listening socket.
-        condition: service_healthy
-      vault-server:
-        condition: service_started
+    image: lamata/mercury:0.0.2
+    hostname: umdc-qa
+    domainname: mercury.tst
+    dns_search:
+      - tst
+    extra_hosts:
+      # These map PRX service FQDNs to pinned IPs on nginx_umdc-net (172.29.0.0/16).
+      # config-server and vault must run on nginx_umdc-net with these IPs (see NETWORK_SETUP.md).
+      - "config-server.umdc-qa.tst:172.22.0.2"
+      - "vault.umdc-qa.tst:172.22.0.2"
+      - "monitor.umdc-qa.tst:172.22.0.2"
     networks:
-      - umdc-net
+      nginx_umdc-net:
+        ipv4_address: 172.22.0.10
     ports:
       - "8118:8118"
-    # Local secrets/config not tracked in git — see default.env (gitignored) and
-    # environment_variables.md for the full list of variables this expects.
     env_file:
-      - default.env
-    environment:
-      VIRTUAL_HOST: mercury.umdc-qa.tst
-      # BOOTSTRAP_SERVER_URI/PORT is the Kafka bootstrap-servers address (see
-      # spring.kafka.bootstrap-servers and ProducerConfig/ConsumerConfig in
-      # bootstrap.yml) — NOT the Config Server, despite the name. It used to be
-      # overridden here to "config-server:8082", which pointed the Kafka client at
-      # an HTTPS Spring Boot server instead of a broker: the client misread the
-      # HTTP/TLS response bytes as a Kafka protocol frame length and tried to
-      # allocate a buffer sized off garbage, crashing every listener container with
-      # OutOfMemoryError within seconds of startup. Removed so it falls through to
-      # default.env's real (Aiven) broker address, same as everywhere else.
-      VAULT_URI: http://vault-server:8200
-      # Relaxed-binding equivalent of -Dspring.cloud.vault.enabled=... (see Dockerfile).
-      SPRING_CLOUD_VAULT_ENABLED: ${VAULT_ENABLED:-true}
-      # default.env's CNFS_URI targets the real deployed config-server; point this at the
-      # local container instead. Its cert's SAN covers the bare docker-network hostname
-      # ("config-server", not just "config-server.umdc-qa.tst") and mercury's own
-      # SSL_TRUSTSTORE_LOCATION already trusts the CA that issued it, so plain HTTPS works.
-      CNFS_URI: https://config-server:8082
-      # default.env's TEMPLATE_PATH is a host-machine absolute path (for running mercury
-      # directly on a dev box), which doesn't exist inside the container — point it at the
-      # bind-mounted copy of the repo's own src/main/resources/templates instead.
-      TEMPLATE_PATH: /usr/local/runme/templates
-      # default.env's APP_PORT targets a different (deployed) topology; this compose file's
-      # port mapping and the Dockerfile's EXPOSE both assume 8118, so pin it here too.
-      APP_PORT: "8118"
+      - config/local.env
+      - secrets/local.env
     volumes:
       # Trust anchors imported by docker-entrypoint.sh at container start (see Dockerfile).
       # Empty/missing directory is fine — the app just makes no extra outbound TLS trust
@@ -131,30 +38,7 @@ services:
       - ./certs/mercury:/usr/local/runme/certs:ro
       - ./src/main/resources/templates:/usr/local/runme/templates:ro
 
-  vault-server:
-    image: hashicorp/vault:1.19
-    container_name: vault-server
-    restart: on-failure:3
-    networks:
-      - umdc-net
-    ports:
-      - "8200:8200"
-    cap_add:
-      - IPC_LOCK
-    entrypoint: vault
-    command: [ "server", "-config=/vault/config/vault.hcl" ]
-    volumes:
-      - vault-data:/vault/file
-      # Repo-relative bind mount (see vault/config/vault.hcl) instead of a
-      # Windows-host-specific absolute path — works the same on macOS/Linux/Windows.
-      - ./vault/config:/vault/config:ro
-    environment:
-      VAULT_API_ADDR: http://0.0.0.0:8200
-      VAULT_LOG_LEVEL: info
-
 networks:
-  umdc-net:
-    driver: bridge
-
-volumes:
-  vault-data:
+  nginx_umdc-net:
+    external: true
+    name: nginx_umdc-net

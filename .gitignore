@@ -23,6 +23,10 @@
 hs_err_pid*
 replay_pid*
 *.env
+# Non-secret, per-environment docker-compose config is meant to be versioned —
+# unlike default.env (a local-only, gitignored bypass of Vault), these carry no
+# credentials, only bootstrap identity (profile, Config Server/Vault URLs, etc.).
+!config/*.env
 target/
 htmlReport/
 .idea/
