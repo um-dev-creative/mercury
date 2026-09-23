@@ -15,14 +15,16 @@ WORKDIR /usr/local/runme
 COPY ${TARGET_FILE}${JAR_FILE} ${JAR_FILE}
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# No TLS material is baked into the image — it used to COPY *.crt/*.jks files straight out of
-# src/main/resources, which is exactly how they ended up committed to git history (see the
-# keystore.jks incident). Trust anchors for outbound calls (Backbone, Kafka, config-server) are
-# imported by docker-entrypoint.sh at container start, from whatever is bind-mounted/secret-
-# mounted at runtime into ./certs (see docker-compose.yml) — never from the build context, and
-# never persisted in an image layer.
+# certs/mercury/ (gitignored — never in git history, unlike the old keystore.jks incident)
+# is baked into the image here by explicit choice: these keystores/truststores are read as
+# file:certs/mercury/... (relative to WORKDIR, i.e. this exact path) by bootstrap.yml, and
+# docker-entrypoint.sh imports any *.crt in there as a JVM trust anchor at container start.
+# This does mean they're extractable from the built image's layers by anyone with registry
+# access — that trade-off (vs. runtime-mounting them fresh on every deploy target, which kept
+# failing operationally) was made deliberately; see bootstrap.yml for the resolution logic.
+COPY certs/mercury/ certs/mercury/
+
 RUN addgroup -S ${APP_GROUP} && adduser -S ${APP_USER} -G ${APP_GROUP} && \
-    mkdir -p certs && \
     cp "${JAVA_HOME}/lib/security/cacerts" cacerts && \
     chown -R ${APP_USER}:${APP_GROUP} . && \
     chmod -R 740 . && \

@@ -14,7 +14,7 @@ services:
     container_name: mercury
     image: lamata/mercury:0.0.2
     hostname: umdc-qa
-    domainname: mercury.tst
+    domainname: mercury.umdc-qa.tst
     dns_search:
       - tst
     extra_hosts:
@@ -32,13 +32,11 @@ services:
       - config/local.env
       - secrets/local.env
     volumes:
-      # Trust anchors imported by docker-entrypoint.sh at container start (see Dockerfile).
-      # Empty/missing directory is fine — the app just makes no extra outbound TLS trust
-      # available beyond the JDK's own cacerts.
-      - ./certs/mercury:/usr/local/runme/certs:ro
+      # certs/mercury/ is baked into the image now (see Dockerfile) — no runtime mount needed.
       - ./src/main/resources/templates:/usr/local/runme/templates:ro
 
 networks:
   nginx_umdc-net:
     external: true
     name: nginx_umdc-net
+

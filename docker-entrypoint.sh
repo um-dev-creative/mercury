@@ -1,14 +1,15 @@
 #!/bin/sh
-# Imports every *.crt trust anchor mounted into $CERTS_DIR (see the `mercury` service's
-# volumes in docker-compose.yml; cert-manager injects the same path as a Secret in
-# Kubernetes) into a writable copy of the JVM trust store, then execs the real command.
+# Imports every *.crt trust anchor found in $CERTS_DIR — by default certs/mercury/ baked
+# into the image (see Dockerfile's COPY certs/mercury/); cert-manager can inject a Secret
+# at the same path in Kubernetes to add/override entries without rebuilding — into a
+# writable copy of the JVM trust store, then execs the real command.
 #
 # Runs as the unprivileged container user — the trust store it writes to is
 # /usr/local/runme/cacerts (owned by that user, set up in the Dockerfile), never the
 # read-only system cacerts under $JAVA_HOME.
 set -eu
 
-CERTS_DIR="${CERTS_DIR:-/usr/local/runme/certs}"
+CERTS_DIR="${CERTS_DIR:-/usr/local/runme/certs/mercury}"
 TRUSTSTORE="/usr/local/runme/cacerts"
 TRUSTSTORE_PASSWORD="changeit"
 
