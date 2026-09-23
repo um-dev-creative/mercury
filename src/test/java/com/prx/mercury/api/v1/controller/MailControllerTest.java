@@ -7,7 +7,6 @@ import com.umdc.mercury.api.v1.to.SendEmailRequest;
 import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
@@ -15,6 +14,7 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class MailControllerTest {
@@ -22,7 +22,7 @@ class MailControllerTest {
     @Test
     @DisplayName("Send email successfully")
     void sendEmailSuccessfully() {
-        EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
+        EmailServiceImpl emailService = mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -48,7 +48,7 @@ class MailControllerTest {
     @Test
     @DisplayName("Send email with null request")
     void sendEmailWithNullRequest() {
-        EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
+        EmailServiceImpl emailService = mock(EmailServiceImpl.class);
         MailController mailController = new MailController(emailService);
 
         assertThrows(NullPointerException.class, () -> mailController.send(null));
@@ -57,7 +57,7 @@ class MailControllerTest {
     @Test
     @DisplayName("Send email with invalid email address")
     void sendEmailWithInvalidEmailAddress() {
-        EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
+        EmailServiceImpl emailService = mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -79,7 +79,7 @@ class MailControllerTest {
     @Test
     @DisplayName("Send email with empty subject")
     void sendEmailWithEmptySubject() {
-        EmailServiceImpl emailService = Mockito.mock(EmailServiceImpl.class);
+        EmailServiceImpl emailService = mock(EmailServiceImpl.class);
         SendEmailRequest request = new SendEmailRequest(
                 UUID.randomUUID(),
                 UUID.randomUUID(),

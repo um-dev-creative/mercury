@@ -511,37 +511,39 @@ class MercuryMessageTest {
         @Test
         @DisplayName("METHOD_NOT_IMPLEMENTED should not equal null")
         void methodNotImplementedNotEqualsNull() {
-            assertNotEquals(MercuryMessage.METHOD_NOT_IMPLEMENTED, null);
+            assertNotEquals(null, MercuryMessage.METHOD_NOT_IMPLEMENTED);
         }
 
         @Test
         @DisplayName("RUNTIME_EXCEPTION should not equal null")
         void runtimeExceptionNotEqualsNull() {
-            assertNotEquals(MercuryMessage.RUNTIME_EXCEPTION, null);
+            assertNotEquals(null, MercuryMessage.RUNTIME_EXCEPTION);
         }
 
         @Test
         @DisplayName("METHOD_NOT_IMPLEMENTED should not equal a string")
         void methodNotImplementedNotEqualsString() {
-            assertNotEquals(MercuryMessage.METHOD_NOT_IMPLEMENTED, "METHOD_NOT_IMPLEMENTED");
+            assertNotEquals("METHOD_NOT_IMPLEMENTED", MercuryMessage.METHOD_NOT_IMPLEMENTED);
         }
 
         @Test
         @DisplayName("RUNTIME_EXCEPTION should not equal a string")
         void runtimeExceptionNotEqualsString() {
-            assertNotEquals(MercuryMessage.RUNTIME_EXCEPTION, "RUNTIME_EXCEPTION");
+            assertNotEquals("RUNTIME_EXCEPTION", MercuryMessage.RUNTIME_EXCEPTION);
         }
 
         @Test
         @DisplayName("METHOD_NOT_IMPLEMENTED should not equal a different object type")
         void methodNotImplementedNotEqualsDifferentType() {
-            assertNotEquals(MercuryMessage.METHOD_NOT_IMPLEMENTED, new Object());
+            var obj = new Object();
+            assertNotEquals(MercuryMessage.METHOD_NOT_IMPLEMENTED, obj);
         }
 
         @Test
         @DisplayName("RUNTIME_EXCEPTION should not equal a different object type")
         void runtimeExceptionNotEqualsDifferentType() {
-            assertNotEquals(MercuryMessage.RUNTIME_EXCEPTION, new Object());
+            var obj = new Object();
+            assertNotEquals(MercuryMessage.RUNTIME_EXCEPTION, obj);
         }
     }
 
