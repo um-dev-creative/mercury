@@ -66,14 +66,18 @@ certs/mercury/
 > [!WARNING]
 > **This directory is gitignored (`*.jks`, `*.pem`, `*.p12`, `*.cert`, `*.key`, `*.crt`) — it must never reach git.** Get these files from another team member or extract them from Vault; don't recreate them by hand without verifying they match what the environment actually expects.
 
-Relevant values in `bootstrap.yml` (all default to `file:certs/mercury/...`, so **nothing needs configuring** if the directory exists with those names):
+These paths are **hardcoded in `bootstrap.yml`** (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`, with their real, keytool-verified type/password) — no environment variable (`SSL_KEYSTORE_LOCATION`, `SSL_TRUSTSTORE_LOCATION`, etc.) can override them. This was a deliberate choice: the env-var indirection broke twice in real deployments because a local/stale `default.env` on a different machine carried the value without the `file:` prefix (an unprefixed path resolves as `classpath:`, which no longer exists post-purge) — and since `certs/mercury/` is always at this fixed path (baked into the image, present in every local checkout), there was never a real reason for it to vary by environment.
 
-| Property | Default | Verified with `keytool` |
+| Spring property | Fixed value | Verified with `keytool` |
 |---|---|---|
-| `SSL_KEYSTORE_LOCATION` / `TYPE` / `PASSWORD` | `file:certs/mercury/mercury.jks` / `JKS` / `changeit` | ✅ |
-| `SSL_TRUSTSTORE_LOCATION` / `TYPE` / `PASSWORD` | `file:certs/mercury/umdc-truststore.jks` / `PKCS12` / `changeit` | ✅ |
+| `umdc.security.keystore.*` (+ `management-authenticator`) | `file:certs/mercury/mercury.jks` / `JKS` / `changeit` | ✅ |
+| `umdc.security.truststore.*` (+ `management-authenticator`) | `file:certs/mercury/umdc-truststore.jks` / `PKCS12` / `changeit` | ✅ |
+| `spring.ssl.bundle.jks.mercury-security.*` | same `mercury.jks` / `umdc-truststore.jks` | ✅ |
 | `spring.cloud.vault.ssl.trust-store` | same `umdc-truststore.jks` | ✅ (real handshake confirmed against `vault.umdc-qa.tst`) |
 | `spring.cloud.config.tls.trust-store` | same `umdc-truststore.jks` | ✅ (real handshake confirmed against `config-server.umdc-qa.tst`) |
+
+> [!NOTE]
+> Kafka's own variables (`KAFKA_SSL_*`) are still configurable per environment — they weren't implicated in this issue and may legitimately need to point at a different broker depending on the environment.
 
 ### 2. `default.env` — local variables (never in git)
 
@@ -202,7 +206,7 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 | Bootstrap identity | `SPRING_BOOT_PROFILE_ACTIVE`, `SPRING_CLOUD_CONFIG_LABEL`, `SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED` | `config/local.env` / Helm values |
 | Vault | `VAULT_ENABLED`, `VAULT_URI`, `VAULT_TOKEN`, `VAULT_KV_BACKEND` | `secrets/local.env` (token only) / K8s Secret or Vault K8s auth |
 | Config Server | `CNFS_URI`, `CNFS_PORT` (⚠️ `CNFS_PORT` has no effect on the client — see [04 · Components](04-components.md)) | `config/local.env` |
-| Certificates | `SSL_KEYSTORE_LOCATION/TYPE/PASSWORD`, `SSL_TRUSTSTORE_LOCATION/TYPE/PASSWORD` | Defaults in `bootstrap.yml` (`certs/mercury/`) — usually nothing to set |
+| Certificates | *(none — hardcoded)* | Fixed paths in `bootstrap.yml` (`certs/mercury/`) — not configurable via env var, on purpose |
 | Kafka | `KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_JAAS_CONFIG`, `KAFKA_SSL_*`, `BOOTSTRAP_SERVER_URI/PORT` | Vault (production) |
 | Database / Mongo / Mail / OAuth / Telegram | `MERCURY_DB_*`, `MONGO_*`, `MAIL_*`, `AUTH_*`, `BACKBONE_*`, `TELEGRAM_*` | **Vault only** — never duplicate into versioned local files |
 | App | `APP_PORT`, `APP_TOKEN_SECRET`, `APP_TOKEN_EXPIRATION`, `TEMPLATE_PATH`, `TEMPLATE_SUFFIX` | Mixed — see the `TEMPLATE_PATH` case below |
@@ -213,11 +217,11 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 
 Real cases hit and resolved in this repository — documented because **they will happen again**.
 
-### ❌ `KeyStoreException: KeyStore not exists: class path resource [X.jks]`
+### ❌ `KeyStoreException`/`IllegalArgumentException: Resource class path resource [X.jks] does not exist`
 
-**Cause:** a keystore/truststore property still points at `classpath:X.jks` (or a bare filename with no prefix, which Spring resolves as `classpath:` by default) — left over from when these files lived in `src/main/resources`. They no longer do.
+**Cause:** a keystore/truststore property still points at `classpath:X.jks` (or a bare filename with no prefix, which Spring resolves as `classpath:` by default) — left over from when these files lived in `src/main/resources`. They no longer do. This happened **twice** in real deployments for the same reason: an external environment variable (`SSL_KEYSTORE_LOCATION`/`SSL_TRUSTSTORE_LOCATION` in a local `default.env`, different on each machine) overrode `bootstrap.yml`'s correct default with a stale value missing the `file:` prefix.
 
-**Fix:** use the `file:certs/mercury/X.jks` prefix (relative to the *working directory*). See `bootstrap.yml`.
+**Fix applied:** these paths are **no longer configurable via environment variable** — they're hardcoded directly in `bootstrap.yml` (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`), specifically to remove this class of bug at the root. If you see this error again, it means you're running a jar/image build from **before** this fix — rebuild from the current code.
 
 ### ❌ `PKIX path building failed: unable to find valid certification path to requested target`
 
