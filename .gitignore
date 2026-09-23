@@ -33,7 +33,8 @@ htmlReport/
 .sonarlint/
 .ai/*
 /.github/agents/
-/docs/
+/docs/*
+!/docs/tec/
 
 # TLS/SSL credentials and keystores — never commit real certs/keys
 *.pem
