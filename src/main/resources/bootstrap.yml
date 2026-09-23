@@ -265,17 +265,21 @@ spring:
         backend: ${VAULT_KV_BACKEND:secret}
         default-context: ${spring.application.name}
         profile-separator: /
-      # No spring.cloud.vault.ssl block here on purpose. VaultConfiguration#createSslConfiguration
-      # only skips building a custom SslConfiguration when ssl.trust-store binds to null — and a
-      # YAML placeholder ALWAYS resolves to a non-null Resource once it has any default (even a
-      # sentinel), so "classpath:${SSL_TRUSTSTORE_LOCATION:some-default}" is fatal whenever the env
-      # var is unset: Spring resolves the sentinel path, KeyStoreConfiguration asserts it exists,
-      # and bean creation fails ("class path resource [...] does not exist"). Baking a real
-      # truststore file into the classpath to give it a valid default is exactly the anti-pattern
-      # removed from this repo after the keystore.jks incident. Instead, the container's own JVM
-      # trust store (see docker-entrypoint.sh / Dockerfile -Djavax.net.ssl.trustStore) already
-      # supplies whatever trust anchors Vault's HTTP client needs, since Vault falls back to the
-      # JVM default SSLContext when no vault-specific ssl config is present.
+      # Explicit ssl block (same pattern as spring.cloud.config.tls below) rather than relying
+      # on -Djavax.net.ssl.trustStore: that system property is only ever set in the Dockerfile's
+      # CMD, so a local/IDE run (no such flag) fell back to the JDK's own default cacerts, which
+      # doesn't trust the internal CA — Vault's handshake failed with PKIX path building errors
+      # even though Config Client's own explicit trust-store (below) worked fine. This used to be
+      # unsafe: a trust-store default pointing at a nonexistent classpath sentinel is WORSE than
+      # no default (Spring always resolves a non-null Resource once any default is given, then
+      # KeyStoreConfiguration asserts it exists and fails bean creation outright — see the
+      # keystore.jks incident this avoided by never baking a fake file in). certs/mercury/ is
+      # different: gitignored, genuinely present (see Dockerfile's COPY certs/mercury/), and
+      # resolves the same way locally and in the container.
+      ssl:
+        trust-store: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
+        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
+        trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
