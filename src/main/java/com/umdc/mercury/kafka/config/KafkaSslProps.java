@@ -9,7 +9,11 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -89,7 +93,7 @@ public class KafkaSslProps {
                         keystoreKeyLocation.getContentAsString(StandardCharsets.UTF_8));
             }
         } else if (keystoreLocation.exists()) {
-            props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, keystoreLocation.getFile().getAbsolutePath());
+            props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, toAbsolutePath(keystoreLocation));
             props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, keystorePassword);
             props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, keyPassword);
         }
@@ -101,10 +105,29 @@ public class KafkaSslProps {
                         truststoreLocation.getContentAsString(StandardCharsets.UTF_8));
             }
         } else if (truststoreLocation.exists()) {
-            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, truststoreLocation.getFile().getAbsolutePath());
+            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, toAbsolutePath(truststoreLocation));
             props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, truststorePassword);
         }
 
         return props;
+    }
+
+    /**
+     * The Kafka client opens keystore/truststore locations as plain files, but a
+     * classpath resource packaged inside an executable Spring Boot jar (as opposed to
+     * an exploded classes directory) has no filesystem path to hand it. Copy it out to
+     * a temp file in that case; a resource that's already a real file (dev/IDE runs,
+     * or an external file:/absolute path) is used as-is.
+     */
+    private static String toAbsolutePath(Resource resource) throws IOException {
+        if (resource.isFile()) {
+            return resource.getFile().getAbsolutePath();
+        }
+        Path tempFile = Files.createTempFile("kafka-ssl-", "-" + resource.getFilename());
+        tempFile.toFile().deleteOnExit();
+        try (InputStream in = resource.getInputStream()) {
+            Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return tempFile.toAbsolutePath().toString();
     }
 }

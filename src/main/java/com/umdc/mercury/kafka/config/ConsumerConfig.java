@@ -1,6 +1,5 @@
 package com.umdc.mercury.kafka.config;
 
-import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerService;

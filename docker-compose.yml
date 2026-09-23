@@ -1,0 +1,42 @@
+# docker-compose.yml — Entorno de desarrollo local únicamente.
+# Para despliegue en Kubernetes (cert-manager, Ingress, etc.), ver k8s/
+#
+# Config split in two, by sensitivity:
+#   - config/local.env  (versioned) — bootstrap identity: which environment, and
+#     how to reach Vault/Config Server. No credentials.
+#   - secrets/local.env (gitignored, copy secrets/local.env.example) — the one
+#     bootstrap secret Vault can't hand us: VAULT_TOKEN. Everything else (DB,
+#     Mongo, mail, OAuth, Kafka SASL, etc.) is resolved from Vault's own KV store
+#     at runtime and never belongs in either file, nor in a Helm values file.
+services:
+  mercury:
+    build: .
+    container_name: mercury
+    image: lamata/mercury:0.0.2
+    hostname: umdc-qa
+    domainname: mercury.umdc-qa.tst
+    dns_search:
+      - tst
+    extra_hosts:
+      # These map PRX service FQDNs to pinned IPs on nginx_umdc-net (172.29.0.0/16).
+      # config-server and vault must run on nginx_umdc-net with these IPs (see NETWORK_SETUP.md).
+      - "config-server.umdc-qa.tst:172.22.0.2"
+      - "vault.umdc-qa.tst:172.22.0.2"
+      - "monitor.umdc-qa.tst:172.22.0.2"
+    networks:
+      nginx_umdc-net:
+        ipv4_address: 172.22.0.10
+    ports:
+      - "8118:8118"
+    env_file:
+      - config/local.env
+      - secrets/local.env
+    volumes:
+      # certs/mercury/ is baked into the image now (see Dockerfile) — no runtime mount needed.
+      - ./src/main/resources/templates:/usr/local/runme/templates:ro
+
+networks:
+  nginx_umdc-net:
+    external: true
+    name: nginx_umdc-net
+

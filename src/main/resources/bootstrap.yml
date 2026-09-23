@@ -41,17 +41,20 @@ umdc:
         identification:
           algorithm: ${KAFKA_SSL_ENDPOINT_ID_ALGO:https}
       keystore:
-        # Non-PEM fallback (PKCS12/JKS)
-        location: ${KAFKA_SSL_KEYSTORE_LOCATION:classpath:aiven-kafka.p12}
+        # Non-PEM fallback (PKCS12/JKS). file: (not classpath:) so this resolves the same
+        # way whether the JVM's cwd is the project root (local/IDE runs) or the container's
+        # WORKDIR (Docker — see Dockerfile's COPY certs/mercury/) — both have a certs/mercury/
+        # directory with identical contents, gitignored, never on the classpath/in the jar.
+        location: ${KAFKA_SSL_KEYSTORE_LOCATION:file:certs/mercury/aiven-kafka.p12}
         password: ${KAFKA_SSL_KEYSTORE_PASSWORD:${SSL_KEYSTORE_PASSWORD:changeit}}
         type: ${KAFKA_SSL_KEYSTORE_TYPE:PEM}
         # PEM: separate cert and key files (Aiven standard)
         certificate:
-          location: ${KAFKA_SSL_KEYSTORE_CERT_LOCATION:classpath:aiven-kafka-7e59598.cert}
+          location: ${KAFKA_SSL_KEYSTORE_CERT_LOCATION:file:certs/mercury/aiven-kafka-7e59598.cert}
         key:
-          location: ${KAFKA_SSL_KEYSTORE_KEY_LOCATION:classpath:aiven-kafka-7e59598.key}
+          location: ${KAFKA_SSL_KEYSTORE_KEY_LOCATION:file:certs/mercury/aiven-kafka-7e59598.key}
       truststore:
-        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:classpath:aiven-kafka-7e59598.pem}
+        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:file:certs/mercury/aiven-kafka-7e59598.pem}
         password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:${SSL_TRUSTSTORE_PASSWORD:changeit}}
         type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PEM}
   # Default consumer group id used by listeners that reference ${prx.consumer.group-id}
@@ -96,24 +99,33 @@ umdc:
     jwt:
       secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
       expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
+    # certs/mercury/ is always at this fixed, repo-relative path — baked into every
+    # Docker image (Dockerfile's COPY certs/mercury/) and present in every local
+    # checkout — so these are hardcoded, not sourced from SSL_KEYSTORE_LOCATION/
+    # SSL_TRUSTSTORE_LOCATION env vars. That indirection kept getting silently broken
+    # by a stale/hand-edited local default.env missing the required file: prefix
+    # (an unprefixed value resolves as classpath:, which doesn't exist post-purge) —
+    # twice, on two different machines. Type/password verified against the actual
+    # files with keytool: mercury.jks is JKS/changeit, umdc-truststore.jks is
+    # PKCS12/changeit.
     keystore:
-      location: ${SSL_KEYSTORE_LOCATION}  # Location of the keystore
-      type: ${SSL_KEYSTORE_TYPE}  # Type of the keystore
-      password: ${SSL_KEYSTORE_PASSWORD}  # Password for the keystore
+      location: file:certs/mercury/mercury.jks
+      type: JKS
+      password: changeit
     truststore:
-      location: ${SSL_TRUSTSTORE_LOCATION}  # Location of the truststore
-      type: ${SSL_TRUSTSTORE_TYPE}  # Type of the truststore
-      password: ${SSL_TRUSTSTORE_PASSWORD}  # Password for the truststore
+      location: file:certs/mercury/umdc-truststore.jks
+      type: PKCS12
+      password: changeit
     management-authenticator:
       enabled: true  # Enable management authenticator
       keystore:
-        location: ${SSL_KEYSTORE_LOCATION}  # Location of the keystore for management
-        type: ${SSL_KEYSTORE_TYPE}  # Type of the keystore for management
-        password: ${SSL_KEYSTORE_PASSWORD}  # Password for the keystore for management
+        location: file:certs/mercury/mercury.jks
+        type: JKS
+        password: changeit
       truststore:
-        location: ${SSL_TRUSTSTORE_LOCATION}  # Location of the truststore for management
-        type: ${SSL_TRUSTSTORE_TYPE}  # Type of the truststore for management
-        password: ${SSL_TRUSTSTORE_PASSWORD}  # Password for the truststore for management
+        location: file:certs/mercury/umdc-truststore.jks
+        type: PKCS12
+        password: changeit
 app:
   clientRoles: ${AUTH_ROLE_ID}
   # The environments for the application
@@ -196,16 +208,17 @@ spring:
                   allow_jdbc_metadata_access: true
     log-level: error
     defer-datasource-initialization: true
+  # SSL configuration
   ssl:
     bundle:
       jks:
         mercury-security:
           keystore:
-            location: classpath:${SSL_KEYSTORE_LOCATION}
+            location: ${SSL_KEYSTORE_LOCATION}
             password: ${SSL_KEYSTORE_PASSWORD}
             type: ${SSL_KEYSTORE_TYPE}
           truststore:
-            location: classpath:${SSL_TRUSTSTORE_LOCATION}
+            location: ${SSL_TRUSTSTORE_LOCATION}
             password: ${SSL_TRUSTSTORE_PASSWORD}
             type: ${SSL_TRUSTSTORE_TYPE}
   autoconfigure:
@@ -257,10 +270,21 @@ spring:
         backend: ${VAULT_KV_BACKEND:secret}
         default-context: ${spring.application.name}
         profile-separator: /
+      # Explicit ssl block (same pattern as spring.cloud.config.tls below) rather than relying
+      # on -Djavax.net.ssl.trustStore: that system property is only ever set in the Dockerfile's
+      # CMD, so a local/IDE run (no such flag) fell back to the JDK's own default cacerts, which
+      # doesn't trust the internal CA — Vault's handshake failed with PKIX path building errors
+      # even though Config Client's own explicit trust-store (below) worked fine. This used to be
+      # unsafe: a trust-store default pointing at a nonexistent classpath sentinel is WORSE than
+      # no default (Spring always resolves a non-null Resource once any default is given, then
+      # KeyStoreConfiguration asserts it exists and fails bean creation outright — see the
+      # keystore.jks incident this avoided by never baking a fake file in). certs/mercury/ is
+      # different: gitignored, genuinely present (see Dockerfile's COPY certs/mercury/), and
+      # resolves the same way locally and in the container.
       ssl:
-        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION:truststore-no-present}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE:JKS}
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
@@ -271,16 +295,18 @@ spring:
       profile: ${SPRING_BOOT_PROFILE_ACTIVE}
       # The label for the Spring Cloud Config
       label: ${SPRING_CLOUD_CONFIG_LABEL}
-      # The URI for the Spring Cloud Config server
+      # The URI for the Spring Cloud Config server — must be a full URL (scheme+host+port),
+      # e.g. https://config-server:8082. ConfigClientProperties has no "port" field (only
+      # "uri", a String[]), so a separate spring.cloud.config.port key binds to nothing —
+      # CNFS_PORT is real, but only as config-server's OWN server.port, not this client's.
       uri: ${CNFS_URI}
-      port: ${CNFS_PORT}
       # Enables sending of state for the Spring Cloud Config
       send-state: true
       tls:
         enabled: true
-        trust-store: classpath:${SSL_TRUSTSTORE_LOCATION}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE}
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
   mongodb:
     representation:
       uuid: STANDARD

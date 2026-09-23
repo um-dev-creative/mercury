@@ -6,6 +6,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -72,7 +73,7 @@ class CampaignTOTest {
     @DisplayName("isScheduled returns true for future scheduledAt")
     void isScheduledReturnsTrueForFutureDate() {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(),
-                null, LocalDateTime.now().plusHours(1), "DRAFT", UUID.randomUUID());
+                null, LocalDateTime.now(ZoneOffset.UTC).plusHours(1), "DRAFT", UUID.randomUUID());
         assertTrue(to.isScheduled());
     }
 
@@ -80,7 +81,7 @@ class CampaignTOTest {
     @DisplayName("isScheduled returns false for past scheduledAt")
     void isScheduledReturnsFalseForPastDate() {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(),
-                null, LocalDateTime.now().minusHours(1), "DRAFT", UUID.randomUUID());
+                null, LocalDateTime.now(ZoneOffset.UTC).minusHours(1), "DRAFT", UUID.randomUUID());
         assertFalse(to.isScheduled());
     }
 
@@ -95,6 +96,13 @@ class CampaignTOTest {
     @DisplayName("Blank status defaults to DRAFT")
     void blankStatusDefaultsToDraft() {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, " ", UUID.randomUUID());
+        assertEquals("DRAFT", to.status());
+    }
+
+    @Test
+    @DisplayName("Null status defaults to DRAFT")
+    void nullStatusDefaultsToDraft() {
+        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, null, UUID.randomUUID());
         assertEquals("DRAFT", to.status());
     }
 }
