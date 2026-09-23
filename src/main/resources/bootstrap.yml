@@ -208,18 +208,19 @@ spring:
                   allow_jdbc_metadata_access: true
     log-level: error
     defer-datasource-initialization: true
+  # SSL configuration
   ssl:
     bundle:
       jks:
         mercury-security:
           keystore:
-            location: file:certs/mercury/mercury.jks
-            password: changeit
-            type: JKS
+            location: ${SSL_KEYSTORE_LOCATION}
+            password: ${SSL_KEYSTORE_PASSWORD}
+            type: ${SSL_KEYSTORE_TYPE}
           truststore:
-            location: file:certs/mercury/umdc-truststore.jks
-            password: changeit
-            type: PKCS12
+            location: ${SSL_TRUSTSTORE_LOCATION}
+            password: ${SSL_TRUSTSTORE_PASSWORD}
+            type: ${SSL_TRUSTSTORE_TYPE}
   autoconfigure:
     exclude: org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
   mustache:
