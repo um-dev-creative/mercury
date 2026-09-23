@@ -99,29 +99,33 @@ umdc:
     jwt:
       secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
       expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
-    # SSL_KEYSTORE_LOCATION/SSL_TRUSTSTORE_LOCATION default to the gitignored
-    # certs/mercury/ directory (file:, resolved relative to the JVM's cwd — project root
-    # locally, the container's WORKDIR in Docker via Dockerfile's COPY certs/mercury/).
-    # Type/password default to what those specific files actually are (verified with
-    # keytool): mercury.jks is JKS/changeit, umdc-truststore.jks is PKCS12/changeit.
+    # certs/mercury/ is always at this fixed, repo-relative path — baked into every
+    # Docker image (Dockerfile's COPY certs/mercury/) and present in every local
+    # checkout — so these are hardcoded, not sourced from SSL_KEYSTORE_LOCATION/
+    # SSL_TRUSTSTORE_LOCATION env vars. That indirection kept getting silently broken
+    # by a stale/hand-edited local default.env missing the required file: prefix
+    # (an unprefixed value resolves as classpath:, which doesn't exist post-purge) —
+    # twice, on two different machines. Type/password verified against the actual
+    # files with keytool: mercury.jks is JKS/changeit, umdc-truststore.jks is
+    # PKCS12/changeit.
     keystore:
-      location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}  # Location of the keystore
-      type: ${SSL_KEYSTORE_TYPE:JKS}  # Type of the keystore
-      password: ${SSL_KEYSTORE_PASSWORD:changeit}  # Password for the keystore
+      location: file:certs/mercury/mercury.jks
+      type: JKS
+      password: changeit
     truststore:
-      location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}  # Location of the truststore
-      type: ${SSL_TRUSTSTORE_TYPE:PKCS12}  # Type of the truststore
-      password: ${SSL_TRUSTSTORE_PASSWORD:changeit}  # Password for the truststore
+      location: file:certs/mercury/umdc-truststore.jks
+      type: PKCS12
+      password: changeit
     management-authenticator:
       enabled: true  # Enable management authenticator
       keystore:
-        location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}  # Location of the keystore for management
-        type: ${SSL_KEYSTORE_TYPE:JKS}  # Type of the keystore for management
-        password: ${SSL_KEYSTORE_PASSWORD:changeit}  # Password for the keystore for management
+        location: file:certs/mercury/mercury.jks
+        type: JKS
+        password: changeit
       truststore:
-        location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}  # Location of the truststore for management
-        type: ${SSL_TRUSTSTORE_TYPE:PKCS12}  # Type of the truststore for management
-        password: ${SSL_TRUSTSTORE_PASSWORD:changeit}  # Password for the truststore for management
+        location: file:certs/mercury/umdc-truststore.jks
+        type: PKCS12
+        password: changeit
 app:
   clientRoles: ${AUTH_ROLE_ID}
   # The environments for the application
@@ -209,13 +213,13 @@ spring:
       jks:
         mercury-security:
           keystore:
-            location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}
-            password: ${SSL_KEYSTORE_PASSWORD:changeit}
-            type: ${SSL_KEYSTORE_TYPE:JKS}
+            location: file:certs/mercury/mercury.jks
+            password: changeit
+            type: JKS
           truststore:
-            location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
-            password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
-            type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+            location: file:certs/mercury/umdc-truststore.jks
+            password: changeit
+            type: PKCS12
   autoconfigure:
     exclude: org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
   mustache:
@@ -277,9 +281,9 @@ spring:
       # different: gitignored, genuinely present (see Dockerfile's COPY certs/mercury/), and
       # resolves the same way locally and in the container.
       ssl:
-        trust-store: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
     bootstrap:
       # Enables the Spring Cloud Bootstrap application context
       enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
@@ -299,9 +303,9 @@ spring:
       send-state: true
       tls:
         enabled: true
-        trust-store: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
-        trust-store-password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
-        trust-store-type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
   mongodb:
     representation:
       uuid: STANDARD
