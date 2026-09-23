@@ -98,4 +98,11 @@ class CampaignTOTest {
         CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, " ", UUID.randomUUID());
         assertEquals("DRAFT", to.status());
     }
+
+    @Test
+    @DisplayName("Null status defaults to DRAFT")
+    void nullStatusDefaultsToDraft() {
+        CampaignTO to = new CampaignTO("Campaign", "email", TEMPLATE_ID, USER_ID, recipients(), null, null, null, UUID.randomUUID());
+        assertEquals("DRAFT", to.status());
+    }
 }
