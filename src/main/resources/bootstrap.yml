@@ -143,8 +143,10 @@ app:
 server:
   port: ${APP_PORT}
   ssl:
-    # Enables SSL for the server; defaults to false for local dev, set SSL_ENABLED=true in deployed environments
-    enabled: ${SSL_ENABLED:false}
+    # Enables SSL for the server; HTTPS-only by default (this service must never serve
+    # plaintext HTTP). Set SSL_ENABLED=false only for local dev when certs/mercury/mercury.jks
+    # is unavailable.
+    enabled: ${SSL_ENABLED:true}
     # The SSL bundle for the server
     bundle: mercury-security
     enabled-protocols: TLSv1.3
@@ -152,6 +154,23 @@ server:
       enabled: true
       mime-types: text/html,text/xml,text/plain,text/css,application/json
       min-response-size: 1024
+# Actuator health/metrics exposure for Service-Monitor (Prometheus scrape + Eureka health propagation)
+management:
+  endpoints:
+    web:
+      exposure:
+        # Deliberately not "*": avoid leaking env/beans/configprops/heapdump on an
+        # internally-routable but unauthenticated actuator surface.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${app.name}
+
 spring:
   kafka:
     # Bootstrap server drawn from the same env-vars used by ConsumerConfig
@@ -212,15 +231,19 @@ spring:
   ssl:
     bundle:
       jks:
+        # Defaults mirror umdc.security.keystore/truststore above (same files, same verified
+        # type/password) so the server.ssl.enabled default of true actually works out of the
+        # box, instead of depending on SSL_KEYSTORE_LOCATION/SSL_TRUSTSTORE_LOCATION being set
+        # externally - the same undefaulted-env-var pattern that kept silently breaking there.
         mercury-security:
           keystore:
-            location: ${SSL_KEYSTORE_LOCATION}
-            password: ${SSL_KEYSTORE_PASSWORD}
-            type: ${SSL_KEYSTORE_TYPE}
+            location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}
+            password: ${SSL_KEYSTORE_PASSWORD:changeit}
+            type: ${SSL_KEYSTORE_TYPE:JKS}
           truststore:
-            location: ${SSL_TRUSTSTORE_LOCATION}
-            password: ${SSL_TRUSTSTORE_PASSWORD}
-            type: ${SSL_TRUSTSTORE_TYPE}
+            location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
+            password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
+            type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
   autoconfigure:
     exclude: org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
   mustache:
