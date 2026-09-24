@@ -67,6 +67,9 @@
              to close known CVEs: CVE-2025-5115 (Jetty HTTP/2 MadeYouReset) and CVE-2026-5588 (BouncyCastle) -->
         <jetty-http2.version>11.0.26</jetty-http2.version>
         <bouncycastle.version>1.86</bouncycastle.version>
+        <!-- CVE-2020-13956: force the httpclient pulled in transitively by
+             spring-cloud-starter-netflix-eureka-client -> eureka-client above the fixed 4.5.13 -->
+        <httpclient.version>4.5.14</httpclient.version>
 
         <!--        Test Dependencies-->
         <!--        JUnit 5.x-->
@@ -132,6 +135,14 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -382,6 +393,13 @@
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcpkix-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
+            </dependency>
+            <!-- CVE-2020-13956: force httpclient pulled in transitively by
+                 spring-cloud-starter-netflix-eureka-client -> eureka-client above the fixed 4.5.13 -->
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${httpclient.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
