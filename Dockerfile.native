@@ -5,13 +5,38 @@
 # the container's own arch, regardless of the host that runs `docker build`), then
 # copy just the binary into a minimal runtime image. See docs/architecture/
 # graalvm-native-image.md for what this trades off against the JIT Dockerfile.
-
-FROM ghcr.io/graalvm/native-image-community:25 AS builder
+#
+# Builder base is plain Ubuntu, NOT ghcr.io/graalvm/native-image-community:25 — that image is
+# built on Oracle Linux 10, which raised its glibc CPU baseline to x86-64-v3 (requires AVX2/BMI2),
+# and fails immediately ("Fatal glibc error: CPU does not support x86-64-v3") on deployment
+# platforms whose CPU/VM doesn't offer those extensions. Ubuntu/Debian keep the original
+# x86-64 baseline, so GraalVM and Maven are installed manually here instead — confirmed as the
+# actual, environment-specific cause (not a build-logic bug) after a build that worked fine
+# locally (Apple Silicon) failed on first real deployment (x86-64 without v3).
+FROM ubuntu:24.04 AS builder
+ARG TARGETARCH
 WORKDIR /build
 
-# The GraalVM builder image (Oracle Linux, no package manager reliably stocked with a current
-# Maven) ships the JDK and native-image only — Maven is installed from a pinned tarball, matching
-# the version this project builds with locally, rather than whatever a distro repo happens to have.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates build-essential zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG GRAALVM_VERSION=25.0.2
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) GRAAL_ARCH=x64 ;; \
+      arm64) GRAAL_ARCH=aarch64 ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-${GRAAL_ARCH}_bin.tar.gz" -o /tmp/graalvm.tar.gz && \
+    mkdir -p /opt/graalvm && \
+    tar xzf /tmp/graalvm.tar.gz -C /opt/graalvm --strip-components=1 && \
+    rm /tmp/graalvm.tar.gz
+ENV JAVA_HOME=/opt/graalvm
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Maven isn't part of a bare JDK — installed from a pinned tarball, matching the version this
+# project builds with locally, rather than whatever a distro repo happens to have.
 ARG MAVEN_VERSION=3.9.14
 # archive.apache.org, not dlcdn.apache.org — dlcdn only mirrors the latest release per line and
 # 404s once a newer 3.9.x replaces this pinned version; the archive keeps every release forever.

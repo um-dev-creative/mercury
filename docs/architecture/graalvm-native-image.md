@@ -33,33 +33,57 @@ successfully**, serving a real authenticated HTTPS request end to end.
 - **`src/main/java/com/umdc/mercury/config/ThirdPartyNativeRuntimeHints.java`**:
   GraalVM reflection/proxy registrations for third-party code this project
   depends on but doesn't control (§ Reflection gaps below).
-- **`Dockerfile.native`**: a two-stage build —
-  `ghcr.io/graalvm/native-image-community:25` compiles the binary,
-  `gcr.io/distroless/cc-debian12:nonroot` runs it (not the smaller
-  `base-debian12` — this build is dynamically linked against glibc *and*
-  libstdc++, not "mostly static"). Maven repo credentials are passed via a
-  BuildKit secret mount (`--secret id=maven_settings`), never `COPY`'d into
-  a layer. Three things the plain "GraalVM builder + native-image" mental
-  model misses, all found by actually running the build rather than assuming
-  it would work: (1) the builder image ships the JDK and `native-image` only
-  — no Maven — installed here from a pinned `archive.apache.org` tarball
-  (not `dlcdn.apache.org`, which only mirrors the latest 3.9.x and 404s once
-  a pinned older version rolls off); (2) `ruleset.xml` (referenced by the PMD
-  plugin via `${project.basedir}`) has to be `COPY`'d alongside `pom.xml` —
-  easy to miss since it's not under `src/`; (3) `config/native.env` has to be
-  sourced *inside* the build (`COPY`'d in, then `. ./config/native.env`
-  before `mvn`) for exactly the same reason it's needed locally — the
-  container has no more access to Vault/Config Server than this host does.
-  **Not fully verified end-to-end**: `docker build` on `Dockerfile.native` was run repeatedly to
-  find and fix the three issues above (each confirmed by actually building, not inspection), but
-  the final full build was twice killed by this host's own memory-pressure protection before
-  completing `native-image` — competing with everything else already running on this machine, not
-  a flaw in the Dockerfile. The OrbStack VM itself has 15.66GB allocated, comfortably above the
-  ~7–9GB peak RSS `native-image` used in the (successful, repeated) direct-on-host builds, so this
-  is a "free up host RAM or build in CI" problem, not a build-logic problem. The exact same
-  `mvn -Pnative clean package native:compile` invocation this Dockerfile runs is the one already
-  proven, multiple times, directly on this host. Recommend one confirming `docker build` run in CI
-  or on a quieter machine before treating the Docker image itself as proven.
+- **`Dockerfile.native`**: a two-stage build — a Linux builder stage compiles
+  the binary, `gcr.io/distroless/cc-debian12:nonroot` runs it (not the
+  smaller `base-debian12` — this build is dynamically linked against glibc
+  *and* libstdc++, not "mostly static"). Maven repo credentials are passed
+  via a BuildKit secret mount (`--secret id=maven_settings`), never
+  `COPY`'d into a layer. Four things the plain "GraalVM builder +
+  native-image" mental model misses, all found by actually running the
+  build rather than assuming it would work:
+  1. **The builder base image matters more than it looks like it should.**
+     The obvious choice, `ghcr.io/graalvm/native-image-community:25`, is
+     built on **Oracle Linux 10**, which raised its glibc CPU baseline to
+     **x86-64-v3** (requires AVX2/BMI2/FMA/etc., a ~2015-era Haswell
+     baseline). It built and ran fine on this dev machine (Apple Silicon,
+     via emulation) but **crashed immediately on the first real deployment**
+     with `Fatal glibc error: CPU does not support x86-64-v3` — the
+     deployment platform's actual x86-64 CPU/VM doesn't offer those
+     extensions. This is a known, sharp edge of RHEL-10-family base images
+     in general, not specific to GraalVM. Fixed by switching the builder to
+     plain `ubuntu:24.04` (Debian/Ubuntu have not raised their baseline —
+     still plain x86-64) with GraalVM and the native-image build toolchain
+     (`build-essential`, `zlib1g-dev`) installed manually, same as Maven
+     below. The runtime stage (`distroless/cc-debian12`) was already
+     Debian-based and unaffected.
+  2. The builder image ships the JDK and `native-image` only — no Maven —
+     installed here from a pinned `archive.apache.org` tarball (not
+     `dlcdn.apache.org`, which only mirrors the latest 3.9.x and 404s once a
+     pinned older version rolls off).
+  3. `ruleset.xml` (referenced by the PMD plugin via `${project.basedir}`)
+     has to be `COPY`'d alongside `pom.xml` — easy to miss since it's not
+     under `src/`.
+  4. `config/native.env` has to be sourced *inside* the build (`COPY`'d in,
+     then `. ./config/native.env` before `mvn`) for exactly the same reason
+     it's needed locally — the container has no more access to Vault/Config
+     Server than this host does.
+
+  **Still not independently confirmed end-to-end on this machine** after the
+  Ubuntu-base fix: this host has been under severe memory pressure
+  (as little as 599MB free of 32GB, competing with everything else running
+  here) since the earlier `docker build` attempts, which twice got the
+  build itself killed by macOS's own memory-pressure protection before
+  reaching `native-image` (not a Dockerfile flaw — the OrbStack VM has
+  15.66GB allocated, comfortably above the ~7–9GB peak RSS `native-image`
+  used in the successful, repeated *direct-on-host* builds). Given that,
+  the Ubuntu-base fix for the x86-64-v3 crash was verified by (a) confirming
+  both `linux-x64` and `linux-aarch64` GraalVM CE tarballs actually resolve
+  (HTTP 200, not 404) at the URLs used, and (b) careful review of the
+  Dockerfile syntax, rather than a full local `docker build`. The exact same
+  `mvn -Pnative clean package native:compile` invocation this Dockerfile
+  runs is the one already proven, multiple times, directly on this host —
+  only the OS underneath changed. Recommend the next real deployment attempt
+  (or a CI run) as the actual confirmation.
 - **`README.md`**: a "Build and run as a GraalVM Native Image" section
   covering both the local CLI flow and the Docker flow.
 
