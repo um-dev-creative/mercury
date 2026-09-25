@@ -9,7 +9,7 @@ version: 1.0
 Every controller implements a `*Api` interface. OpenAPI annotations live on the interface only.
 
 ```java
-// Interface (com.prx.mercury.api.v1.controller.CampaignApi)
+// Interface (com.umdc.mercury.api.v1.controller.CampaignApi)
 @Tag(name = "campaigns", description = "Campaign Management API")
 public interface CampaignApi {
     @Operation(summary = "...", operationId = "createCampaign")
@@ -17,7 +17,7 @@ public interface CampaignApi {
     ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request);
 }
 
-// Controller (com.prx.mercury.api.v1.controller.CampaignController)
+// Controller (com.umdc.mercury.api.v1.controller.CampaignController)
 @RestController
 @RequestMapping("/api/v1/campaigns")
 public class CampaignController implements CampaignApi { ... }
@@ -40,7 +40,7 @@ public class CampaignServiceImpl implements CampaignService {
 
 ### DTO pattern
 ```java
-// com.prx.mercury.api.v1.to
+// com.umdc.mercury.api.v1.to
 public record CreateCampaignRequest(
     @NotNull UUID channelTypeId,
     @NotNull UUID templateId,
@@ -89,19 +89,19 @@ public class SmsChannelService implements ChannelService<SmsMessageTO> {
 
 ## 4. Key Files
 
-- `../../../src/main/java/com/umdc/api/v1/controller/CampaignApi.java` — reference interface
-- `../../../src/main/java/com/umdc/api/v1/service/CampaignServiceImpl.java` — reference service
-- `../../../src/main/java/com/umdc/kafka/consumer/service/ChannelService.java` — channel contract
-- `../../../src/main/java/com/umdc/kafka/router/MessageChannelRouter.java` — routing logic
-- `../../../src/main/java/com/umdc/processor/MessageProcessor.java` — email lifecycle
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java` — reference interface
+- `../../../src/main/java/com/umdc/mercury/api/v1/service/CampaignServiceImpl.java` — reference service
+- `../../../src/main/java/com/umdc/mercury/kafka/consumer/service/ChannelService.java` — channel contract
+- `../../../src/main/java/com/umdc/mercury/kafka/router/MessageChannelRouter.java` — routing logic
+- `../../../src/main/java/com/umdc/mercury/processor/MessageProcessor.java` — email lifecycle
 - `src/main/resources/bootstrap.yml` — property placeholders
 
 ## 5. Constraints
 
 - No `System.out.println` — use SLF4J only
 - No MapStruct `new XxxMapper()` — always inject as Spring bean
-- Scheduler `fixedRateString` must use `${prx.scheduler.*}` placeholder
-- No hardcoded Kafka topic strings — use `${prx.consumer.topics.*}`
+- Scheduler `fixedRateString` must use `${umdc.scheduler.*}` placeholder
+- No hardcoded Kafka topic strings — use `${umdc.consumer.topics.*}`
 - Every class needs at least one explicit constructor (PMD `AtLeastOneConstructor`)
 
 ## 6. Checklist

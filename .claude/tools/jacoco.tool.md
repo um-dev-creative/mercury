@@ -46,10 +46,10 @@ Activates the `coverage` profile which generates `target/site/jacoco/jacoco.xml`
 ## Reading the Report
 
 Open `target/site/jacoco/index.html` in a browser. Navigate to:
-- `com.prx.mercury.api.v1.service` — service layer coverage (most important)
-- `com.prx.mercury.processor` — `MessageProcessor` coverage
-- `com.prx.mercury.mapper` — MapStruct mapper coverage
-- `com.prx.mercury.kafka` — Kafka listener/router coverage
+- `com.umdc.mercury.api.v1.service` — service layer coverage (most important)
+- `com.umdc.mercury.processor` — `MessageProcessor` coverage
+- `com.umdc.mercury.mapper` — MapStruct mapper coverage
+- `com.umdc.mercury.kafka` — Kafka listener/router coverage
 
 ## Notes
 

@@ -20,7 +20,7 @@ git checkout -b feature/<issue-id>-<short-description>
 
 ### Stage and commit
 ```bash
-git add src/main/java/com/prx/mercury/api/v1/controller/CampaignController.java
+git add src/main/java/com/umdc/mercury/api/v1/controller/CampaignController.java
 git commit -m "feat: add PATCH /api/v1/campaigns/{id}/toggle endpoint"
 ```
 

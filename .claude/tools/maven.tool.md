@@ -26,12 +26,12 @@ Compiles, runs PMD (fails on violations), and executes all JUnit 5 tests via Sur
 
 ### Run a single test class
 ```bash
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest surefire:test
 ```
 
 ### Run a single test method
 ```bash
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
 ```
 
 ### Full build with tests and JaCoCo coverage report
@@ -50,7 +50,7 @@ Generates `target/site/jacoco/jacoco.xml` for SonarCloud integration.
 ```bash
 mvn -Pbenchmark clean test
 ```
-Runs JMH benchmark classes in `src/test/java/com/prx/mercury/benchmark/`.
+Runs JMH benchmark classes in `src/test/java/com/umdc/mercury/benchmark/`.
 
 ## Output Locations
 

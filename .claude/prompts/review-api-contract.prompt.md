@@ -14,14 +14,14 @@ tools: [Read, Bash]
 ## Steps
 
 1. **Read the API interface**:
-   - `src/main/java/com/prx/mercury/api/v1/controller/${apiInterface}.java`
+   - `src/main/java/com/umdc/mercury/api/v1/controller/${apiInterface}.java`
 
 2. **Read the controller implementation**:
-   - `src/main/java/com/prx/mercury/api/v1/controller/${apiInterface/Api/Controller}.java`
+   - `src/main/java/com/umdc/mercury/api/v1/controller/${apiInterface/Api/Controller}.java`
    - Verify no OpenAPI annotations exist on the controller class
 
 3. **Read the request/response DTOs** for each endpoint:
-   - `src/main/java/com/prx/mercury/api/v1/to/` — check all referenced record types
+   - `src/main/java/com/umdc/mercury/api/v1/to/` — check all referenced record types
 
 4. **Read `GlobalExceptionHandler`** to cross-reference status codes:
    - `../../src/main/java/com/umdc/mercury/api/v1/controller/GlobalExceptionHandler.java`

@@ -23,7 +23,7 @@ Reviews code changes in Mercury for: PMD static-analysis violations, layering vi
 ## Conventions to Follow
 
 - Flag any `@Operation` or `@ApiResponse` annotation found directly on a `*Controller` class
-- Flag hardcoded numeric literals in `@Scheduled(fixedRate = ...)` — must use `${prx.scheduler.*}`
+- Flag hardcoded numeric literals in `@Scheduled(fixedRate = ...)` — must use `${umdc.scheduler.*}`
 - Flag loggers that are not `LoggerFactory.getLogger()` (SLF4J)
 - Flag `new CampaignMapper()` style — MapStruct mappers are Spring beans
 - Verify `GlobalExceptionHandler` covers every new exception type introduced
