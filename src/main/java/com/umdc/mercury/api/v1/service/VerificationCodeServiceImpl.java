@@ -126,9 +126,9 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
             return ResponseEntity.ok(isVerified);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

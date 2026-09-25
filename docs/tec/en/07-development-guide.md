@@ -17,7 +17,7 @@ flowchart LR
     E --> F["6. Run from the IDE<br/>or docker compose up"]
 ```
 
-1. **Clone the repository** and verify you have Java 21 (`java -version`).
+1. **Clone the repository** and verify you have Java 25 LTS (`java -version`).
 2. **Maven credentials** — `~/.m2/settings.xml` with the `repsy` server for `https://repo.repsy.io/mvn/lmata/prx` (private dependencies `prx-commons`, `commons-services`, `security-oauth`).
 3. **Certificates** — ask a teammate for `certs/mercury/` (gitignored), or extract them from Vault. See [06 · Environment Configuration](06-environment-configuration.md#1-certificates--certsmercury).
 4. **`default.env`** — same deal, ask for it or build it variable by variable using `environment_variables.md` as a reference. **Never commit it.**

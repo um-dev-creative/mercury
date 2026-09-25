@@ -2,7 +2,7 @@
 
 🌐 [Read this in English](../en/README.md)
 
-> **Mercury** es un microservicio de mensajería multicanal — construido con **Spring Boot 4.1.0 + Java 21**, expone una API REST, encola mensajes por canal (Email/SMS/Telegram/WhatsApp/Push) vía **Kafka**, entrega emails por SMTP con plantillas FreeMarker, y persiste en **PostgreSQL** (durable) y **MongoDB** (transitorio), con configuración y secretos centralizados en **Spring Cloud Config + HashiCorp Vault**.
+> **Mercury** es un microservicio de mensajería multicanal — construido con **Spring Boot 4.1.0 + Java 25 (LTS)**, expone una API REST, encola mensajes por canal (Email/SMS/Telegram/WhatsApp/Push) vía **Kafka**, entrega emails por SMTP con plantillas FreeMarker, y persiste en **PostgreSQL** (durable) y **MongoDB** (transitorio), con configuración y secretos centralizados en **Spring Cloud Config + HashiCorp Vault**.
 >
 > Esta carpeta documenta cómo está construido por dentro: para quien necesite sumarse al desarrollo, auditar una decisión de arquitectura, o entender por qué algo funciona como funciona.
 

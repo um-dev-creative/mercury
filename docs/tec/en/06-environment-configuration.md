@@ -43,7 +43,7 @@ flowchart LR
 
 ### Requirements
 
-- Java 21 (JDK, not just JRE)
+- Java 25 LTS (JDK, not just JRE)
 - Maven (or the IDE's wrapper)
 - Network access to `vault.umdc-qa.tst` and `config-server.umdc-qa.tst` (VPN/internal DNS depending on the team)
 - Credentials in `~/.m2/settings.xml` for `https://repo.repsy.io/mvn/lmata/prx` (private PRX dependencies)

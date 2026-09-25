@@ -33,7 +33,7 @@ JaCoCo enforces **70% line coverage** (BUNDLE) and **50% branch coverage** (PACK
 
 ## Architecture Overview
 
-Mercury is a **multi-channel messaging microservice** built on Spring Boot 3.5.8 / Java 21. It exposes a REST API, queues messages via Kafka, sends emails via SMTP with FreeMarker templates, and persists data across PostgreSQL and MongoDB.
+Mercury is a **multi-channel messaging microservice** built on Spring Boot 4.1.0 / Java 25 (LTS). It exposes a REST API, queues messages via Kafka, sends emails via SMTP with FreeMarker templates, and persists data across PostgreSQL and MongoDB.
 
 ### Layered Request Flow
 

@@ -31,7 +31,7 @@ public class MongoHealthConfig {
             try {
                 Document result = mongoTemplate.getDb().runCommand(new Document("ping", 1));
                 builder.up().withDetail("maxWireVersion", result.getInteger("ok", 0));
-            } catch (IllegalStateException e) {
+            } catch (IllegalStateException _) {
                 // MongoDB cluster closed during context shutdown — not a real failure
                 builder.unknown().withDetail("reason", "MongoDB cluster closed (shutdown in progress)");
             } catch (Exception e) {
