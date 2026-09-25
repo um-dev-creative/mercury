@@ -6,14 +6,16 @@
 # copy just the binary into a minimal runtime image. See docs/architecture/
 # graalvm-native-image.md for what this trades off against the JIT Dockerfile.
 #
-# Builder base is plain Ubuntu, NOT ghcr.io/graalvm/native-image-community:25 — that image is
+# Builder base is minimal Debian, NOT ghcr.io/graalvm/native-image-community:25 — that image is
 # built on Oracle Linux 10, which raised its glibc CPU baseline to x86-64-v3 (requires AVX2/BMI2),
 # and fails immediately ("Fatal glibc error: CPU does not support x86-64-v3") on deployment
-# platforms whose CPU/VM doesn't offer those extensions. Ubuntu/Debian keep the original
-# x86-64 baseline, so GraalVM and Maven are installed manually here instead — confirmed as the
-# actual, environment-specific cause (not a build-logic bug) after a build that worked fine
-# locally (Apple Silicon) failed on first real deployment (x86-64 without v3).
-FROM ubuntu:24.04 AS builder
+# platforms whose CPU/VM doesn't offer those extensions. Debian/Ubuntu keep the original x86-64
+# baseline, so GraalVM and Maven are installed manually here instead — confirmed as the actual,
+# environment-specific cause (not a build-logic bug) after a build that worked fine locally
+# (Apple Silicon) failed on first real deployment (x86-64 without v3). debian:12-slim, not
+# ubuntu:24.04, as the lighter of the two safe (non-v3) options — same glibc, apt, and CPU
+# baseline guarantee, fewer preinstalled packages/docs.
+FROM debian:12-slim AS builder
 ARG TARGETARCH
 WORKDIR /build
 

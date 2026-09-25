@@ -51,8 +51,10 @@ successfully**, serving a real authenticated HTTPS request end to end.
      deployment platform's actual x86-64 CPU/VM doesn't offer those
      extensions. This is a known, sharp edge of RHEL-10-family base images
      in general, not specific to GraalVM. Fixed by switching the builder to
-     plain `ubuntu:24.04` (Debian/Ubuntu have not raised their baseline —
-     still plain x86-64) with GraalVM and the native-image build toolchain
+     `debian:12-slim` (Debian/Ubuntu have not raised their baseline — still
+     plain x86-64; `-slim`, not `ubuntu:24.04`, as the lighter of the two
+     equally-safe options — an explicit follow-up request after the first
+     fix) with GraalVM and the native-image build toolchain
      (`build-essential`, `zlib1g-dev`) installed manually, same as Maven
      below. The runtime stage (`distroless/cc-debian12`) was already
      Debian-based and unaffected.
@@ -69,14 +71,14 @@ successfully**, serving a real authenticated HTTPS request end to end.
      Server than this host does.
 
   **Still not independently confirmed end-to-end on this machine** after the
-  Ubuntu-base fix: this host has been under severe memory pressure
+  Debian-base fix: this host has been under severe memory pressure
   (as little as 599MB free of 32GB, competing with everything else running
   here) since the earlier `docker build` attempts, which twice got the
   build itself killed by macOS's own memory-pressure protection before
   reaching `native-image` (not a Dockerfile flaw — the OrbStack VM has
   15.66GB allocated, comfortably above the ~7–9GB peak RSS `native-image`
   used in the successful, repeated *direct-on-host* builds). Given that,
-  the Ubuntu-base fix for the x86-64-v3 crash was verified by (a) confirming
+  the Debian-base fix for the x86-64-v3 crash was verified by (a) confirming
   both `linux-x64` and `linux-aarch64` GraalVM CE tarballs actually resolve
   (HTTP 200, not 404) at the URLs used, and (b) careful review of the
   Dockerfile syntax, rather than a full local `docker build`. The exact same
