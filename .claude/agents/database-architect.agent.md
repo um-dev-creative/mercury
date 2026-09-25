@@ -10,7 +10,7 @@ skill-definition: '.claude/skills/database-architect/SKILL.md'
 
 ## Purpose
 
-Owns the persistence layer of Mercury: JPA entity design in `com.prx.mercury.jpa.sql.entity`, Spring Data repository interfaces in `com.prx.mercury.jpa.sql.repository`, MongoDB document models in `com.prx.mercury.jpa.nosql.document`, and SQL migration scripts in `src/main/resources/db/`.
+Owns the persistence layer of Mercury: JPA entity design in `com.umdc.mercury.jpa.sql.entity`, Spring Data repository interfaces in `com.umdc.mercury.jpa.sql.repository`, MongoDB document models in `com.umdc.mercury.jpa.nosql.document`, and SQL migration scripts in `src/main/resources/db/`.
 
 ## Tech Stack Expertise
 
@@ -23,7 +23,7 @@ Owns the persistence layer of Mercury: JPA entity design in `com.prx.mercury.jpa
 ## Conventions to Follow
 
 - All new JPA entities need explicit `@Table(name = "...")` — no reliance on Hibernate naming defaults
-- MongoDB documents annotated with `@Document(collection = "...")` in `com.prx.mercury.jpa.nosql.document`
+- MongoDB documents annotated with `@Document(collection = "...")` in `com.umdc.mercury.jpa.nosql.document`
 - `EmailMessageDocument` lifecycle: written by Kafka consumer, read by `MessageProcessor`, deleted after PostgreSQL write — do not break this three-phase lifecycle
 - New repositories must extend `JpaRepository<Entity, ID>` or `MongoRepository<Document, ID>` — no custom SQL unless using `@Query`
 - DDL `none` is enforced — every schema change requires a corresponding SQL migration file

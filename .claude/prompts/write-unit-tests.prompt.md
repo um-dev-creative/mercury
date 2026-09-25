@@ -8,7 +8,7 @@ tools: [Read, Write, Bash]
 
 ## Input Variables
 
-- `${targetClass}` — fully qualified class name (e.g., `com.prx.mercury.api.v1.service.CampaignServiceImpl`)
+- `${targetClass}` — fully qualified class name (e.g., `com.umdc.mercury.api.v1.service.CampaignServiceImpl`)
 - `${testScope}` — `unit` (Mockito, no Spring context) or `slice` (WebMvcTest / DataJpaTest)
 
 ## Steps
@@ -22,10 +22,10 @@ tools: [Read, Write, Bash]
    - Note which methods already have tests and what's missing
 
 3. **Read a reference test** for the same layer type:
-   - Service: `src/test/java/com/prx/mercury/api/v1/service/CampaignServiceImplTest.java`
-   - Controller: `src/test/java/com/prx/mercury/api/v1/controller/CampaignControllerTest.java`
-   - Mapper: `src/test/java/com/prx/mercury/mapper/CampaignMapperTest.java`
-   - Processor: `src/test/java/com/prx/mercury/processor/MessageProcessorTest.java`
+   - Service: `src/test/java/com/umdc/mercury/api/v1/service/CampaignServiceImplTest.java`
+   - Controller: `src/test/java/com/umdc/mercury/api/v1/controller/CampaignControllerTest.java`
+   - Mapper: `src/test/java/com/umdc/mercury/mapper/CampaignMapperTest.java`
+   - Processor: `src/test/java/com/umdc/mercury/processor/MessageProcessorTest.java`
 
 4. **Write the test class** at `src/test/java/${targetClass.toPath()}Test.java`:
 
@@ -78,6 +78,6 @@ tools: [Read, Write, Bash]
 
 ## Output Format
 
-- Test file path: `src/test/java/com/prx/mercury/<package>/${ClassName}Test.java`
+- Test file path: `src/test/java/com/umdc/mercury/<package>/${ClassName}Test.java`
 - Methods covered: table with Method | Happy Path | Exception Path | Async Path
 - Run result: `mvn -Dtest=${ClassName}Test surefire:test` PASS / FAIL

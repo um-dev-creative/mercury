@@ -20,7 +20,7 @@ tools: [Read, Edit, Bash]
    - If `${affectedEndpoint}` is a REST endpoint: read controller, then service impl
    - If Kafka-related: read `MultiChannelListener`, `MessageChannelRouter`, and the affected `*ChannelService`
    - If scheduler-related: read `SendEmailScheduler`, `MessageProcessor`
-   - If mapper-related: read the `*Mapper` interface in `src/main/java/com/prx/mercury/mapper/`
+   - If mapper-related: read the `*Mapper` interface in `src/main/java/com/umdc/mercury/mapper/`
 
 2. **Identify the root cause** by tracing the call chain:
    ```
@@ -50,7 +50,7 @@ tools: [Read, Edit, Bash]
    ```
 
 7. **Add or update a regression test** in the corresponding `*Test` class:
-   - Test class at `src/test/java/com/prx/mercury/<matching-package>/`
+   - Test class at `src/test/java/com/umdc/mercury/<matching-package>/`
    - Test method name: `<method>_should<ExpectedBehavior>_when<BugCondition>()`
 
 ## Constraints

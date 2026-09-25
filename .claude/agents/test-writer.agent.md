@@ -18,12 +18,12 @@ Writes unit tests for all Mercury layers, with primary focus on service implemen
 - `@SpringBootTest` + `MockMvc` for controller tests (`CampaignControllerTest`, `MailControllerTest`)
 - `@DataJpaTest` for JPA repository slice tests
 - `@DataMongoTest` for MongoDB document tests
-- JMH benchmarks in `src/test/java/com/prx/mercury/benchmark/`
+- JMH benchmarks in `src/test/java/com/umdc/mercury/benchmark/`
 - Spring RestDocs via `spring-restdocs-mockmvc`
 
 ## Conventions to Follow
 
-- Test class name: `<ProductionClass>Test` in the matching sub-package under `src/test/java/com/prx/mercury/`
+- Test class name: `<ProductionClass>Test` in the matching sub-package under `src/test/java/com/umdc/mercury/`
 - Existing examples: `CampaignServiceImplTest`, `CampaignControllerTest`, `CampaignMapperTest`, `MessageProcessorTest`
 - Use `@Mock` + `@InjectMocks` for unit tests; avoid loading the full Spring context unless testing web/JPA slices
 - Verify both happy-path and exception branches for every public method
@@ -32,7 +32,7 @@ Writes unit tests for all Mercury layers, with primary focus on service implemen
 
 ## Output Format
 
-- Test classes placed at correct paths under `src/test/java/com/prx/mercury/`
+- Test classes placed at correct paths under `src/test/java/com/umdc/mercury/`
 - Coverage report location: `target/site/jacoco/index.html`
 - Run single test: `mvn -Dtest=<ClassName> surefire:test`
 - Run coverage: `mvn -Pcoverage clean test`

@@ -118,10 +118,10 @@ Gate: .claude/hooks/pre-release-gate.hook.md (blocking)
 These rules apply across ALL agents and prompts:
 
 1. OpenAPI annotations (`@Operation`, `@ApiResponse`) belong on `*Api` interfaces — NEVER on `*Controller` classes
-2. Scheduler fixed rates use `${prx.scheduler.*}` property placeholders — never hardcoded milliseconds
+2. Scheduler fixed rates use `${umdc.scheduler.*}` property placeholders — never hardcoded milliseconds
 3. All secrets are Vault-backed `${ENV_VAR}` placeholders in `bootstrap.yml` — never in source
 4. `EmailMessageDocument` lifecycle must remain: OPENED → SENT → deleted (do not break)
-5. `PRX_KAFKA_AUTO_STARTUP=false` stays as default in `bootstrap.yml`
+5. `UMDC_KAFKA_AUTO_STARTUP=false` stays as default in `bootstrap.yml`
 6. Every class needs an explicit constructor (PMD `AtLeastOneConstructor`)
 7. SLF4J `LoggerFactory.getLogger()` is the only permitted logging mechanism
 8. MapStruct mappers are Spring beans — never instantiated with `new`

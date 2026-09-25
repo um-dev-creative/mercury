@@ -8,14 +8,14 @@ tools: [Read, Bash]
 
 ## Input Variables
 
-- `${auditScope}` — `PR` (audit current branch diff), `FULL` (audit entire codebase), or a specific package like `com.prx.mercury.security`
+- `${auditScope}` — `PR` (audit current branch diff), `FULL` (audit entire codebase), or a specific package like `com.umdc.mercury.security`
 - `${prNumber}` — PR number if `${auditScope}` is `PR` (optional)
 
 ## Steps
 
 1. **Get scope**:
    - For PR: `git diff main...HEAD`
-   - For FULL: read all files in `src/main/java/com/prx/mercury/`
+   - For FULL: read all files in `src/main/java/com/umdc/mercury/`
 
 2. **Scan for hardcoded secrets**:
    ```bash

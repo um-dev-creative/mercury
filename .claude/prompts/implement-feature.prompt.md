@@ -23,20 +23,20 @@ tools: [Read, Edit, Write, Bash]
    - `../../src/main/java/com/umdc/mercury/api/v1/service/CampaignServiceImpl.java`
    - `../../src/main/java/com/umdc/mercury/api/v1/to/CreateCampaignRequest.java`
 
-2. **Create or update the `*Api` interface** at `src/main/java/com/prx/mercury/api/v1/controller/`:
+2. **Create or update the `*Api` interface** at `src/main/java/com/umdc/mercury/api/v1/controller/`:
    - Add method with `@Operation(summary, description, operationId)` and `@ApiResponses`
    - Include status codes: 200/201, 400, 403, 404 (if by ID), 422 (if channel involved), 500
    - `operationId` must be camelCase: `${httpMethod.toLowerCase}${featureName.camelCase}`
 
-3. **Create the request DTO** at `src/main/java/com/prx/mercury/api/v1/to/${requestRecord}.java`:
+3. **Create the request DTO** at `src/main/java/com/umdc/mercury/api/v1/to/${requestRecord}.java`:
    - Java `record` with Bean Validation annotations (`@NotNull`, `@NotBlank`, `@Valid`)
    - No mutable state — records only
 
-4. **Create or update the `*Service` interface** at `src/main/java/com/prx/mercury/api/v1/service/`:
+4. **Create or update the `*Service` interface** at `src/main/java/com/umdc/mercury/api/v1/service/`:
    - Method returns `CompletableFuture<${responseRecord}>` for write operations
    - Method returns `${responseRecord}` or `List<${responseRecord}>` for read operations
 
-5. **Implement `*ServiceImpl`** at `src/main/java/com/prx/mercury/api/v1/service/`:
+5. **Implement `*ServiceImpl`** at `src/main/java/com/umdc/mercury/api/v1/service/`:
    - `private static final Logger logger = LoggerFactory.getLogger(XxxServiceImpl.class)`
    - Inject dependencies via constructor (no `@Autowired` on fields)
    - Throw `CampaignNotFoundException` for missing UUIDs
@@ -44,7 +44,7 @@ tools: [Read, Edit, Write, Bash]
    - Throw `ForbiddenException` for auth failures
    - Include explicit no-arg or all-arg constructor (PMD `AtLeastOneConstructor`)
 
-6. **Update the `*Controller`** at `src/main/java/com/prx/mercury/api/v1/controller/`:
+6. **Update the `*Controller`** at `src/main/java/com/umdc/mercury/api/v1/controller/`:
    - Implement the interface method
    - Add `@Valid` annotation on request body parameter
    - Delegate to service, wrap result in `ResponseEntity`
@@ -67,7 +67,7 @@ tools: [Read, Edit, Write, Bash]
 ## Constraints
 
 - OpenAPI annotations ONLY on `*Api` interface — never on `*Controller`
-- Scheduler rates use `${prx.scheduler.*}` placeholders — no hardcoded milliseconds
+- Scheduler rates use `${umdc.scheduler.*}` placeholders — no hardcoded milliseconds
 - Logger: `LoggerFactory.getLogger()` only — no Log4j, no `java.util.logging`
 - Kafka topics referenced from `bootstrap.yml` properties — never hardcoded strings
 - No `new CampaignMapper()` — mappers are Spring beans
@@ -75,9 +75,9 @@ tools: [Read, Edit, Write, Bash]
 ## Output Format
 
 List of files created/modified:
-- `src/main/java/com/prx/mercury/api/v1/controller/<Interface>.java` — created/updated
-- `src/main/java/com/prx/mercury/api/v1/controller/<Controller>.java` — created/updated
-- `src/main/java/com/prx/mercury/api/v1/to/<RequestRecord>.java` — created
-- `src/main/java/com/prx/mercury/api/v1/service/<Service>.java` — created/updated
-- `src/main/java/com/prx/mercury/api/v1/service/<ServiceImpl>.java` — created/updated
+- `src/main/java/com/umdc/mercury/api/v1/controller/<Interface>.java` — created/updated
+- `src/main/java/com/umdc/mercury/api/v1/controller/<Controller>.java` — created/updated
+- `src/main/java/com/umdc/mercury/api/v1/to/<RequestRecord>.java` — created
+- `src/main/java/com/umdc/mercury/api/v1/service/<Service>.java` — created/updated
+- `src/main/java/com/umdc/mercury/api/v1/service/<ServiceImpl>.java` — created/updated
 - Build result: PASS / FAIL with details
