@@ -68,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
         UUID userId = getUidFromToken(sessionTokenBkd);
         try {
             parameters.put("uid", userId.toString());
-        } catch (FeignException.NotFound e) {
+        } catch (FeignException.NotFound _) {
             logger.info("Token is not validated {}:{}", userId, authRequest.alias());
             parameters.put("vcCompleted", FALSE);
         }

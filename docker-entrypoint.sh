@@ -9,6 +9,7 @@
 set -e
 
 exec java \
+    -XX:+UseCompactObjectHeaders \
     -Dspring.cloud.vault.enabled="${VAULT_ENABLED:-false}" \
     -Dspring.application.name=mercury \
     -Dapi.info.version=1.0.0 \

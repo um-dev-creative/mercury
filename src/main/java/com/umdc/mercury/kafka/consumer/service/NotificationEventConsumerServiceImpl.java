@@ -27,7 +27,7 @@ public class NotificationEventConsumerServiceImpl implements NotificationEventCo
         ChannelType channelType;
         try {
             channelType = ChannelType.fromCode(rawChannel);
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             logger.warn("Unknown channel type '{}' for messageId={}, discarding", rawChannel, event.header().messageId());
             return;
         }

@@ -27,7 +27,7 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <!--        UMDC Commons-->
         <com.umdc.commons.version>0.0.1</com.umdc.commons.version>
         <com.umdc.commons-services.version>0.0.1</com.umdc.commons-services.version>
@@ -61,7 +61,8 @@
         <jwt.version>0.12.6</jwt.version>
         <rewrite.plugin.version>5.42.0</rewrite.plugin.version>
         <rewrite.recipe.version>5.21.0</rewrite.recipe.version>
-        <asm.version>9.7</asm.version>
+        <!-- 9.7 does not parse Java 25 (class file 69) bytecode; 9.10.1 adds official Java 25 support -->
+        <asm.version>9.10.1</asm.version>
         <poi.version>5.5.1</poi.version>
         <!-- Transitive versions pinned above what telegrambots-webhook (via javalin/ssl-plugin) resolves,
              to close known CVEs: CVE-2025-5115 (Jetty HTTP/2 MadeYouReset) and CVE-2026-5588 (BouncyCastle) -->
@@ -572,6 +573,21 @@
                         <arg>-Xlint:deprecation</arg>
                     </compilerArgs>
                     <release>${java.version}</release>
+                    <!-- javac stopped auto-discovering annotation processors on the compile
+                         classpath (JDK-8321319); MapStruct/Spring Boot's config-metadata
+                         processor must be declared explicitly or they silently stop running. -->
+                    <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>

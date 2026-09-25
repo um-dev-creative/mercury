@@ -22,9 +22,9 @@ Run a single test class
 mvn -Dtest=com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest surefire:test
 ```
 
-Run all tests (recommended on CI or using Java 21)
+Run all tests (recommended on CI or using Java 25)
 -------------------------------------------------
-If your Java SDK is compatible with the project's tooling (Java 21 as specified in `pom.xml`) you can run the full test lifecycle and report generation:
+If your Java SDK is compatible with the project's tooling (Java 25 LTS as specified in `pom.xml`) you can run the full test lifecycle and report generation:
 
 ```pwsh
 # Run unit tests and generate JaCoCo coverage (profile may require configuration in pom.xml)
@@ -61,10 +61,13 @@ sonar-scanner -Dsonar.projectKey=mercury_local -Dsonar.host.url=http://localhost
 
 Workarounds for local tool incompatibilities
 -------------------------------------------
-- PMD / ASM may fail on very new JDK versions (error: "Unsupported class file major version 69"). Workarounds:
-  - Use Java 21 for local full `mvn test` runs (recommended). The project `pom.xml` declares Java 21.
-  - Alternatively run the focused test set via Surefire plugin directly (see Quick test run above).
-  - Upgrade PMD/ASM plugin versions in `pom.xml` to versions compatible with the local JDK.
+- Resolved as of the Java 25 migration (MER-4): the "Unsupported class file major version 69" error
+  was caused by ASM 9.7, pinned for the Surefire Mockito-agent override, not supporting Java 25
+  bytecode. `pom.xml` now pins `asm.version` to 9.10.1, which supports it — no workaround needed
+  when building on Java 25 as declared in `pom.xml`.
+- If you still see this error on an even newer local JDK than the project targets, the same fix
+  applies: bump `asm.version` (and check `jacoco-maven-plugin`/`maven-pmd-plugin`) to a release that
+  supports that JDK's class file version.
 
 Collecting reports
 ------------------
@@ -72,7 +75,7 @@ Collecting reports
 - JaCoCo exec/xml/html reports are placed under `target/site/jacoco` when the jacoco plugin runs.
 
 If you want me to:
-- Run the full test suite and generate the JaCoCo report using Java 21 in this environment, I can attempt to switch the JDK for the run (if available) or advise on how to run it locally.
+- Run the full test suite and generate the JaCoCo report using Java 25 in this environment, I can attempt to switch the JDK for the run (if available) or advise on how to run it locally.
 - Generate a dependency CVE report and propose fixes for high severity items.
 - Create a GitHub Actions CI workflow that runs tests, JaCoCo, and Sonar on each PR.
 

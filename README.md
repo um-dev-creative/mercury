@@ -36,7 +36,7 @@ Mercury is a messaging backend and utility service used by PRX to process and ro
 Requirements
 ------------
 Minimum requirements to build and run Mercury locally:
-- Java 21 (JDK) or a compatible runtime (Amazon Corretto 21 recommended)
+- Java 25 (JDK, LTS) or a compatible runtime (Amazon Corretto 25 recommended)
 - Maven 3.6+ (3.8+ recommended)
 - Docker (optional; required to run the provided Dockerfile locally)
 - PostgreSQL (if you need to run integration tests or use the JPA-backed features)
