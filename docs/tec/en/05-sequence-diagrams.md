@@ -8,6 +8,9 @@
 
 ## 1️⃣ Application startup (bootstrap: Vault → Config Server)
 
+> [!WARNING]
+> **Needs re-verification after MER-5.** This diagram documents the legacy `spring.cloud.bootstrap.enabled` mechanism (`PropertySourceBootstrapConfiguration`, a separate bootstrap-phase context), which MER-5 removed — it was incompatible with GraalVM Native Image AOT processing (see `docs/architecture/graalvm-native-image.md`). Config now comes in via `spring.config.import=optional:vault://,optional:configserver:` (modern `ConfigDataLoader` mechanism) declared directly in `application.yml`, using the same `spring.cloud.vault.*`/`spring.cloud.config.*` properties as before. The precedence order below (Vault → Config Server → local) is expected to still hold — Spring's ConfigData imports are inserted ahead of the importing file's own properties — but this has only been verified with Vault/Config Server *disabled* (local dev, native builds); it has not been re-verified against a live Vault/Config Server run, and the exact property-source names in this diagram (`bootstrapProperties-*`) are specific to the removed mechanism and no longer accurate.
+
 This is the flow that has caused the most real incidents — documented in detail because the order matters.
 
 ```mermaid
@@ -18,7 +21,7 @@ sequenceDiagram
     participant Git as Git (GitLab)
     participant App as Main context
 
-    JVM->>JVM: Loads bootstrap.yml (local, in the jar)
+    JVM->>JVM: Loads application.yml (local, in the jar)
     JVM->>Vault: GET /v1/auth/token/lookup-self<br/>(validates VAULT_TOKEN, TLS via certs/mercury/umdc-truststore.jks)
     Vault-->>JVM: 200 OK
 
@@ -31,7 +34,7 @@ sequenceDiagram
     CS-->>JVM: PropertySource "bootstrapProperties-configClient"
 
     JVM->>App: Starts the main context with the merged Environment
-    App->>App: Resolves each ${VAR} against the FULL Environment<br/>(Vault + Config Server + bootstrap.yml + system + env vars)
+    App->>App: Resolves each ${VAR} against the FULL Environment<br/>(Vault + Config Server + application.yml + system + env vars)
 ```
 
 > [!IMPORTANT]
@@ -39,7 +42,7 @@ sequenceDiagram
 > 1. Vault (`spring.cloud.vault.*` — KV secrets)
 > 2. Config Server (Git-backed)
 > 3. Local environment variables / system properties (`default.env`, `-D`)
-> 4. Local `bootstrap.yml` (this app)
+> 4. Local `application.yml` (this app)
 >
 > This is **counter-intuitive**: Vault and the Config Server win over any local variable, by design — so a centrally-managed value can't be accidentally shadowed by whatever's on a given box. A value defined in Vault (e.g. `TEMPLATE_PATH`) **cannot be overridden** by `default.env` or `-D`, regardless of the variable name used. See [06 · Environment Configuration § Real Troubleshooting](06-environment-configuration.md#-real-troubleshooting) for the actual case that prompted this note.
 

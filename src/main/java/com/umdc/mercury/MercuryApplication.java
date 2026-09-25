@@ -29,10 +29,11 @@ public class MercuryApplication {
 
     public static void main(String[] args) {
         // eureka.client.tls.trust-store/key-store are sourced from the remote Config Server
-        // (mercury-remote-supabase.yml et al.), and Spring Cloud's bootstrap mechanism always
-        // gives that remote source priority over this file's own eureka.client.tls values for
-        // any key both define - spring.cloud.config.override-none does NOT change this, since
-        // it's bound from the remote source's own properties, never from bootstrap.yml itself.
+        // (mercury-remote-supabase.yml et al.), and spring.config.import's imported property
+        // source always gives that remote source priority over this file's own eureka.client.tls
+        // values for any key both define - spring.cloud.config.override-none does NOT change
+        // this, since it's bound from the remote source's own properties, never from
+        // application.yml itself.
         // That remote value currently resolves to a ServletContext-relative path that can never
         // exist for a jar-deployed app, so eureka.client.tls stays effectively unusable from
         // Spring config alone; setupTLS() then skips building a custom SSLContext and Eureka's

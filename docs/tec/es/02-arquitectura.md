@@ -44,7 +44,7 @@ flowchart TB
     end
 
     L1 --> L2 --> L3 --> L4
-    L5 -.->|arranque: bootstrap.yml| L1
+    L5 -.->|arranque: application.yml| L1
 ```
 
 | Capa | Responsabilidad | Ejemplos reales |
@@ -133,4 +133,4 @@ Mercury tiene **dos** caminos de ingestión de mensajes en el código, en distin
 
 ---
 
-*Generado a partir de una lectura exhaustiva del código fuente real (`kafka/`, `api/v1/service/`, `bootstrap.yml`) — no de documentación previa ni de supuestos.*
+*Generado a partir de una lectura exhaustiva del código fuente real (`kafka/`, `api/v1/service/`, `application.yml`) — no de documentación previa ni de supuestos.*

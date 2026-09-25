@@ -68,7 +68,6 @@ DDL runs in `none` mode (`hibernate.ddl-auto: none`) — the PostgreSQL schema i
 
 | Dependency | Use |
 |---|---|
-| `spring-cloud-starter-bootstrap` | Enables the classic *bootstrap context* (`bootstrap.yml` is processed before `application.yml`) |
 | `spring-cloud-starter-config` | Spring Cloud Config client — fetches `mercury-{profile}.yml` from a Git repo through the Config Server |
 | `spring-cloud-starter-vault-config` | HashiCorp Vault client — fetches per-environment secrets (`KV v2`) |
 

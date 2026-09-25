@@ -126,10 +126,6 @@
             <artifactId>spring-boot-starter-jersey</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-bootstrap</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
         </dependency>
@@ -623,6 +619,50 @@
     </distributionManagement>
 
     <profiles>
+        <profile>
+            <!-- GraalVM native-image build (MER-5). Activates the native/native-build-tools
+                 wiring already pluginManagement'd by spring-boot-starter-parent (process-aot
+                 plus native-maven-plugin, native-build-tools 1.1.1) and adds the no-fallback
+                 build arg so the build fails loudly instead of silently producing a
+                 JVM-fallback "native" jar. -->
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- Mockito's default inline mock maker does not work under native-image test
+                 execution (mockito/mockito#2435) and this project's entire unit-test suite
+                 uses it — so nativeTest is wired for completeness (per Spring Boot convention)
+                 but is not the correctness gate; see docs/architecture/graalvm-native-image.md. -->
+            <id>nativeTest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
         <profile>
             <id>benchmark</id>
             <build>

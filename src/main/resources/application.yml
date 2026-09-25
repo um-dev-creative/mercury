@@ -172,6 +172,16 @@ management:
       application: ${app.name}
 
 spring:
+  # Modern Spring Cloud config-fetch mechanism (replaces the legacy spring.cloud.bootstrap.enabled
+  # bootstrap-context approach — see docs/architecture/graalvm-native-image.md for why: the legacy
+  # mechanism runs its own separate, nested SpringApplication for the bootstrap-only context before
+  # the real one, which Spring Boot's AOT processor mistakes for the whole application, silently
+  # dropping every real bean (Tomcat, JPA, Kafka, Mongo, security...) from native-image builds.
+  # `optional:` on both so a disabled/unreachable Vault or Config Server never blocks startup —
+  # spring.cloud.vault.enabled and the properties below still gate what each one actually does,
+  # completely unchanged from before this migration.
+  config:
+    import: "optional:vault://,optional:configserver:"
   kafka:
     # Bootstrap server drawn from the same env-vars used by ConsumerConfig
     bootstrap-servers: ${BOOTSTRAP_SERVER_URI:localhost}:${BOOTSTRAP_SERVER_PORT:9092}
@@ -308,9 +318,6 @@ spring:
         trust-store: file:certs/mercury/umdc-truststore.jks
         trust-store-password: changeit
         trust-store-type: PKCS12
-    bootstrap:
-      # Enables the Spring Cloud Bootstrap application context
-      enabled: ${SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED}
     # The active profile for the Spring Boot application
     profile: ${SPRING_BOOT_PROFILE_ACTIVE}
     config:

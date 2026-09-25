@@ -14,10 +14,11 @@
 [![Bugs](https://sonarcloud.io/api/project_badges/measure?project=umdc-mercury&metric=bugs)](https://sonarcloud.io/summary/new_code?id=umdc-mercury)
 
 ## Technologies
-[![Java](https://img.shields.io/badge/Java-21-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.8-brightgreen?logo=spring&style=flat-square)](https://spring.io/projects/spring-boot)
+[![Java](https://img.shields.io/badge/Java-25%20LTS-blue?logo=java&style=flat-square)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.0-brightgreen?logo=spring&style=flat-square)](https://spring.io/projects/spring-boot)
 [![Maven](https://img.shields.io/badge/Maven->=3.8-red?logo=apachemaven&style=flat-square)](https://maven.apache.org/)
-[![Docker base image](https://img.shields.io/badge/amazoncorretto-21--alpine3.23-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
+[![Docker base image](https://img.shields.io/badge/amazoncorretto-25.0.4--alpine3.24-blue?logo=docker&style=flat-square)](https://hub.docker.com/_/amazoncorretto)
+[![GraalVM Native Image](https://img.shields.io/badge/GraalVM-Native%20Image%20available-orange?logo=graalvm&style=flat-square)](https://www.graalvm.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-42.7.7-blue?logo=postgresql&style=flat-square)](https://www.postgresql.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-detected-brightgreen?logo=mongodb&style=flat-square)](https://www.mongodb.com/)
 [![Kafka](https://img.shields.io/badge/Kafka-3.9.0-orange?logo=apachekafka&style=flat-square)](https://kafka.apache.org/)
@@ -65,6 +66,66 @@ docker build -t prx/mercury:latest .
 # Run the container exposing port 8118
 docker run --rm -p 8118:8118 prx/mercury:latest
 ```
+
+Build and run as a GraalVM Native Image (MER-5)
+------------------------------------------------
+Mercury also builds as a GraalVM native executable — near-instant startup and a
+much smaller memory footprint than the JIT mode above, at the cost of a much
+longer build. See `docs/architecture/graalvm-native-image.md` for the full
+story (measured numbers, what was excluded and why, known gaps).
+
+**JIT mode (default) vs Native mode — when to use which:**
+- JIT mode (`mvn spring-boot:run`, or the regular `Dockerfile`): use for day-to-day
+  development. Fast rebuilds, full debugger support, `mvn test`/Mockito work
+  exactly as normal.
+- Native mode (`Dockerfile.native`): use to validate a release candidate's
+  startup/memory profile, or for the actual production image. Rebuilds take
+  minutes, not seconds — don't use it for iterative development.
+
+**Prerequisite for native builds:** GraalVM for JDK 25 (not a regular JDK — the
+`native-image` tool ships only with GraalVM), e.g.:
+```pwsh
+curl -fL -o graalvm.tar.gz \
+  https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-25.0.2/graalvm-community-jdk-25.0.2_<your-os-arch>_bin.tar.gz
+tar xzf graalvm.tar.gz -C ~/.jdks
+export JAVA_HOME=~/.jdks/graalvm-community-openjdk-25.0.2+10.1/Contents/Home  # adjust per OS
+export GRAALVM_HOME="$JAVA_HOME"
+```
+
+**Building and running the native executable locally** (not in Docker):
+Native compilation requires a full Spring context boot at build time
+(`spring-boot:process-aot`), which normally means live Vault/Config
+Server/Postgres/Mongo — `config/native.env` supplies safe placeholder values
+for all of that instead, so the build works without live infrastructure:
+```pwsh
+set -a; source config/native.env; set +a
+export TEMPLATE_PATH="$(pwd)/src/main/resources/templates"   # see comment in config/native.env
+mvn -Pnative clean package -DskipTests
+mvn -Pnative native:compile   # produces target/mercury (the native executable)
+
+./target/mercury -Dspring.freemarker.template-loader-path=src/main/resources/templates
+```
+
+**Building the native Docker image:**
+```pwsh
+DOCKER_BUILDKIT=1 docker build -f Dockerfile.native \
+  --secret id=maven_settings,src=$HOME/.m2/settings.xml \
+  -t prx/mercury:native .
+docker run --rm -p 8118:8118 prx/mercury:native
+```
+
+**What does NOT run the same way in native mode:**
+- `mvn test` (the existing 562-test Mockito-based suite) is **not** run against
+  the native image — Mockito's default inline mock maker does not support
+  native-image test execution ([mockito/mockito#2435](https://github.com/mockito/mockito/issues/2435)).
+  The JVM test suite (`mvn clean test`) remains the correctness gate; the
+  native build is verified with a runtime smoke test instead (see the
+  migration doc).
+- Eureka client self-registration is disabled for local native
+  builds/smoke-tests (`EUREKA_CLIENT_ENABLED=false` in `config/native.env`) —
+  this sidesteps a separate, pre-existing bug in this app's Eureka
+  autoconfiguration (unrelated to native image; see the migration doc), not
+  a native-image limitation.
 
 Notes on runtime configuration
 - The application exposes port 8118 by default (see `Dockerfile` CMD and `EXPOSE`).

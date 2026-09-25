@@ -86,7 +86,7 @@ gitGraph
 
 1. Crear el documento Mongo: extender `MessageDocument` (ver [03 · Modelo de Datos](03-modelo-datos.md)).
 2. Implementar `ChannelService<TuDocumento>` — los tres métodos: `send`, `updateStatus`, `findByDeliveryStatus`.
-3. Agregar el topic correspondiente en `bootstrap.yml` (`umdc.consumer.topics.<canal>`).
+3. Agregar el topic correspondiente en `application.yml` (`umdc.consumer.topics.<canal>`).
 4. Registrar el canal en `MessageChannelRouter` para que `MultiChannelListener` lo despache correctamente.
 5. Agregar el `ChannelType` en la tabla `channel_type` (o vía el endpoint `POST /api/v1/channel-types`).
 6. Escribir tests — mínimo: el `ChannelService` (persistencia + filtrado por estado) y el registro en el router.
@@ -101,7 +101,7 @@ gitGraph
 - **Unitarios primero** (JUnit 5 + Mockito) — la mayoría de la cobertura debería venir de aquí, no de tests de integración pesados.
 - Nombrado descriptivo con `@DisplayName` — los nombres de test deben poder leerse como una frase (ver `ChannelServicesTest` como ejemplo del estilo del repo).
 - Mockear en el borde del proceso (repositorios, clientes HTTP) — no mockear lógica de dominio propia.
-- Si tocas `bootstrap.yml`, hay un test de regresión (`ConfigurationPlaceholderTest`) que valida que todo placeholder `${X}` sin default tenga una propiedad real que lo resuelva — no lo rompas, y si agregas un placeholder nuevo, dale un default sensato o documenta por qué no lo tiene.
+- Si tocas `application.yml`, hay un test de regresión (`ConfigurationPlaceholderTest`) que valida que todo placeholder `${X}` sin default tenga una propiedad real que lo resuelva — no lo rompas, y si agregas un placeholder nuevo, dale un default sensato o documenta por qué no lo tiene.
 
 ---
 
@@ -110,7 +110,7 @@ gitGraph
 - [ ] `mvn -o clean verify` en verde (tests + PMD + cobertura)
 - [ ] Sin secretos en el diff (`git diff --staged` revisado a mano — `default.env`, `certs/mercury/*`, `secrets/local.env` nunca deben aparecer)
 - [ ] El PR apunta a `develop`, no a `main` (salvo confirmación explícita de que ya está validado en producción)
-- [ ] Si el cambio toca `bootstrap.yml`/Docker/Compose: verificado con una ejecución real (`docker build` + `docker run`, o `docker compose up`), no solo revisión de código
+- [ ] Si el cambio toca `application.yml`/Docker/Compose: verificado con una ejecución real (`docker build` + `docker run`, o `docker compose up`), no solo revisión de código
 - [ ] Commits con mensajes que explican el *por qué*, no solo el *qué*
 
 ---

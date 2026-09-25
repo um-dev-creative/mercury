@@ -1,0 +1,65 @@
+# syntax=docker/dockerfile:1
+
+# GraalVM Native Image build for Mercury (MER-5). Two stages: compile the native
+# executable inside a Linux GraalVM builder image (native-image cross-compiles for
+# the container's own arch, regardless of the host that runs `docker build`), then
+# copy just the binary into a minimal runtime image. See docs/architecture/
+# graalvm-native-image.md for what this trades off against the JIT Dockerfile.
+
+FROM ghcr.io/graalvm/native-image-community:25 AS builder
+WORKDIR /build
+
+# The GraalVM builder image (Oracle Linux, no package manager reliably stocked with a current
+# Maven) ships the JDK and native-image only — Maven is installed from a pinned tarball, matching
+# the version this project builds with locally, rather than whatever a distro repo happens to have.
+ARG MAVEN_VERSION=3.9.14
+# archive.apache.org, not dlcdn.apache.org — dlcdn only mirrors the latest release per line and
+# 404s once a newer 3.9.x replaces this pinned version; the archive keeps every release forever.
+RUN curl -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+    | tar xz -C /opt && ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn
+
+COPY pom.xml ruleset.xml ./
+COPY config/native.env ./config/native.env
+COPY src ./src
+# ~/.m2/settings.xml (repo credentials for the private Repsy repository — see CLAUDE.md's
+# "External Dependencies") is mounted as a BuildKit secret, never COPYed, so it never lands
+# in an image layer: `docker build --secret id=maven_settings,src=$HOME/.m2/settings.xml -f
+# Dockerfile.native .`
+# native:compile is a separate goal from package/clean — native-maven-plugin's "extensions" mode
+# does NOT auto-bind native-image compilation to the package phase for this plugin version, only
+# the AOT-metadata-generation goals; the actual native-image invocation must be requested
+# explicitly, confirmed by the exact same lifecycle running locally without it.
+# config/native.env is required here too, same reason as local builds: process-aot needs a full
+# ApplicationContext refresh and this build has no Vault/Config Server access — see that file's
+# own header comment and docs/architecture/graalvm-native-image.md.
+RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
+    sh -c 'set -a; . ./config/native.env; export TEMPLATE_PATH=/build/src/main/resources/templates; set +a; \
+    mvn -Pnative -B -DskipTests clean package native:compile'
+
+# cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
+# build uses the plain default `--no-fallback` native-image linking (dynamically linked against
+# glibc AND libstdc++), not the "mostly static" mode base-debian12 is meant for.
+FROM gcr.io/distroless/cc-debian12:nonroot
+LABEL version="0.0.1-native"
+LABEL description="Mercury API (GraalVM native image)"
+LABEL maintainer="Luis Mata luis.antonio.mata@gmail.com"
+
+WORKDIR /usr/local/runme
+
+COPY --from=builder /build/target/mercury /usr/local/runme/mercury
+# Same certs/mercury/ + templates baking rationale as the JIT Dockerfile — see its own
+# comments for why these are copied in rather than runtime-mounted.
+COPY certs/mercury/ certs/mercury/
+COPY src/main/resources/templates/ templates/
+
+EXPOSE 8118
+
+# No shell in a distroless image, so no docker-entrypoint.sh here — everything that
+# script did with `-D` system properties is passed as native-image CLI args instead
+# (Spring's native launcher still honors -D the same way the JVM does). -XX flags
+# (like -XX:+UseCompactObjectHeaders from the JIT entrypoint) do not apply to a
+# Substrate VM binary and are intentionally omitted.
+ENTRYPOINT ["/usr/local/runme/mercury", \
+    "-Dspring.application.name=mercury", \
+    "-Dapi.info.version=1.0.0", \
+    "-Dspring.freemarker.template-loader-path=/usr/local/runme/templates"]

@@ -1,6 +1,6 @@
 #!/bin/sh
 # certs/mercury/ (gitignored) is baked into the image at this fixed WORKDIR-relative path;
-# bootstrap.yml references it directly via file:certs/mercury/... (spring.cloud.vault.ssl,
+# application.yml references it directly via file:certs/mercury/... (spring.cloud.vault.ssl,
 # spring.cloud.config.tls, eureka.client.tls, umdc.security) with
 # spring.cloud.config.override-none: true ensuring those local values win over whatever
 # Vault/Config Server separately supply for the same keys. No JVM-wide trust store

@@ -8,6 +8,9 @@
 
 ## 1️⃣ Arranque de la aplicación (bootstrap: Vault → Config Server)
 
+> [!WARNING]
+> **Necesita reverificación tras MER-5.** Este diagrama documenta el mecanismo legado `spring.cloud.bootstrap.enabled` (`PropertySourceBootstrapConfiguration`, un contexto separado en fase de bootstrap), que MER-5 eliminó por ser incompatible con el procesamiento AOT de GraalVM Native Image (ver `docs/architecture/graalvm-native-image.md`). La config ahora llega vía `spring.config.import=optional:vault://,optional:configserver:` (mecanismo moderno `ConfigDataLoader`) declarado directamente en `application.yml`, usando las mismas propiedades `spring.cloud.vault.*`/`spring.cloud.config.*` de antes. Se espera que el orden de precedencia de abajo (Vault → Config Server → local) se mantenga — los imports de ConfigData de Spring se insertan antes que las propiedades propias del archivo que los importa — pero esto solo se verificó con Vault/Config Server *deshabilitados* (dev local, builds nativos); no se reverificó contra una ejecución real de Vault/Config Server, y los nombres exactos de property-source en este diagrama (`bootstrapProperties-*`) son específicos del mecanismo eliminado y ya no son precisos.
+
 Este es el flujo que más incidentes ha generado en la práctica — documentado en detalle porque el orden importa.
 
 ```mermaid
@@ -18,7 +21,7 @@ sequenceDiagram
     participant Git as Git (GitLab)
     participant App as Contexto principal
 
-    JVM->>JVM: Carga bootstrap.yml (local, en el jar)
+    JVM->>JVM: Carga application.yml (local, en el jar)
     JVM->>Vault: GET /v1/auth/token/lookup-self<br/>(valida VAULT_TOKEN, TLS con certs/mercury/umdc-truststore.jks)
     Vault-->>JVM: 200 OK
 
@@ -31,7 +34,7 @@ sequenceDiagram
     CS-->>JVM: PropertySource "bootstrapProperties-configClient"
 
     JVM->>App: Arranca el contexto principal con el Environment fusionado
-    App->>App: Resuelve cada ${VAR} contra TODO el Environment<br/>(Vault + Config Server + bootstrap.yml + sistema + env vars)
+    App->>App: Resuelve cada ${VAR} contra TODO el Environment<br/>(Vault + Config Server + application.yml + sistema + env vars)
 ```
 
 > [!IMPORTANT]
@@ -39,7 +42,7 @@ sequenceDiagram
 > 1. Vault (`spring.cloud.vault.*` — secretos KV)
 > 2. Config Server (Git-backed)
 > 3. Variables de entorno / propiedades del sistema locales (`default.env`, `-D`)
-> 4. `bootstrap.yml` local (esta app)
+> 4. `application.yml` local (esta app)
 >
 > Esto es **al revés** de lo intuitivo: Vault y el Config Server ganan sobre cualquier variable local, por diseño — así un valor centralizado no puede ser pisado accidentalmente por lo que haya en una máquina concreta. Un valor definido en Vault (p. ej. `TEMPLATE_PATH`) **no se puede sobreescribir** con `default.env` ni con `-D`, sin importar el nombre de variable que se use. Ver [06 · Configuración de Entornos § Troubleshooting](06-configuracion-entornos.md#-troubleshooting-real) para el caso real que motivó esta nota.
 

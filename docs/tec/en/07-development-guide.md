@@ -86,7 +86,7 @@ gitGraph
 
 1. Create the Mongo document: extend `MessageDocument` (see [03 · Data Model](03-data-model.md)).
 2. Implement `ChannelService<YourDocument>` — the three methods: `send`, `updateStatus`, `findByDeliveryStatus`.
-3. Add the matching topic in `bootstrap.yml` (`umdc.consumer.topics.<channel>`).
+3. Add the matching topic in `application.yml` (`umdc.consumer.topics.<channel>`).
 4. Register the channel in `MessageChannelRouter` so `MultiChannelListener` dispatches to it correctly.
 5. Add the `ChannelType` in the `channel_type` table (or via the `POST /api/v1/channel-types` endpoint).
 6. Write tests — at minimum: the `ChannelService` (persistence + status filtering) and the router registration.
@@ -101,7 +101,7 @@ gitGraph
 - **Unit tests first** (JUnit 5 + Mockito) — most coverage should come from here, not from heavy integration tests.
 - Descriptive naming with `@DisplayName` — test names should read like a sentence (see `ChannelServicesTest` for this repo's style).
 - Mock at the process boundary (repositories, HTTP clients) — don't mock your own domain logic.
-- If you touch `bootstrap.yml`, there's a regression test (`ConfigurationPlaceholderTest`) that verifies every `${X}` placeholder without a default has a real property resolving it — don't break it, and if you add a new placeholder, give it a sensible default or document why it doesn't have one.
+- If you touch `application.yml`, there's a regression test (`ConfigurationPlaceholderTest`) that verifies every `${X}` placeholder without a default has a real property resolving it — don't break it, and if you add a new placeholder, give it a sensible default or document why it doesn't have one.
 
 ---
 
@@ -110,7 +110,7 @@ gitGraph
 - [ ] `mvn -o clean verify` is green (tests + PMD + coverage)
 - [ ] No secrets in the diff (`git diff --staged` reviewed by hand — `default.env`, `certs/mercury/*`, `secrets/local.env` must never appear)
 - [ ] The PR targets `develop`, not `main` (unless explicitly confirmed as already validated in production)
-- [ ] If the change touches `bootstrap.yml`/Docker/Compose: verified with a real run (`docker build` + `docker run`, or `docker compose up`), not just a code review
+- [ ] If the change touches `application.yml`/Docker/Compose: verified with a real run (`docker build` + `docker run`, or `docker compose up`), not just a code review
 - [ ] Commits explain the *why*, not just the *what*
 
 ---
