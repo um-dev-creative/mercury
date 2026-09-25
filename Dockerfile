@@ -1,5 +1,5 @@
 FROM amazoncorretto:25.0.4-alpine3.24
-LABEL version="0.0.2"
+LABEL version="0.0.3"
 LABEL description="Mercury API"
 LABEL maintainer="Luis Mata luis.antonio.mata@gmail.com"
 
