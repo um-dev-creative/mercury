@@ -271,6 +271,53 @@ lazy-Hibernate strategies) — a real optimization, but a separate piece of
 work from "make native image work," and not attempted here to avoid
 changing runtime behavior as a side effect of a build-tooling ticket.
 
+## Real-deployment findings (post-merge)
+
+Everything above was verified with Vault/Config Server *disabled*, per the
+explicit caveat in that section. The first real deployment attempt against
+live infrastructure (`VAULT_ENABLED=true`, real `vault.umdc-qa.tst`/
+`config-server.umdc-qa.tst`) surfaced two more issues, found the same way as
+everything else here — by reading the actual failure, not guessing:
+
+1. **Docker builder base (`ghcr.io/graalvm/native-image-community:25`,
+   Oracle Linux 10) crashed on the deployment platform's actual CPU** with
+   `Fatal glibc error: CPU does not support x86-64-v3` — Oracle Linux 10
+   raised its glibc baseline to require AVX2/BMI2, which the deployment
+   platform's CPU/VM doesn't offer. Built fine on this dev machine (Apple
+   Silicon) purely because that never exercises the same glibc path. Fixed
+   by switching the builder stage to `debian:12-slim` (Debian never raised
+   its baseline) with GraalVM and the native-image toolchain installed
+   manually — see the `Dockerfile.native` entry above, updated in place.
+   Same fix then surfaced `error while loading shared libraries: libz.so.1`
+   at container start — GraalVM native-image dynamically links libz
+   (`java.util.zip`/jar reading, needed by any Java app) and neither
+   distroless runtime variant ships it; fixed by staging it out of the
+   builder (via `gcc -print-multiarch`, arch-agnostic) and copying it into
+   the runtime stage's matching multiarch directory.
+2. **`TrustStoreInitializer.loadJdkDefaultCacerts()` read
+   `$JAVA_HOME/lib/security/cacerts` as a literal file** — silently fails
+   under native-image (no JRE installation on disk at runtime, so
+   `java.home` doesn't point at a real file there), caught by the method's
+   own `catch (Exception e)` and logged as a WARN, not a crash. The real
+   consequence only showed up several layers downstream: with the PRX
+   Internal CA never actually merged in, Vault's internal REST client
+   failed every secret fetch with PKIX errors reaching `vault.umdc-qa.tst`
+   (`spring.config.import=optional:vault://` swallows that failure by
+   design), which left `${MERCURY_DB_URI}`/`${MERCURY_DB_PORT}`/
+   `${MERCURY_DB_NAME}` unresolved in the datasource URL and crashed
+   HikariCP/Hibernate — the actual fatal error in the log, three causal
+   steps removed from the real bug. Fixed by reading the platform's default
+   trust anchors via `TrustManagerFactory` (the standard JCA API) instead of
+   a hardcoded file path — this returns the real default trust anchors on a
+   regular JVM and GraalVM's build-time-baked default trust anchors under
+   native-image, identically, with no environment-specific branching. Existing
+   `TrustStoreInitializerTest` suite unaffected.
+
+**Still not confirmed as of this writing**: whether the live Vault fetch
+path now succeeds end-to-end with real credentials — the fix addresses the
+root cause found in the log, but the next real deployment attempt is the
+actual confirmation, same caveat as the rest of this document.
+
 ## Non-goals / explicitly out of scope for this ticket
 
 - Verifying the real Vault/Config Server fetch path
