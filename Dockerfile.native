@@ -63,17 +63,30 @@ RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
     sh -c 'set -a; . ./config/native.env; export TEMPLATE_PATH=/build/src/main/resources/templates; set +a; \
     mvn -Pnative -B -DskipTests clean package native:compile'
 
+# native-image also dynamically links libz (java.util.zip / jar reading needs it — every Java app
+# uses this, native or not), which neither distroless variant ships: "error while loading shared
+# libraries: libz.so.1: cannot open shared object file" at container start. distroless has no
+# package manager and no shell to fix this from the runtime side, so the zlib1g-dev install above
+# (which pulls in the zlib1g runtime lib as a dependency) is staged into an arch-neutral path here
+# (via gcc's own multiarch triplet, so this works for both amd64 and arm64 builds without
+# hardcoding one) for the final stage to COPY — landing at the exact same multiarch directory the
+# runtime image's own glibc/libssl already live in, since both stages are Debian 12.
+RUN MULTIARCH="$(gcc -print-multiarch)" \
+    && mkdir -p "/staging/usr/lib/${MULTIARCH}" \
+    && cp -a /usr/lib/"${MULTIARCH}"/libz.so* "/staging/usr/lib/${MULTIARCH}/"
+
 # cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
 # build uses the plain default `--no-fallback` native-image linking (dynamically linked against
 # glibc AND libstdc++), not the "mostly static" mode base-debian12 is meant for.
 FROM gcr.io/distroless/cc-debian12:nonroot
-LABEL version="0.0.1-native"
+LABEL version="0.0.3-native"
 LABEL description="Mercury API (GraalVM native image)"
 LABEL maintainer="Luis Mata luis.antonio.mata@gmail.com"
 
 WORKDIR /usr/local/runme
 
 COPY --from=builder /build/target/mercury /usr/local/runme/mercury
+COPY --from=builder /staging/usr/lib/ /usr/lib/
 # Same certs/mercury/ + templates baking rationale as the JIT Dockerfile — see its own
 # comments for why these are copied in rather than runtime-mounted.
 COPY certs/mercury/ certs/mercury/
@@ -88,5 +101,5 @@ EXPOSE 8118
 # Substrate VM binary and are intentionally omitted.
 ENTRYPOINT ["/usr/local/runme/mercury", \
     "-Dspring.application.name=mercury", \
-    "-Dapi.info.version=1.0.0", \
+    "-Dapi.info.version=0.0.3", \
     "-Dspring.freemarker.template-loader-path=/usr/local/runme/templates"]
