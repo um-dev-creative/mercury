@@ -18,6 +18,7 @@ import java.security.cert.CertificateFactory;
 import java.util.EnumSet;
 import java.util.Set;
 
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509TrustManager;
@@ -81,6 +82,7 @@ public final class TrustStoreInitializer {
             System.setProperty("javax.net.ssl.trustStore", mergedTrustStore.toAbsolutePath().toString());
             System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
             System.setProperty("javax.net.ssl.trustStorePassword", CACERTS_PASSWORD);
+            installAsJvmDefaultSslContext(trustStore);
         }
         catch (Exception e) {
             LOGGER.warn("Could not merge {} certs into the JVM default trust store; "
@@ -132,5 +134,25 @@ public final class TrustStoreInitializer {
             }
         }
         return keyStore;
+    }
+
+    /**
+     * Real-deployment finding: the merged trust store above reaches most JVM-wide TLS clients
+     * (Tomcat's connector, Eureka's registration client) correctly via the {@code javax.net.ssl.trustStore}
+     * system properties, but Apache HttpClient5 - used internally by the OAuth2 resource server's
+     * JWK-fetching {@code RestTemplate} - builds its own {@link SSLContext} that does not pick up
+     * those properties, leaving it with zero trust anchors ({@code InvalidAlgorithmParameterException:
+     * the trustAnchors parameter must be non-empty}). Explicitly installing this merged store as the
+     * JVM-wide default {@link SSLContext} (rather than only setting system properties) reaches any
+     * caller that resolves trust via {@link SSLContext#getDefault()} instead of re-reading those
+     * properties itself.
+     */
+    private static void installAsJvmDefaultSslContext(KeyStore trustStore) throws GeneralSecurityException {
+        TrustManagerFactory trustManagerFactory =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(trustStore);
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        SSLContext.setDefault(sslContext);
     }
 }
