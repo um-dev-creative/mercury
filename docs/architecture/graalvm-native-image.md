@@ -337,12 +337,42 @@ everything else here — by reading the actual failure, not guessing:
    lines in both `Dockerfile` and `Dockerfile.native` for the exact secret
    ids required at build time.
 
-**Still not confirmed as of this writing**: whether the live Vault fetch
-path *and* the OAuth2 resource server's JWK fetch now succeed end-to-end
-with real credentials and the real PRX Internal CA in place — fix #3 above
-addresses the root cause found in the log, but the next real deployment
-attempt (built with the new required `--secret` flags) is the actual
-confirmation, same caveat as the rest of this document.
+4. **Fix #3 above was a real, necessary fix — but not the cause of the
+   `trustAnchors` error.** A completely separate reproduction, on a plain
+   local JIT JVM run (not Docker, not native-image at all) with
+   `certs/mercury/` fully populated on disk, hit the *exact same*
+   `InvalidAlgorithmParameterException: the trustAnchors parameter must be
+   non-empty` on the same JWK fetch. SSL handshake debug logging
+   (`-Djavax.net.debug=ssl:trustmanager`) pinned the real cause: the merged
+   trust store (PRX Internal CA included) loads correctly for every other
+   TLS consumer in the JVM — Tomcat's own connector, the Eureka registration
+   client — each logging `X509TrustManagerImpl: adding as trusted
+   certificates` for it. The one exception is Apache HttpClient5, used
+   internally by the OAuth2 resource server's JWK-fetching `RestTemplate`
+   (confirmed via the stack trace's `org.apache.hc.client5.http.ssl.*`
+   frames): its handshake thread never logs that line at all — it builds its
+   own `SSLContext` that never reads `javax.net.ssl.trustStore`, leaving it
+   with zero trust anchors regardless of what the system properties say.
+   Fixed by having `TrustStoreInitializer` additionally call
+   `SSLContext.setDefault(...)` with a context built from the same merged
+   store, so any caller that resolves trust via `SSLContext.getDefault()`
+   (rather than re-reading the system properties itself) also gets it.
+
+**Still not confirmed as of this writing**: whether `SSLContext.setDefault()`
+is actually the mechanism Apache HttpClient5 (via Spring Boot's
+`ClientHttpRequestFactoryBuilder`) consults for its default TLS strategy —
+if Apache's own `SSLContexts.createDefault()`/`createSystemDefault()`
+utilities build a context independently of `SSLContext.getDefault()`, this
+fix will not reach it, and the actual fix would need to live in the
+closed-source `com.umdc.security` library that defines the `jwtDecoder`
+bean (confirmed via the Spring Boot conditions-evaluation report: a bean
+named `jwtDecoder` already exists before Boot's own autoconfiguration would
+create one, so this repository has no visibility into how its underlying
+`RestOperations`/`HttpClient` is built). Also still unconfirmed: whether the
+live Vault fetch path succeeds end-to-end with real credentials. The next
+real deployment attempt (built with the required `--secret` flags from
+fix #3, running this `SSLContext.setDefault()` fix) is the actual
+confirmation for both, same caveat as the rest of this document.
 
 ## Non-goals / explicitly out of scope for this ticket
 
