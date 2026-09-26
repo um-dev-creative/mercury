@@ -75,6 +75,36 @@ RUN MULTIARCH="$(gcc -print-multiarch)" \
     && mkdir -p "/staging/usr/lib/${MULTIARCH}" \
     && cp -a /usr/lib/"${MULTIARCH}"/libz.so* "/staging/usr/lib/${MULTIARCH}/"
 
+# certs/mercury/ is entirely gitignored, so a plain `COPY certs/mercury/ certs/mercury/` from
+# the build context copies nothing when building from a git checkout — confirmed the actual
+# cause of a real-deployment "trustAnchors parameter must be non-empty" TLS failure (TLS calls
+# had zero trust anchors because the PRX-internal CA never made it into the image). Each file
+# is passed in as its own BuildKit secret instead — same mechanism as maven_settings above — and
+# staged here (the distroless final stage has no shell, so it can't run a secret-mounted RUN
+# itself; the final stage just COPYs this staged output). `docker build` needs one
+# `--secret id=<name>,src=<path on the build host>` per file below: prx_internal_ca,
+# mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert, aiven_kafka_key,
+# aiven_kafka_pem, aiven_kafka_p12, svc_pem
+RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt \
+    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks \
+    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks \
+    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks \
+    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert \
+    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key \
+    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem \
+    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12 \
+    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem \
+    mkdir -p /staging-certs/mercury && \
+    cp /run/secrets/prx-internal-ca.crt /staging-certs/mercury/prx-internal-ca.crt && \
+    cp /run/secrets/mercury.jks /staging-certs/mercury/mercury.jks && \
+    cp /run/secrets/backbone.jks /staging-certs/mercury/backbone.jks && \
+    cp /run/secrets/umdc-truststore.jks /staging-certs/mercury/umdc-truststore.jks && \
+    cp /run/secrets/aiven-kafka-7e59598.cert /staging-certs/mercury/aiven-kafka-7e59598.cert && \
+    cp /run/secrets/aiven-kafka-7e59598.key /staging-certs/mercury/aiven-kafka-7e59598.key && \
+    cp /run/secrets/aiven-kafka-7e59598.pem /staging-certs/mercury/aiven-kafka-7e59598.pem && \
+    cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/aiven-kafka.p12 && \
+    cp /run/secrets/svc.pem /staging-certs/mercury/svc.pem
+
 # cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
 # build uses the plain default `--no-fallback` native-image linking (dynamically linked against
 # glibc AND libstdc++), not the "mostly static" mode base-debian12 is meant for.
@@ -88,8 +118,9 @@ WORKDIR /usr/local/runme
 COPY --from=builder /build/target/mercury /usr/local/runme/mercury
 COPY --from=builder /staging/usr/lib/ /usr/lib/
 # Same certs/mercury/ + templates baking rationale as the JIT Dockerfile — see its own
-# comments for why these are copied in rather than runtime-mounted.
-COPY certs/mercury/ certs/mercury/
+# comments for why these are copied in rather than runtime-mounted. Sourced from the builder
+# stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
+COPY --from=builder /staging-certs/mercury/ certs/mercury/
 COPY src/main/resources/templates/ templates/
 
 EXPOSE 8118

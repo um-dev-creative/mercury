@@ -313,10 +313,36 @@ everything else here — by reading the actual failure, not guessing:
    native-image, identically, with no environment-specific branching. Existing
    `TrustStoreInitializerTest` suite unaffected.
 
+3. **`certs/mercury/` is entirely gitignored** (every extension it contains —
+   `.crt`, `.jks`, `.pem`, `.key`, `.p12` — is excluded in `.gitignore`), but
+   both Dockerfiles copied it with a plain `COPY certs/mercury/ certs/mercury/`
+   from the build context. That's a silent no-op when the build context is a
+   git checkout (as any real CI/CD build is), so the PRX Internal CA never
+   actually reached the deployed image even after fix #2 above — confirmed by
+   the *next* real deployment attempt (post-fix #2) still failing, but with a
+   different, more severe symptom: `InvalidAlgorithmParameterException: the
+   trustAnchors parameter must be non-empty` on the OAuth2 resource server's
+   JWK fetch (Apache HttpClient5-backed `RestTemplate`, used to decode
+   incoming JWTs) — a *completely empty* trust store, not merely missing one
+   issuer (`SunCertPathBuilderException`, the failure mode fix #2 targeted).
+   MongoDB's TLS handshakes succeeded in the same log by contrast, since the
+   Mongo driver resolves its default trust anchors through a different JSSE
+   path unaffected by `TrustStoreInitializer`'s early return on "no local
+   certs found". Fixed by passing each file in `certs/mercury/` as its own
+   BuildKit secret (`--secret id=<name>,src=<path>`, same mechanism already
+   used for `maven_settings`) instead of relying on the build context —
+   staged through the builder stage for `Dockerfile.native` specifically,
+   since the distroless final stage has no shell to run a secret-mounted
+   `RUN` itself. See the comments directly above the relevant `RUN`/`COPY`
+   lines in both `Dockerfile` and `Dockerfile.native` for the exact secret
+   ids required at build time.
+
 **Still not confirmed as of this writing**: whether the live Vault fetch
-path now succeeds end-to-end with real credentials — the fix addresses the
-root cause found in the log, but the next real deployment attempt is the
-actual confirmation, same caveat as the rest of this document.
+path *and* the OAuth2 resource server's JWK fetch now succeed end-to-end
+with real credentials and the real PRX Internal CA in place — fix #3 above
+addresses the root cause found in the log, but the next real deployment
+attempt (built with the new required `--secret` flags) is the actual
+confirmation, same caveat as the rest of this document.
 
 ## Non-goals / explicitly out of scope for this ticket
 
