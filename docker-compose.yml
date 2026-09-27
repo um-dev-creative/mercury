@@ -23,6 +23,7 @@ services:
       - "config-server.umdc-qa.tst:172.22.0.2"
       - "vault.umdc-qa.tst:172.22.0.2"
       - "monitor.umdc-qa.tst:172.22.0.2"
+      - "api.umdc-qa.tst:172.22.0.2"
     networks:
       nginx_umdc-net:
         ipv4_address: 172.22.0.10

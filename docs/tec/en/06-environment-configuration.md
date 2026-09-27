@@ -20,22 +20,22 @@
 
 Before Spring's main context exists, there's a **bootstrap context** (enabled by `spring-cloud-starter-bootstrap`) that:
 
-1. Reads `src/main/resources/bootstrap.yml` (the only local config file that exists — there's no `application.yml`).
+1. Reads `src/main/resources/application.yml` (the only local config file — `bootstrap.yml` was retired in MER-5's migration off the legacy Spring Cloud Bootstrap Context, which was incompatible with AOT/native-image processing; see `docs/architecture/graalvm-native-image.md`).
 2. Connects to **Vault** (`spring.cloud.vault.*`) and fetches secrets from `dev/mercury/{profile}` and `dev/mercury`.
 3. Connects to the **Config Server** (`spring.cloud.config.uri`) and fetches `mercury-{profile}.yml` from a Git repository.
 4. Merges everything into the `Environment` the main context will use.
 
 ```mermaid
 flowchart LR
-    BY["bootstrap.yml<br/>(in the jar)"] -->|active profile| Vault["Vault<br/>dev/mercury/{profile}"]
+    BY["application.yml<br/>(in the jar)"] -->|active profile| Vault["Vault<br/>dev/mercury/{profile}"]
     Vault --> CS["Config Server<br/>mercury-{profile}.yml"]
     CS --> ENV["Merged Environment"]
     ENV --> APP["Main context"]
 ```
 
 > [!IMPORTANT]
-> **Real precedence (highest to lowest): Vault → Config Server → local environment variables → local `bootstrap.yml`.**
-> This means **no local value can override a value Vault or the Config Server already defines** — not `default.env`, not `-D`, not editing `bootstrap.yml`. See [05 · Sequence Diagrams § 1](05-sequence-diagrams.md#1️⃣-application-startup-bootstrap-vault--config-server) and the Troubleshooting section below — this behavior caused real hours of debugging on this branch.
+> **Real precedence (highest to lowest): Vault → Config Server → local environment variables → local `application.yml`.**
+> This means **no local value can override a value Vault or the Config Server already defines** — not `default.env`, not `-D`, not editing `application.yml`. See [05 · Sequence Diagrams § 1](05-sequence-diagrams.md#1️⃣-application-startup-bootstrap-vault--config-server) and the Troubleshooting section below — this behavior caused real hours of debugging on this branch.
 
 ---
 
@@ -50,7 +50,7 @@ flowchart LR
 
 ### 1. Certificates — `certs/mercury/`
 
-Mercury does **not** load certificates/keystores from the classpath (that pattern is how secrets ended up committed to git — see this repo's own history). Instead, `bootstrap.yml` references them with `file:certs/mercury/<file>` paths, **relative to the process's *working directory*** — which is the project root for an IDE run, and (inside the container) Docker's `WORKDIR`.
+Mercury does **not** load certificates/keystores from the classpath (that pattern is how secrets ended up committed to git — see this repo's own history). Instead, `application.yml` references them with `file:certs/mercury/<file>` paths, **relative to the process's *working directory*** — which is the project root for an IDE run, and (inside the container) Docker's `WORKDIR`.
 
 ```
 certs/mercury/
@@ -66,7 +66,7 @@ certs/mercury/
 > [!WARNING]
 > **This directory is gitignored (`*.jks`, `*.pem`, `*.p12`, `*.cert`, `*.key`, `*.crt`) — it must never reach git.** Get these files from another team member or extract them from Vault; don't recreate them by hand without verifying they match what the environment actually expects.
 
-These paths are **hardcoded in `bootstrap.yml`** (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`, with their real, keytool-verified type/password) — no environment variable (`SSL_KEYSTORE_LOCATION`, `SSL_TRUSTSTORE_LOCATION`, etc.) can override them. This was a deliberate choice: the env-var indirection broke twice in real deployments because a local/stale `default.env` on a different machine carried the value without the `file:` prefix (an unprefixed path resolves as `classpath:`, which no longer exists post-purge) — and since `certs/mercury/` is always at this fixed path (baked into the image, present in every local checkout), there was never a real reason for it to vary by environment.
+These paths are **hardcoded in `application.yml`** (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`, with their real, keytool-verified type/password) — no environment variable (`SSL_KEYSTORE_LOCATION`, `SSL_TRUSTSTORE_LOCATION`, etc.) can override them. This was a deliberate choice: the env-var indirection broke twice in real deployments because a local/stale `default.env` on a different machine carried the value without the `file:` prefix (an unprefixed path resolves as `classpath:`, which no longer exists post-purge) — and since `certs/mercury/` is always at this fixed path (baked into the image, present in every local checkout), there was never a real reason for it to vary by environment.
 
 | Spring property | Fixed value | Verified with `keytool` |
 |---|---|---|
@@ -206,7 +206,7 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 | Bootstrap identity | `SPRING_BOOT_PROFILE_ACTIVE`, `SPRING_CLOUD_CONFIG_LABEL`, `SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED` | `config/local.env` / Helm values |
 | Vault | `VAULT_ENABLED`, `VAULT_URI`, `VAULT_TOKEN`, `VAULT_KV_BACKEND` | `secrets/local.env` (token only) / K8s Secret or Vault K8s auth |
 | Config Server | `CNFS_URI`, `CNFS_PORT` (⚠️ `CNFS_PORT` has no effect on the client — see [04 · Components](04-components.md)) | `config/local.env` |
-| Certificates | *(none — hardcoded)* | Fixed paths in `bootstrap.yml` (`certs/mercury/`) — not configurable via env var, on purpose |
+| Certificates | *(none — hardcoded)* | Fixed paths in `application.yml` (`certs/mercury/`) — not configurable via env var, on purpose |
 | Kafka | `KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_JAAS_CONFIG`, `KAFKA_SSL_*`, `BOOTSTRAP_SERVER_URI/PORT` | Vault (production) |
 | Database / Mongo / Mail / OAuth / Telegram | `MERCURY_DB_*`, `MONGO_*`, `MAIL_*`, `AUTH_*`, `BACKBONE_*`, `TELEGRAM_*` | **Vault only** — never duplicate into versioned local files |
 | App | `APP_PORT`, `APP_TOKEN_SECRET`, `APP_TOKEN_EXPIRATION`, `TEMPLATE_PATH`, `TEMPLATE_SUFFIX` | Mixed — see the `TEMPLATE_PATH` case below |
@@ -219,15 +219,15 @@ Real cases hit and resolved in this repository — documented because **they wil
 
 ### ❌ `KeyStoreException`/`IllegalArgumentException: Resource class path resource [X.jks] does not exist`
 
-**Cause:** a keystore/truststore property still points at `classpath:X.jks` (or a bare filename with no prefix, which Spring resolves as `classpath:` by default) — left over from when these files lived in `src/main/resources`. They no longer do. This happened **twice** in real deployments for the same reason: an external environment variable (`SSL_KEYSTORE_LOCATION`/`SSL_TRUSTSTORE_LOCATION` in a local `default.env`, different on each machine) overrode `bootstrap.yml`'s correct default with a stale value missing the `file:` prefix.
+**Cause:** a keystore/truststore property still points at `classpath:X.jks` (or a bare filename with no prefix, which Spring resolves as `classpath:` by default) — left over from when these files lived in `src/main/resources`. They no longer do. This happened **twice** in real deployments for the same reason: an external environment variable (`SSL_KEYSTORE_LOCATION`/`SSL_TRUSTSTORE_LOCATION` in a local `default.env`, different on each machine) overrode `application.yml`'s correct default with a stale value missing the `file:` prefix.
 
-**Fix applied:** these paths are **no longer configurable via environment variable** — they're hardcoded directly in `bootstrap.yml` (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`), specifically to remove this class of bug at the root. If you see this error again, it means you're running a jar/image build from **before** this fix — rebuild from the current code.
+**Fix applied:** these paths are **no longer configurable via environment variable** — they're hardcoded directly in `application.yml` (`file:certs/mercury/mercury.jks` / `file:certs/mercury/umdc-truststore.jks`), specifically to remove this class of bug at the root. If you see this error again, it means you're running a jar/image build from **before** this fix — rebuild from the current code.
 
 ### ❌ `PKIX path building failed: unable to find valid certification path to requested target`
 
 **Cause:** the HTTP client (Vault, Config Server) doesn't trust the internal CA. Either: (a) that client's `trust-store` property isn't explicitly configured and it depends on `-Djavax.net.ssl.trustStore` (only set in Docker's `CMD` — a local IDE run doesn't have it), or (b) the correct `.crt`/`.jks` file isn't present in `certs/mercury/`.
 
-**Fix:** each client (`spring.cloud.vault.ssl.*`, `spring.cloud.config.tls.*`) has its **own** explicit `trust-store` in `bootstrap.yml` — they don't depend on the system property. Verify `certs/mercury/umdc-truststore.jks` contains the right CA:
+**Fix:** each client (`spring.cloud.vault.ssl.*`, `spring.cloud.config.tls.*`) has its **own** explicit `trust-store` in `application.yml` — they don't depend on the system property. Verify `certs/mercury/umdc-truststore.jks` contains the right CA:
 
 ```bash
 keytool -list -v -keystore certs/mercury/umdc-truststore.jks -storepass changeit | grep -A2 "Owner:"
@@ -245,4 +245,4 @@ keytool -list -v -keystore certs/mercury/umdc-truststore.jks -storepass changeit
 
 ---
 
-*Generated from an exhaustive read of `bootstrap.yml`, `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, and real incidents debugged and verified in this repository — not from prior documentation or assumptions.*
+*Generated from an exhaustive read of `application.yml`, `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, and real incidents debugged and verified in this repository — not from prior documentation or assumptions.*

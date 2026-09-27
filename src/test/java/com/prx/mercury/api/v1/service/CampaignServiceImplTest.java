@@ -725,8 +725,8 @@ class CampaignServiceImplTest {
             campaignServiceImpl.deleteCampaign(campaignId, owner);
 
             assertAll("soft-delete side effects",
-                    () -> assertThat(entity.getDeleted()).isTrue(),
-                    () -> assertThat(entity.getDeletedAt()).isNotNull(),
+                    () -> assertThat(entity.getStatus()).isEqualTo("DELETED"),
+                    () -> assertThat(entity.getUpdatedAt()).isNotNull(),
                     () -> assertThat(entity.getUpdatedBy()).isEqualTo(owner)
             );
             verify(campaignRepository).save(entity);
@@ -751,7 +751,7 @@ class CampaignServiceImplTest {
             CampaignEntity entity = new CampaignEntity();
             entity.setId(campaignId);
             entity.setCreatedBy(owner);
-            entity.setDeleted(true);
+            entity.setStatus("DELETED");
             when(campaignRepository.findById(campaignId)).thenReturn(Optional.of(entity));
 
             assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.deleteCampaign(campaignId, owner));
@@ -783,7 +783,7 @@ class CampaignServiceImplTest {
             UUID id = UUID.randomUUID();
             CampaignEntity entity = new CampaignEntity();
             entity.setId(id);
-            entity.setDeleted(true);
+            entity.setStatus("DELETED");
             when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
 
             assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id));
@@ -799,7 +799,7 @@ class CampaignServiceImplTest {
             active.setId(UUID.randomUUID());
             CampaignEntity deleted = new CampaignEntity();
             deleted.setId(UUID.randomUUID());
-            deleted.setDeleted(true);
+            deleted.setStatus("DELETED");
 
             when(campaignRepository.findByCreatedByAndApplicationId(userId, appId))
                     .thenReturn(List.of(active, deleted));

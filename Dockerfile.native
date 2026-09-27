@@ -1,0 +1,136 @@
+# syntax=docker/dockerfile:1
+
+# GraalVM Native Image build for Mercury (MER-5). Two stages: compile the native
+# executable inside a Linux GraalVM builder image (native-image cross-compiles for
+# the container's own arch, regardless of the host that runs `docker build`), then
+# copy just the binary into a minimal runtime image. See docs/architecture/
+# graalvm-native-image.md for what this trades off against the JIT Dockerfile.
+#
+# Builder base is minimal Debian, NOT ghcr.io/graalvm/native-image-community:25 — that image is
+# built on Oracle Linux 10, which raised its glibc CPU baseline to x86-64-v3 (requires AVX2/BMI2),
+# and fails immediately ("Fatal glibc error: CPU does not support x86-64-v3") on deployment
+# platforms whose CPU/VM doesn't offer those extensions. Debian/Ubuntu keep the original x86-64
+# baseline, so GraalVM and Maven are installed manually here instead — confirmed as the actual,
+# environment-specific cause (not a build-logic bug) after a build that worked fine locally
+# (Apple Silicon) failed on first real deployment (x86-64 without v3). debian:12-slim, not
+# ubuntu:24.04, as the lighter of the two safe (non-v3) options — same glibc, apt, and CPU
+# baseline guarantee, fewer preinstalled packages/docs.
+FROM debian:12-slim AS builder
+ARG TARGETARCH
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates build-essential zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+ARG GRAALVM_VERSION=25.0.2
+RUN set -eu; \
+    case "${TARGETARCH}" in \
+      amd64) GRAAL_ARCH=x64 ;; \
+      arm64) GRAAL_ARCH=aarch64 ;; \
+      *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-${GRAAL_ARCH}_bin.tar.gz" -o /tmp/graalvm.tar.gz && \
+    mkdir -p /opt/graalvm && \
+    tar xzf /tmp/graalvm.tar.gz -C /opt/graalvm --strip-components=1 && \
+    rm /tmp/graalvm.tar.gz
+ENV JAVA_HOME=/opt/graalvm
+ENV PATH="${JAVA_HOME}/bin:${PATH}"
+
+# Maven isn't part of a bare JDK — installed from a pinned tarball, matching the version this
+# project builds with locally, rather than whatever a distro repo happens to have.
+ARG MAVEN_VERSION=3.9.14
+# archive.apache.org, not dlcdn.apache.org — dlcdn only mirrors the latest release per line and
+# 404s once a newer 3.9.x replaces this pinned version; the archive keeps every release forever.
+RUN curl -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+    | tar xz -C /opt && ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn
+
+COPY pom.xml ruleset.xml ./
+COPY config/native.env ./config/native.env
+COPY src ./src
+# ~/.m2/settings.xml (repo credentials for the private Repsy repository — see CLAUDE.md's
+# "External Dependencies") is mounted as a BuildKit secret, never COPYed, so it never lands
+# in an image layer: `docker build --secret id=maven_settings,src=$HOME/.m2/settings.xml -f
+# Dockerfile.native .`
+# native:compile is a separate goal from package/clean — native-maven-plugin's "extensions" mode
+# does NOT auto-bind native-image compilation to the package phase for this plugin version, only
+# the AOT-metadata-generation goals; the actual native-image invocation must be requested
+# explicitly, confirmed by the exact same lifecycle running locally without it.
+# config/native.env is required here too, same reason as local builds: process-aot needs a full
+# ApplicationContext refresh and this build has no Vault/Config Server access — see that file's
+# own header comment and docs/architecture/graalvm-native-image.md.
+RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
+    sh -c 'set -a; . ./config/native.env; export TEMPLATE_PATH=/build/src/main/resources/templates; set +a; \
+    mvn -Pnative -B -DskipTests clean package native:compile'
+
+# native-image also dynamically links libz (java.util.zip / jar reading needs it — every Java app
+# uses this, native or not), which neither distroless variant ships: "error while loading shared
+# libraries: libz.so.1: cannot open shared object file" at container start. distroless has no
+# package manager and no shell to fix this from the runtime side, so the zlib1g-dev install above
+# (which pulls in the zlib1g runtime lib as a dependency) is staged into an arch-neutral path here
+# (via gcc's own multiarch triplet, so this works for both amd64 and arm64 builds without
+# hardcoding one) for the final stage to COPY — landing at the exact same multiarch directory the
+# runtime image's own glibc/libssl already live in, since both stages are Debian 12.
+RUN MULTIARCH="$(gcc -print-multiarch)" \
+    && mkdir -p "/staging/usr/lib/${MULTIARCH}" \
+    && cp -a /usr/lib/"${MULTIARCH}"/libz.so* "/staging/usr/lib/${MULTIARCH}/"
+
+# certs/mercury/ is entirely gitignored, so a plain `COPY certs/mercury/ certs/mercury/` from
+# the build context copies nothing when building from a git checkout — confirmed the actual
+# cause of a real-deployment "trustAnchors parameter must be non-empty" TLS failure (TLS calls
+# had zero trust anchors because the PRX-internal CA never made it into the image). Each file
+# is passed in as its own BuildKit secret instead — same mechanism as maven_settings above — and
+# staged here (the distroless final stage has no shell, so it can't run a secret-mounted RUN
+# itself; the final stage just COPYs this staged output). `docker build` needs one
+# `--secret id=<name>,src=<path on the build host>` per file below: prx_internal_ca,
+# mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert, aiven_kafka_key,
+# aiven_kafka_pem, aiven_kafka_p12, svc_pem
+RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt \
+    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks \
+    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks \
+    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks \
+    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert \
+    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key \
+    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem \
+    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12 \
+    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem \
+    mkdir -p /staging-certs/mercury && \
+    cp /run/secrets/prx-internal-ca.crt /staging-certs/mercury/prx-internal-ca.crt && \
+    cp /run/secrets/mercury.jks /staging-certs/mercury/mercury.jks && \
+    cp /run/secrets/backbone.jks /staging-certs/mercury/backbone.jks && \
+    cp /run/secrets/umdc-truststore.jks /staging-certs/mercury/umdc-truststore.jks && \
+    cp /run/secrets/aiven-kafka-7e59598.cert /staging-certs/mercury/aiven-kafka-7e59598.cert && \
+    cp /run/secrets/aiven-kafka-7e59598.key /staging-certs/mercury/aiven-kafka-7e59598.key && \
+    cp /run/secrets/aiven-kafka-7e59598.pem /staging-certs/mercury/aiven-kafka-7e59598.pem && \
+    cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/aiven-kafka.p12 && \
+    cp /run/secrets/svc.pem /staging-certs/mercury/svc.pem
+
+# cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
+# build uses the plain default `--no-fallback` native-image linking (dynamically linked against
+# glibc AND libstdc++), not the "mostly static" mode base-debian12 is meant for.
+FROM gcr.io/distroless/cc-debian12:nonroot
+LABEL version="0.0.3-native"
+LABEL description="Mercury API (GraalVM native image)"
+LABEL maintainer="Luis Mata luis.antonio.mata@gmail.com"
+
+WORKDIR /usr/local/runme
+
+COPY --from=builder /build/target/mercury /usr/local/runme/mercury
+COPY --from=builder /staging/usr/lib/ /usr/lib/
+# Same certs/mercury/ + templates baking rationale as the JIT Dockerfile — see its own
+# comments for why these are copied in rather than runtime-mounted. Sourced from the builder
+# stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
+COPY --from=builder /staging-certs/mercury/ certs/mercury/
+COPY src/main/resources/templates/ templates/
+
+EXPOSE 8118
+
+# No shell in a distroless image, so no docker-entrypoint.sh here — everything that
+# script did with `-D` system properties is passed as native-image CLI args instead
+# (Spring's native launcher still honors -D the same way the JVM does). -XX flags
+# (like -XX:+UseCompactObjectHeaders from the JIT entrypoint) do not apply to a
+# Substrate VM binary and are intentionally omitted.
+ENTRYPOINT ["/usr/local/runme/mercury", \
+    "-Dspring.application.name=mercury", \
+    "-Dapi.info.version=0.0.3", \
+    "-Dspring.freemarker.template-loader-path=/usr/local/runme/templates"]

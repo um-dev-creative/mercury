@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Guards against property placeholders in Java sources that no longer resolve against
- * {@code bootstrap.yml}.
+ * {@code application.yml}.
  *
  * <p>The {@code com.prx} → {@code com.umdc} migration renamed the whole configuration
  * namespace in YAML but left some {@code ${prx.*}} placeholders behind in annotations.
@@ -38,14 +38,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ConfigurationPlaceholderTest {
 
     private static final Path SOURCE_ROOT = Path.of("src/main/java");
-    private static final String BOOTSTRAP_YML = "bootstrap.yml";
+    private static final String APPLICATION_YML = "application.yml";
 
     /** Matches ${some.property} but not ${some.property:withDefault}. */
     private static final Pattern PLACEHOLDER_WITHOUT_DEFAULT =
             Pattern.compile("\\$\\{([a-z][a-zA-Z0-9._-]*)}");
 
     @Test
-    @DisplayName("every placeholder without a default resolves against bootstrap.yml")
+    @DisplayName("every placeholder without a default resolves against application.yml")
     void placeholdersWithoutDefaultsAreDeclared() throws IOException {
         Set<String> declared = declaredProperties();
         List<String> unresolved = new ArrayList<>();
@@ -64,17 +64,17 @@ class ConfigurationPlaceholderTest {
         }
 
         assertTrue(unresolved.isEmpty(),
-                "These placeholders have no default and are not declared in " + BOOTSTRAP_YML
+                "These placeholders have no default and are not declared in " + APPLICATION_YML
                         + ", so the Spring context would fail to start:\n  " + String.join("\n  ", unresolved));
     }
 
-    /** Flattens bootstrap.yml into dotted property paths, e.g. {@code umdc.scheduler.send-email.fixed-rate}. */
+    /** Flattens application.yml into dotted property paths, e.g. {@code umdc.scheduler.send-email.fixed-rate}. */
     private Set<String> declaredProperties() {
         Set<String> properties = new HashSet<>();
-        try (InputStream yml = getClass().getClassLoader().getResourceAsStream(BOOTSTRAP_YML)) {
+        try (InputStream yml = getClass().getClassLoader().getResourceAsStream(APPLICATION_YML)) {
             new Yaml().loadAll(yml).forEach(document -> flatten(document, "", properties));
         } catch (IOException e) {
-            throw new IllegalStateException("Unable to read " + BOOTSTRAP_YML, e);
+            throw new IllegalStateException("Unable to read " + APPLICATION_YML, e);
         }
         return properties;
     }

@@ -35,6 +35,9 @@ htmlReport/
 /.github/agents/
 /docs/*
 !/docs/tec/
+!/docs/issues/
+/docs/issues/*
+!/docs/issues/create-template-management.md
 
 # TLS/SSL credentials and keystores — never commit real certs/keys
 *.pem

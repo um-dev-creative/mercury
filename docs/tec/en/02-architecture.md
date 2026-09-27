@@ -44,7 +44,7 @@ flowchart TB
     end
 
     L1 --> L2 --> L3 --> L4
-    L5 -.->|startup: bootstrap.yml| L1
+    L5 -.->|startup: application.yml| L1
 ```
 
 | Layer | Responsibility | Real examples |
@@ -133,4 +133,4 @@ Mercury has **two** message-ingestion paths in the codebase, at different levels
 
 ---
 
-*Generated from an exhaustive read of the real source code (`kafka/`, `api/v1/service/`, `bootstrap.yml`) — not from prior documentation or assumptions.*
+*Generated from an exhaustive read of the real source code (`kafka/`, `api/v1/service/`, `application.yml`) — not from prior documentation or assumptions.*

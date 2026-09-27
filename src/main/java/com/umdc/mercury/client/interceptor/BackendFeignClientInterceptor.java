@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,7 +27,20 @@ import static com.umdc.mercury.constant.MercuryMessage.RUNTIME_EXCEPTION;
 import static jakarta.ws.rs.core.HttpHeaders.AUTHORIZATION;
 import static org.springframework.cloud.openfeign.security.OAuth2AccessTokenInterceptor.BEARER;
 
-@Configuration
+/**
+ * Feign {@code configuration} for {@link com.umdc.mercury.client.BackboneClient} only.
+ * <p>
+ * Deliberately NOT {@code @Configuration} — Spring Cloud OpenFeign's own docs warn
+ * against annotating a per-client {@code configuration} class that way: it would
+ * then also be picked up by the main application context's component scan and its
+ * {@code @Bean RequestInterceptor} would apply to every Feign client in the app —
+ * including {@link com.umdc.security.client.BackbonePublicClient}, whose calls to
+ * backbone's public (permitAll) endpoints must go out with NO Authorization header.
+ * Feign resolves this class's {@code @Bean} methods into {@code BackboneClient}'s
+ * own isolated child context regardless of this annotation, constructor-injecting
+ * {@link AuthProperties} from the parent context as usual.
+ * </p>
+ */
 public class BackendFeignClientInterceptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BackendFeignClientInterceptor.class);

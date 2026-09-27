@@ -18,6 +18,11 @@ import java.security.cert.CertificateFactory;
 import java.util.EnumSet;
 import java.util.Set;
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +82,7 @@ public final class TrustStoreInitializer {
             System.setProperty("javax.net.ssl.trustStore", mergedTrustStore.toAbsolutePath().toString());
             System.setProperty("javax.net.ssl.trustStoreType", "PKCS12");
             System.setProperty("javax.net.ssl.trustStorePassword", CACERTS_PASSWORD);
+            installAsJvmDefaultSslContext(trustStore);
         }
         catch (Exception e) {
             LOGGER.warn("Could not merge {} certs into the JVM default trust store; "
@@ -102,16 +108,51 @@ public final class TrustStoreInitializer {
         return new FileAttribute<?>[] {PosixFilePermissions.asFileAttribute(ownerOnly)};
     }
 
-    @SuppressWarnings("java:S6437")
-    // CACERTS_PASSWORD is the JDK's well-known default cacerts password ("changeit"), not a
-    // real secret - it's only needed to open the JDK's own read-only cacerts file.
+    /**
+     * Reads the platform's default trusted CAs via {@link TrustManagerFactory} instead of
+     * opening {@code $JAVA_HOME/lib/security/cacerts} directly. The file-path approach silently
+     * fails under GraalVM native-image — there is no JRE installation on disk at runtime, so
+     * {@code java.home} doesn't point at a real {@code lib/security/cacerts} file — which meant
+     * PRX-internal certs never actually got merged in native mode, and any code path that fell
+     * back to the JVM default trust store (rather than an explicit, app-configured one) failed
+     * TLS handshakes with PKIX errors. This API returns the JDK's real default trust anchors on
+     * a regular JVM and GraalVM's build-time-baked default trust anchors under native-image,
+     * identically, with no environment-specific branching needed.
+     */
     private static KeyStore loadJdkDefaultCacerts() throws GeneralSecurityException, IOException {
-        String javaHome = System.getProperty("java.home");
-        File cacerts = new File(javaHome, "lib/security/cacerts");
+        TrustManagerFactory trustManagerFactory =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init((KeyStore) null);
         KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-        try (InputStream in = new FileInputStream(cacerts)) {
-            keyStore.load(in, CACERTS_PASSWORD.toCharArray());
+        keyStore.load(null, null);
+        int index = 0;
+        for (TrustManager trustManager : trustManagerFactory.getTrustManagers()) {
+            if (trustManager instanceof X509TrustManager x509TrustManager) {
+                for (Certificate certificate : x509TrustManager.getAcceptedIssuers()) {
+                    keyStore.setCertificateEntry("default-" + index++, certificate);
+                }
+            }
         }
         return keyStore;
+    }
+
+    /**
+     * Real-deployment finding: the merged trust store above reaches most JVM-wide TLS clients
+     * (Tomcat's connector, Eureka's registration client) correctly via the {@code javax.net.ssl.trustStore}
+     * system properties, but Apache HttpClient5 - used internally by the OAuth2 resource server's
+     * JWK-fetching {@code RestTemplate} - builds its own {@link SSLContext} that does not pick up
+     * those properties, leaving it with zero trust anchors ({@code InvalidAlgorithmParameterException:
+     * the trustAnchors parameter must be non-empty}). Explicitly installing this merged store as the
+     * JVM-wide default {@link SSLContext} (rather than only setting system properties) reaches any
+     * caller that resolves trust via {@link SSLContext#getDefault()} instead of re-reading those
+     * properties itself.
+     */
+    private static void installAsJvmDefaultSslContext(KeyStore trustStore) throws GeneralSecurityException {
+        TrustManagerFactory trustManagerFactory =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init(trustStore);
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, trustManagerFactory.getTrustManagers(), null);
+        SSLContext.setDefault(sslContext);
     }
 }

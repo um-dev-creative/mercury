@@ -5,6 +5,7 @@ import com.umdc.mercury.api.v1.to.CampaignProgressTO;
 import com.umdc.mercury.api.v1.to.CreateCampaignRequest;
 import com.umdc.mercury.api.v1.to.CreateCampaignResponse;
 import com.umdc.mercury.api.v1.to.UpdateCampaignRequest;
+import com.umdc.security.annotation.SkipSessionValidation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,6 +26,7 @@ import static com.umdc.security.constant.ConstantApp.SESSION_TOKEN_KEY;
  * <p>All endpoints are rooted at {@code /api/v1/campaigns}.</p>
  */
 @Tag(name = "campaigns", description = "Campaign Management API")
+@SkipSessionValidation("M2M-only endpoint — gated by ManagedClientSecurityConfig's backbone opaque-token chain instead")
 public interface CampaignApi {
 
     String CODE_400 = "400";
