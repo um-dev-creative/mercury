@@ -1,8 +1,9 @@
 package com.prx.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.service.AuthServiceImpl;
-import com.umdc.mercury.client.BackboneClient;
+import com.umdc.mercury.security.LoginClientProperties;
 import com.umdc.mercury.security.SessionJwtServiceImpl;
+import com.umdc.security.client.BackbonePublicClient;
 import com.umdc.security.to.AuthRequest;
 import com.umdc.security.to.AuthResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -10,17 +11,30 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AuthServiceImplTest {
 
     private final SessionJwtServiceImpl sessionJwtService = mock(SessionJwtServiceImpl.class);
-    private final BackboneClient backboneClient = mock(BackboneClient.class);
-    private final AuthServiceImpl authService = new AuthServiceImpl(sessionJwtService, backboneClient);
+    private final BackbonePublicClient backbonePublicClient = mock(BackbonePublicClient.class);
+    private final LoginClientProperties loginClientProperties = registeredClient("validAlias", "validPassword");
+    private final AuthServiceImpl authService =
+            new AuthServiceImpl(sessionJwtService, backbonePublicClient, loginClientProperties);
+
+    private static LoginClientProperties registeredClient(String alias, String password) {
+        var client = new LoginClientProperties.LoginClient();
+        client.setAlias(alias);
+        client.setPassword(password);
+        var properties = new LoginClientProperties();
+        properties.setLoginClients(List.of(client));
+        return properties;
+    }
 
     @Test
-    @DisplayName("token should return OK status with valid alias")
+    @DisplayName("token should return OK status with a registered alias/password")
     void tokenShouldReturnOkStatusWithValidAlias() {
         AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
         when(sessionJwtService.generateSessionToken(anyString(), anyMap())).thenReturn("validToken");
@@ -53,6 +67,40 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("token should return UNAUTHORIZED status for an alias not in the registry")
+    void tokenShouldReturnUnauthorizedForUnknownAlias() {
+        AuthRequest authRequest = new AuthRequest("someoneElse", "validPassword");
+
+        ResponseEntity<AuthResponse> response = authService.token(authRequest);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verifyNoInteractions(sessionJwtService);
+    }
+
+    @Test
+    @DisplayName("token should return UNAUTHORIZED status for a registered alias with the wrong password")
+    void tokenShouldReturnUnauthorizedForWrongPassword() {
+        AuthRequest authRequest = new AuthRequest("validAlias", "wrongPassword");
+
+        ResponseEntity<AuthResponse> response = authService.token(authRequest);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        verifyNoInteractions(sessionJwtService);
+    }
+
+    @Test
+    @DisplayName("token should return UNAUTHORIZED status when no login clients are registered")
+    void tokenShouldReturnUnauthorizedWhenRegistryEmpty() {
+        var emptyProperties = new LoginClientProperties();
+        var service = new AuthServiceImpl(sessionJwtService, backbonePublicClient, emptyProperties);
+        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
+
+        ResponseEntity<AuthResponse> response = service.token(authRequest);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+    }
+
+    @Test
     @DisplayName("token should return NOT_ACCEPTABLE status with blank token")
     void tokenShouldReturnNotAcceptableStatusWithBlankToken() {
         AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
@@ -67,7 +115,7 @@ class AuthServiceImplTest {
     @DisplayName("validate should return true for valid token")
     void validateShouldReturnTrueForValidToken() {
         String sessionTokenBkd = "validToken";
-        when(backboneClient.validate(sessionTokenBkd)).thenReturn(true);
+        when(backbonePublicClient.validate(sessionTokenBkd)).thenReturn(true);
 
         boolean isValid = authService.validate(sessionTokenBkd);
 
@@ -78,7 +126,7 @@ class AuthServiceImplTest {
     @DisplayName("validate should return false for invalid token")
     void validateShouldReturnFalseForInvalidToken() {
         String sessionTokenBkd = "invalidToken";
-        when(backboneClient.validate(sessionTokenBkd)).thenReturn(false);
+        when(backbonePublicClient.validate(sessionTokenBkd)).thenReturn(false);
 
         boolean isValid = authService.validate(sessionTokenBkd);
 

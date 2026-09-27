@@ -358,21 +358,74 @@ everything else here — by reading the actual failure, not guessing:
    store, so any caller that resolves trust via `SSLContext.getDefault()`
    (rather than re-reading the system properties itself) also gets it.
 
-**Still not confirmed as of this writing**: whether `SSLContext.setDefault()`
-is actually the mechanism Apache HttpClient5 (via Spring Boot's
-`ClientHttpRequestFactoryBuilder`) consults for its default TLS strategy —
-if Apache's own `SSLContexts.createDefault()`/`createSystemDefault()`
-utilities build a context independently of `SSLContext.getDefault()`, this
-fix will not reach it, and the actual fix would need to live in the
-closed-source `com.umdc.security` library that defines the `jwtDecoder`
-bean (confirmed via the Spring Boot conditions-evaluation report: a bean
-named `jwtDecoder` already exists before Boot's own autoconfiguration would
-create one, so this repository has no visibility into how its underlying
-`RestOperations`/`HttpClient` is built). Also still unconfirmed: whether the
-live Vault fetch path succeeds end-to-end with real credentials. The next
-real deployment attempt (built with the required `--secret` flags from
-fix #3, running this `SSLContext.setDefault()` fix) is the actual
-confirmation for both, same caveat as the rest of this document.
+**Resolved — the real cause was neither `SSLContext.setDefault()` nor
+HttpClient5's own default-context handling; it was one specific call inside
+the closed-source library, found by decompiling the jar (no source
+available, but `javap -c` on the installed `.m2` artifact is enough to read
+what a method actually does):**
+
+`com.umdc.security.config.SecurityConfig.getRestTemplate()` builds the
+`RestOperations` handed to `NimbusJwtDecoder.withJwkSetUri(...)` from an
+**explicit** `SslBundle`:
+`RestTemplateBuilder().sslBundle(keyStoreUtil.getSslBundle(securityProperties)).build()`.
+An explicit `SslBundle` makes Spring Boot build a brand-new HttpClient5
+connection manager and `SSLContext` from that bundle's own trust material —
+it never consults `SSLContext.getDefault()` or the `javax.net.ssl.trustStore`
+system property at all, by design. So fix #4 above (`SSLContext.setDefault()`)
+could never have reached this path regardless of whether HttpClient5 itself
+reads JVM defaults elsewhere; this RestTemplate was always going to use
+whatever `KeystoreUtil.getSslBundle(securityProperties)` handed it.
+
+That bundle's trust material comes from `KeystoreUtil.getKeyStore(StoreProperties)`,
+which loads the configured `location` via a **raw**
+`this.getClass().getClassLoader().getResourceAsStream(location)` — a plain
+classpath lookup with no understanding of a `file:` scheme prefix. This
+repo's `application.yml` had `umdc.security.truststore.location` (and
+`keystore.location`, and both `management-authenticator` equivalents) set to
+`file:certs/mercury/umdc-truststore.jks` — matching the convention used
+everywhere else in the file for Spring-Resource-aware properties (Kafka SSL,
+`eureka.client.tls`). But `KeystoreUtil` isn't Spring-Resource-aware: passed
+that string, `getResourceAsStream` looks for a classpath entry literally
+named `file:certs/mercury/umdc-truststore.jks`, which never exists, and
+returns `null`. `KeyStore.load(null, password)` is a well-defined, silent
+no-op per the JCA spec — it does **not** throw; it produces a valid, empty,
+zero-entry keystore. No exception, no log line, nothing to catch — the
+failure only surfaces three calls later, when `TrustManagerFactory`/`SSLContext`
+built from that empty keystore hits `PKIXParameters.setTrustAnchors` on the
+first real handshake and throws exactly
+`InvalidAlgorithmParameterException: the trustAnchors parameter must be
+non-empty`. Confirmed directly: a standalone repro
+(`ClassLoader.getResourceAsStream("certs/mercury/umdc-truststore.jks")`)
+returned `null` and 0 trust anchors before the fix below, `FOUND` and 3
+trust anchors after.
+
+**Fix:** two changes, no touch to the closed-source library.
+1. `pom.xml` gained a second `<resource>` entry copying `certs/mercury/`
+   (already gitignored, deliberately never `COPY`'d into git — see fix #3
+   above) onto the classpath at `certs/mercury/` inside `target/classes` —
+   a Maven-resources copy, not a git commit, so it stays a no-op wherever
+   `certs/mercury/` isn't populated yet, exactly like fix #3's BuildKit
+   secrets.
+2. `application.yml`'s `umdc.security.keystore.location`,
+   `truststore.location`, and both `management-authenticator` equivalents
+   dropped the `file:` prefix (now plain `certs/mercury/mercury.jks` /
+   `certs/mercury/umdc-truststore.jks`) — matching what `KeystoreUtil`'s raw
+   classloader call actually needs. The Kafka SSL and `eureka.client.tls`
+   `file:`-prefixed locations elsewhere in the same file are untouched:
+   those are read through genuinely Spring-Resource-aware binders
+   (`spring.kafka.ssl.*`, Eureka's own TLS config), a different code path
+   that does understand the prefix.
+
+Both changes are additive/local to this repo — no `--secret` flags, no
+Dockerfile changes, no `com.umdc.security` changes. The same `mvn package`
+that already runs certs/mercury/ through the JVM-mode `Dockerfile`'s build
+step (outside this Dockerfile itself, which only `COPY`s a pre-built jar —
+see fix #3) now also needs `certs/mercury/` populated on that build host
+*before* `mvn package` runs, the same precondition fix #3 already requires
+for the Docker-image copy to be non-empty. `mvn clean test` (562/562, JVM
+mode) passes unchanged after both changes. Still unconfirmed, same caveat as
+the rest of this document: whether the live Vault fetch path succeeds
+end-to-end with real credentials against `vault.umdc-qa.tst`.
 
 ## Non-goals / explicitly out of scope for this ticket
 

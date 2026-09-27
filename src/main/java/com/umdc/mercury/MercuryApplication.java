@@ -1,12 +1,18 @@
 package com.umdc.mercury;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigurationExcludeFilter;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.context.TypeExcludeFilter;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.umdc.mercury.security.TrustStoreInitializer;
+import com.umdc.security.config.SecurityConfig;
 
 /**
  * MercuryApplication.
@@ -18,11 +24,34 @@ import com.umdc.mercury.security.TrustStoreInitializer;
 @EnableFeignClients(basePackages = "com.umdc.mercury.client")
 @EnableScheduling
 @EnableDiscoveryClient
-@SpringBootApplication(
-        scanBasePackages = {
+// Hand-expanded @SpringBootApplication (= @SpringBootConfiguration + @EnableAutoConfiguration +
+// @ComponentScan) instead of the shorthand: a class can carry only one *effective* @ComponentScan
+// - stacking @SpringBootApplication(scanBasePackages=...) alongside a second, explicit
+// @ComponentScan on the same class does NOT run both (verified empirically: the explicit one
+// silently replaces @SpringBootApplication's, dropping every bean under com.umdc.mercury/
+// com.umdc.commons.services). Expanding lets one @ComponentScan cover all three base packages
+// plus the exclusion below, while keeping @SpringBootApplication's own default excludeFilters
+// (TypeExcludeFilter for test slices, AutoConfigurationExcludeFilter to avoid double-registering
+// autoconfig classes) so behavior otherwise matches the shorthand exactly.
+//
+// The added filter excludes com.umdc.security.config.SecurityConfig: the decommissioned
+// Keycloak-style JWT resource-server chain (see SessionTokenSecurityConfig's and
+// ManagedClientSecurityConfig's javadoc) from the closed-source security-oauth jar. It
+// hard-requires spring.security.oauth2.resourceserver.jwt.jwk-set-uri via a bare @Value field
+// with no default, so leaving it on the classpath forced that dead property to stay in
+// application.yml just to keep the context from failing to start.
+@SpringBootConfiguration
+@EnableAutoConfiguration
+@ComponentScan(
+        basePackages = {
                 "com.umdc.commons.services",
                 "com.umdc.mercury",
                 "com.umdc.security"
+        },
+        excludeFilters = {
+                @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
+                @ComponentScan.Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class),
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class)
         }
 )
 public class MercuryApplication {

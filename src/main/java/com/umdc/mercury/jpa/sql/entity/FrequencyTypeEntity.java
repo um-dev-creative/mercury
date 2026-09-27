@@ -15,7 +15,7 @@ import java.util.UUID;
 @Table(name = "frequency_type", schema = "mercury")
 public class FrequencyTypeEntity {
     @Id
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 

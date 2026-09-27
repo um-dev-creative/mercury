@@ -32,10 +32,13 @@ public class CampaignEntity {
     @JoinColumn(name = "channel_type_id", nullable = false)
     private ChannelTypeEntity channelType;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "template_defined_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "template_defined_id")
     private TemplateDefinedEntity templateDefined;
+
+    @NotNull
+    @Column(name = "user_id", nullable = false)
+    private UUID userId;
 
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
@@ -79,13 +82,6 @@ public class CampaignEntity {
     @ColumnDefault("true")
     @Column(name = "enabled")
     private Boolean enabled;
-
-    @ColumnDefault("false")
-    @Column(name = "deleted")
-    private Boolean deleted;
-
-    @Column(name = "deleted_at")
-    private LocalDateTime deletedAt;
 
     public UUID getId() {
         return id;
@@ -215,19 +211,11 @@ public class CampaignEntity {
         this.enabled = enabled;
     }
 
-    public Boolean getDeleted() {
-        return deleted;
+    public UUID getUserId() {
+        return userId;
     }
 
-    public void setDeleted(Boolean deleted) {
-        this.deleted = deleted;
-    }
-
-    public LocalDateTime getDeletedAt() {
-        return deletedAt;
-    }
-
-    public void setDeletedAt(LocalDateTime deletedAt) {
-        this.deletedAt = deletedAt;
+    public void setUserId(UUID userId) {
+        this.userId = userId;
     }
 }

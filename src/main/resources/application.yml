@@ -3,12 +3,27 @@ log:
   debug: ${LOGGING_TRACE_ENABLED}
 
 umdc:
+  mercury:
+    # Backend callers allowed to obtain a Mercury session-token via
+    # POST /api/v1/auth/token (LoginClientProperties) — e.g. directory-backend,
+    # before it calls /api/v1/mail or /api/v1/verification-code. Not the same
+    # registry as umdc.security.auth.clients below (that one is OUTBOUND —
+    # who Mercury authenticates AS when calling other services).
+    login-clients:
+      - alias: ${DIRECTORY_BACKEND_LOGIN_ALIAS:}
+        password: ${DIRECTORY_BACKEND_LOGIN_PASSWORD:}
+  backbone:
+    # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
+    # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing
+    # it here means one env var change covers both clients across environments.
+    base-url: ${BACKBONE_BASE_URL:https://api.umdc-qa.tst/backbone}
   management:
     clientRoles: ${AUTH_ROLE_ID}  # Client roles for management
   api:
-    excludes: none
-    exclude:
-      methods: accessToken,generateTokenSession
+    # Per-endpoint exclusion from SessionJwtInterceptor is done via the
+    # @SkipSessionValidation annotation now (see CampaignApi, ChannelTypeApi,
+    # and security-oauth's own AuthAPi) — umdc.api.excludes/exclude.methods
+    # were removed from security-oauth; both are unused here on purpose.
     endpoint: /api/v1  # API endpoint for the application
   consumer:
     group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
@@ -61,27 +76,6 @@ umdc:
   logging:
     trace:
       enabled: ${LOGGING_TRACE_ENABLED}
-  auth:
-    converter:
-      resource-id: ${AUTH_CLIENT_ID}  # Resource ID for the authentication client
-      principal-claim-name: ${AUTH_RESOURCE_PRINCIPAL}  # Principal claim name for the resourceauth:
-    clients:
-      - id: backbone
-        authorization-grant-type: ${BACKBONE_GRANT_TYPE}
-        scope: ${BACKBONE_SCOPE}
-        client-secret: ${BACKBONE_CLIENT_SECRET}
-        client-id: ${BACKBONE_CLIENT_ID}
-        redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
-        username: ${BACKBONE_USERNAME}
-        password: ${BACKBONE_PASSWORD}
-      - id: mercury
-        authorization-grant-type: ${MERCURY_GRANT_TYPE}
-        scope: ${MERCURY_SCOPE}
-        client-secret: ${MERCURY_CLIENT_SECRET}
-        client-id: ${MERCURY_CLIENT_ID}
-        redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
-        username: ${MERCURY_USERNAME}
-        password: ${MERCURY_PASSWORD}
   verification:
     code:
       template:
@@ -99,31 +93,82 @@ umdc:
     jwt:
       secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
       expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
+    # AuthProperties/JwtConverterProperties (security-oauth jar) bind to umdc.security.auth.* -
+    # this block was previously (wrongly) at umdc.auth.*, one level too shallow, so
+    # AuthProperties.getClients() always returned null and BackendFeignClientInterceptor's
+    # clientProperties field was always null (NPE on any BackboneClient call).
+    auth:
+      converter:
+        resource-id: ${AUTH_CLIENT_ID}  # Resource ID for the authentication client
+        principal-claim-name: ${AUTH_RESOURCE_PRINCIPAL}  # Principal claim name for the resource
+      clients:
+        - id: backbone
+          authorization-grant-type: ${BACKBONE_GRANT_TYPE}
+          scope: ${BACKBONE_SCOPE}
+          client-secret: ${BACKBONE_CLIENT_SECRET}
+          client-id: ${BACKBONE_CLIENT_ID}
+          redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
+          username: ${BACKBONE_USERNAME}
+          password: ${BACKBONE_PASSWORD}
+        - id: mercury
+          authorization-grant-type: ${MERCURY_GRANT_TYPE}
+          scope: ${MERCURY_SCOPE}
+          client-secret: ${MERCURY_CLIENT_SECRET}
+          client-id: ${MERCURY_CLIENT_ID}
+          redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
+          username: ${MERCURY_USERNAME}
+          password: ${MERCURY_PASSWORD}
     # certs/mercury/ is always at this fixed, repo-relative path — baked into every
     # Docker image (Dockerfile's COPY certs/mercury/) and present in every local
     # checkout — so these are hardcoded, not sourced from SSL_KEYSTORE_LOCATION/
-    # SSL_TRUSTSTORE_LOCATION env vars. That indirection kept getting silently broken
-    # by a stale/hand-edited local default.env missing the required file: prefix
-    # (an unprefixed value resolves as classpath:, which doesn't exist post-purge) —
-    # twice, on two different machines. Type/password verified against the actual
+    # SSL_TRUSTSTORE_LOCATION env vars. Type/password verified against the actual
     # files with keytool: mercury.jks is JKS/changeit, umdc-truststore.jks is
     # PKCS12/changeit.
+    #
+    # No "file:" prefix here, unlike the Kafka/Eureka locations elsewhere in this file:
+    # com.umdc.security's KeystoreUtil (closed-source security-oauth dependency) loads these
+    # via a raw ClassLoader.getResourceAsStream(location) - it doesn't parse a "file:" scheme,
+    # so a prefixed value always resolves to null there. KeyStore.load(null, pwd) then silently
+    # builds an EMPTY keystore instead of throwing (InvalidAlgorithmParameterException: the
+    # trustAnchors parameter must be non-empty). That bug is fixed by the plain classpath-relative
+    # paths below - see pom.xml's <resources> for how certs/mercury/ gets onto the classpath.
+    #
+    # keystore/truststore ARE SWAPPED BELOW ON PURPOSE - do not "fix" this back.
+    # KeystoreUtil.getSslBundle(SecurityProperties) -> loadSslBundle(KeyStore, KeyStore, String)
+    # loads properties.getKeystore() and properties.getTruststore() in the right order, but its
+    # own final call swaps them: SslStoreBundle.of(trustStoreArg, password, keyStoreArg) instead
+    # of SslStoreBundle.of(keyStoreArg, password, trustStoreArg) (confirmed by decompiling
+    # security-oauth-0.0.1.jar's KeystoreUtil.class with javap - the bytecode pushes local var 2
+    # [trustStore] before local var 1 [keyStore] onto the stack for that invokestatic). The
+    # resulting SslBundle - the one SecurityConfig.getRestTemplate() feeds to the OAuth2
+    # resource server's JWK-fetch RestTemplate - ends up trusting mercury.jks (our own client
+    # cert, not a CA) instead of umdc-truststore.jks (which holds PRX Internal CA), causing
+    # "PKIX path building failed: unable to find valid certification path to requested target"
+    # on every real JWK fetch. Swapping which file each property here points to pre-compensates
+    # for that swap, so the SslBundle KeystoreUtil actually builds ends up correct: keyStore =
+    # mercury.jks, trustStore = umdc-truststore.jks. getSSLContext(SecurityProperties), the one
+    # other method on KeystoreUtil that builds trust/key managers, does NOT have this bug - but
+    # nothing in this app calls it (confirmed: SecurityConfig only calls getSslBundle).
     keystore:
-      location: file:certs/mercury/mercury.jks
-      type: JKS
+      location: certs/mercury/umdc-truststore.jks
+      type: PKCS12
       password: changeit
     truststore:
-      location: file:certs/mercury/umdc-truststore.jks
-      type: PKCS12
+      location: certs/mercury/mercury.jks
+      type: JKS
       password: changeit
     management-authenticator:
       enabled: true  # Enable management authenticator
+      # Deliberately NOT swapped like umdc.security.keystore/truststore above: nothing in this
+      # jar or Mercury calls KeystoreUtil.getManagementAuthenticatorSslBundle() (confirmed by
+      # decompiling security-oauth-0.0.1.jar), so this block is dead config either way. It has
+      # the identical loadSslBundle() argument-swap bug if it's ever wired up in the future.
       keystore:
-        location: file:certs/mercury/mercury.jks
+        location: certs/mercury/mercury.jks
         type: JKS
         password: changeit
       truststore:
-        location: file:certs/mercury/umdc-truststore.jks
+        location: certs/mercury/umdc-truststore.jks
         type: PKCS12
         password: changeit
 app:
@@ -254,8 +299,6 @@ spring:
             location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
             password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
             type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
-  autoconfigure:
-    exclude: org.springframework.boot.security.autoconfigure.web.servlet.ServletWebSecurityAutoConfiguration
   mustache:
     check-template-location: false
   test:
@@ -270,26 +313,13 @@ spring:
   application:
     # The name of the Spring Boot application, taken from the app.name property
     name: ${app.name}
-  security:
-    # Disables the security for the Spring Boot application
-    oauth2:
-      clientRegistrationId: mercury-backend-client
-      client:
-        registration:
-          external:
-            provider: external
-            client-id: ${AUTH_CLIENT_ID}
-            client-secret: ${AUTH_CLIENT_SECRET}
-            scope: profile mercury-backend-app-scope openid
-            authorization-grant-type: password
-        provider:
-          external:
-            issuer-uri: ${AUTH_URI}
-            jwk-set-uri: ${spring.security.oauth2.client.provider.external.issuer-uri}/protocol/openid-connect/certs
-      resourceserver:
-        jwt:
-          issuer-uri: ${AUTH_URI}
-          jwk-set-uri: ${spring.security.oauth2.resourceserver.jwt.issuer-uri}${AUTH_CERT_URI}
+  # spring.security.oauth2.{client,resourceserver.jwt} intentionally removed: leftover
+  # config for the decommissioned Keycloak-style IdP (see SessionTokenSecurityConfig's
+  # javadoc). MercuryApplication now excludes com.umdc.security.config.SecurityConfig
+  # (the only consumer of these properties) from component scanning, so nothing resolves
+  # them anymore. Leaving them in place made Spring Boot autoconfigure a JwtDecoder and
+  # advertise RFC 9728 Protected Resource Metadata (a "resource_metadata" WWW-Authenticate
+  # challenge pointing at /.well-known/oauth-protected-resource) that nothing actually serves.
   cloud:
     # The Spring Cloud Config specific configurations
     #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>

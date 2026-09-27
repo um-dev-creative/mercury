@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "verification_codes", schema = "mercury")
 public class VerificationCodeEntity {
     @Id
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;
@@ -26,9 +26,9 @@ public class VerificationCodeEntity {
     @JoinColumn(name = "application_id", nullable = false)
     private ApplicationEntity applicationEntity;
 
-    @Size(max = 12)
+    @Size(max = 9)
     @NotNull
-    @Column(name = "verification_code", nullable = false, length = 12)
+    @Column(name = "verification_code", nullable = false, length = 9)
     private String verificationCode;
 
     @NotNull

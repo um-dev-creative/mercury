@@ -28,6 +28,9 @@ public class CampaignServiceImpl implements CampaignService {
     private static final Logger logger = LoggerFactory.getLogger(CampaignServiceImpl.class);
     private static final int DEFAULT_BATCH_SIZE = 100;
     private static final String DEFAULT_STATUS = "DRAFT";
+    // mercury.campaigns has no deleted/deleted_at columns (see the real schema script) - soft
+    // delete is represented as a terminal "status" value instead of a boolean flag/timestamp.
+    private static final String DELETED_STATUS = "DELETED";
     private static final String CAMPAIGN_NOT_FOUND_MESSAGE = "Campaign not found: ";
 
     private final CampaignRepository campaignRepository;
@@ -181,7 +184,7 @@ public class CampaignServiceImpl implements CampaignService {
         logger.debug("Fetching campaigns by user and application. userId={}, applicationId={}", userId, applicationId);
         List<CampaignEntity> entities = campaignRepository.findByCreatedByAndApplicationId(userId, applicationId);
         return entities.stream()
-                .filter(entity -> !Boolean.TRUE.equals(entity.getDeleted()))
+                .filter(entity -> !DELETED_STATUS.equals(entity.getStatus()))
                 .map(campaignMapper::toCampaignDetailResponse)
                 .toList();
     }
@@ -227,8 +230,7 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
-        entity.setDeleted(true);
-        entity.setDeletedAt(now);
+        entity.setStatus(DELETED_STATUS);
         entity.setUpdatedAt(now);
         entity.setUpdatedBy(requesterId);
         campaignRepository.save(entity);
@@ -242,7 +244,7 @@ public class CampaignServiceImpl implements CampaignService {
     private CampaignEntity requireExisting(UUID campaignId) {
         CampaignEntity entity = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId));
-        if (Boolean.TRUE.equals(entity.getDeleted())) {
+        if (DELETED_STATUS.equals(entity.getStatus())) {
             logger.warn("Campaign is soft-deleted. id={}", campaignId);
             throw new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId);
         }
