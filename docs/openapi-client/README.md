@@ -24,6 +24,11 @@ Endpoints (operationId -> path)
 - getChannelTypeById -> GET /api/v1/channel-types/{id}
 - updateChannelType -> PUT /api/v1/channel-types/{id}
 - toggleChannelType -> PATCH /api/v1/channel-types/{id}/toggle?enabled=true|false
+- createTemplate -> POST /api/v1/templates (header: session-token)
+- searchTemplates -> GET /api/v1/templates?applicationId=... (header: session-token)
+- getTemplateById -> GET /api/v1/templates/{id} (header: session-token)
+- updateTemplate -> PUT /api/v1/templates/{id} (header: session-token)
+- deleteTemplate -> DELETE /api/v1/templates/{id} (header: session-token)
 
 Quick client generation
 -----------------------

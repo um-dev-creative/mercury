@@ -2,6 +2,7 @@ package com.prx.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.controller.GlobalExceptionHandler;
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,6 +16,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.List;
@@ -279,6 +281,54 @@ class GlobalExceptionHandlerTest {
                     () -> assertThat(response.getBody().error()).isEqualTo("Not Found"),
                     () -> assertThat(response.getBody().message()).contains(id),
                     () -> assertThat(response.getBody().path()).isEqualTo("/api/v1/campaigns")
+            );
+        }
+    }
+
+    // ── TemplateNotFoundException (404) ───────────────────────────────────────
+
+    @Nested
+    @DisplayName("handleTemplateNotFound – TemplateNotFoundException")
+    class HandleTemplateNotFound {
+
+        @Test
+        @DisplayName("returns 404 with template id in message")
+        void handleTemplateNotFound_returns404() {
+            String id = "0c1e2a3b-4d5e-6f70-8192-a3b4c5d6e7f8";
+            TemplateNotFoundException ex = new TemplateNotFoundException("Template not found: " + id);
+
+            ResponseEntity<ApiError> response = handler.handleTemplateNotFound(ex, request);
+
+            assertAll("not found",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().status()).isEqualTo(404),
+                    () -> assertThat(response.getBody().error()).isEqualTo("Not Found"),
+                    () -> assertThat(response.getBody().message()).contains(id),
+                    () -> assertThat(response.getBody().path()).isEqualTo("/api/v1/campaigns")
+            );
+        }
+    }
+
+    // ── MissingServletRequestParameterException (400) ─────────────────────────
+
+    @Nested
+    @DisplayName("handleMissingParameter – MissingServletRequestParameterException")
+    class HandleMissingParameter {
+
+        @Test
+        @DisplayName("returns 400 for a missing required query parameter")
+        void handleMissingParameter_returns400() {
+            MissingServletRequestParameterException ex =
+                    new MissingServletRequestParameterException("applicationId", "UUID");
+
+            ResponseEntity<ApiError> response = handler.handleMissingParameter(ex, request);
+
+            assertAll("missing parameter",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST),
+                    () -> assertThat(response.getBody()).isNotNull(),
+                    () -> assertThat(response.getBody().status()).isEqualTo(400),
+                    () -> assertThat(response.getBody().message()).contains("applicationId")
             );
         }
     }

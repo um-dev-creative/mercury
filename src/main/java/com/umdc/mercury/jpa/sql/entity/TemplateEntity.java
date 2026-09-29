@@ -37,7 +37,7 @@ public class TemplateEntity {
     private TemplateTypeEntity templateTypeEntity;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "application_id", nullable = false)
     private ApplicationEntity applicationEntity;
 
@@ -54,7 +54,7 @@ public class TemplateEntity {
     private Boolean active;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "severity_type_id", nullable = false)
     private SeverityTypeEntity severityTypeEntity;
 

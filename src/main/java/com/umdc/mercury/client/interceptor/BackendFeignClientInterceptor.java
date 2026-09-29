@@ -8,6 +8,12 @@ import com.umdc.mercury.constant.MercuryKey;
 import com.umdc.security.properties.AuthProperties;
 import com.umdc.security.properties.ClientProperties;
 import feign.RequestInterceptor;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
+import org.apache.hc.client5.http.io.HttpClientConnectionManager;
+import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
+import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,10 +21,13 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
+import javax.net.ssl.SSLContext;
+import java.security.NoSuchAlgorithmException;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -81,7 +90,7 @@ public class BackendFeignClientInterceptor {
     }
 
     private String getToken() {
-        RestTemplate client = new RestTemplate();
+        RestTemplate client = new RestTemplate(new HttpComponentsClientHttpRequestFactory(trustedHttpClient()));
         HttpHeaders headers = new HttpHeaders();
         MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
 
@@ -102,6 +111,36 @@ public class BackendFeignClientInterceptor {
 
     public static UserSession create(TokenResponse tokenResponse, UUID id) {
         return new UserSession(id, "", tokenResponse.accessToken());
+    }
+
+    /**
+     * Builds an Apache HttpClient5 client whose TLS strategy is wired explicitly from
+     * {@link SSLContext#getDefault()} — the JVM-wide default {@code TrustStoreInitializer}
+     * installs at startup (merging the PRX Internal CA in), via {@code SSLContext.setDefault(...)}.
+     * <p>
+     * A bare {@code new RestTemplate()} does NOT reliably pick that up: HttpClient5's own
+     * "system default" SSL resolution reads {@code javax.net.ssl.trustStore} system properties
+     * directly rather than {@code SSLContext.getDefault()}, and empirically (see
+     * {@code TrustStoreInitializer}'s own "Real-deployment finding" javadoc) does not reach this
+     * far — every call through an unconfigured client fails with
+     * {@code PKIX path building failed: unable to find valid certification path to requested target}
+     * against PRX-internal hosts. Reading {@link SSLContext#getDefault()} explicitly, at call
+     * time (this method only ever runs well after {@code MercuryApplication.main()} has already
+     * installed the merged context), sidesteps that ambiguity entirely.
+     * </p>
+     */
+    private static CloseableHttpClient trustedHttpClient() {
+        SSLContext sslContext;
+        try {
+            sslContext = SSLContext.getDefault();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Unable to resolve the JVM default SSLContext", e);
+        }
+        TlsSocketStrategy tlsStrategy = new DefaultClientTlsStrategy(sslContext);
+        HttpClientConnectionManager connectionManager = PoolingHttpClientConnectionManagerBuilder.create()
+                .setTlsSocketStrategy(tlsStrategy)
+                .build();
+        return HttpClients.custom().setConnectionManager(connectionManager).build();
     }
 
 }

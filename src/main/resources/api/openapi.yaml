@@ -380,6 +380,226 @@ paths:
         '422':
           description: Business rule violation.
 
+  /api/v1/templates:
+    post:
+      tags:
+        - templates
+      summary: Create a new template
+      description: Creates a new reusable base template, always persisted as active.
+      operationId: createTemplate
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive application, template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+    get:
+      tags:
+        - templates
+      summary: Search templates
+      description: Searches templates within an application the caller may access. Always scoped by applicationId; defaults to active-only results; bounded and stably paginated/sorted.
+      operationId: searchTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: templateTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: severityTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            maximum: 100
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            example: createdAt,desc
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated search results returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateSearchResponse'
+        '400':
+          description: Missing applicationId, invalid filter/UUID value, or out-of-bounds paging/sort parameter.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+
+  /api/v1/templates/{id}:
+    get:
+      tags:
+        - templates
+      summary: Get template by ID
+      description: Retrieves the full details of an active template identified by its UUID. Unknown and inactive ids are both reported as not found.
+      operationId: getTemplateById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid UUID format supplied for id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    put:
+      tags:
+        - templates
+      summary: Update template by ID
+      description: Updates mutable metadata of an active template identified by UUID. Fields omitted from the request remain unchanged; the owning application is immutable.
+      operationId: updateTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    delete:
+      tags:
+        - templates
+      summary: Deactivate template by ID
+      description: Soft-deletes a template (sets active=false); the row and all dependent references are retained. Idempotent for an already-inactive template.
+      operationId: deleteTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Template deactivated successfully (or was already inactive).
+        '400':
+          description: Malformed id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template with the given id does not exist.
+        '500':
+          description: Unexpected internal error.
+
 components:
   schemas:
     CreateCampaignRequest:
@@ -666,4 +886,129 @@ components:
         name: "Updated Campaign Name"
         scheduledAt: "2026-03-20T13:00:00Z"
         status: "SCHEDULED"
+
+    CreateTemplateRequest:
+      type: object
+      required:
+        - description
+        - location
+        - fileFormat
+        - templateTypeId
+        - applicationId
+        - severityTypeId
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+          description: Metadata-only pointer to where the template content lives; upload/download of content is out of scope.
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+          description: Owning application; immutable once the template is created.
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Updated welcome email"
+        fileFormat: "HTML"
+
+    TemplateDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        location:
+          type: string
+        fileFormat:
+          type: string
+        templateTypeId:
+          type: string
+          format: uuid
+        templateTypeName:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+        severityTypeName:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: "88888888-8888-8888-8888-888888888888"
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        templateTypeName: "Marketing"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+        severityTypeName: "High"
+        active: true
+        createdAt: "2026-03-14T12:00:00Z"
+        updatedAt: "2026-03-14T12:00:00Z"
+
+    TemplateSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateDetailResponse'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
 

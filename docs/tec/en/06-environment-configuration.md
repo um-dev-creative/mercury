@@ -143,9 +143,12 @@ flowchart LR
 
 ```bash
 cp secrets/local.env.example secrets/local.env   # fill in a real VAULT_TOKEN
-docker compose build mercury
-docker compose up -d mercury
+docker compose --env-file config/local.env build mercury
+docker compose --env-file config/local.env up -d mercury
 ```
+
+> [!NOTE]
+> `--env-file config/local.env` is required for `docker-compose.yml` to resolve `${MERCURY_TEMPLATES_HOST_PATH}` (the host directory mounted over `/usr/local/runme/templates`) from that file — Compose only reads `env_file:` entries to inject variables **inside** the container, never for its own `${...}` substitution in the YAML. Without the flag, Compose falls back to the default baked into `docker-compose.yml` itself.
 
 ### Full local stack (optional)
 

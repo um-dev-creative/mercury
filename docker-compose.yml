@@ -8,6 +8,14 @@
 #     bootstrap secret Vault can't hand us: VAULT_TOKEN. Everything else (DB,
 #     Mongo, mail, OAuth, Kafka SASL, etc.) is resolved from Vault's own KV store
 #     at runtime and never belongs in either file, nor in a Helm values file.
+#
+# config/local.env is ALSO this file's source for ${...} substitution below (e.g.
+# MERCURY_TEMPLATES_HOST_PATH) — Compose does not read env_file: entries for its own
+# variable substitution (only shell env or an --env-file), so invoke as:
+#   docker compose --env-file config/local.env build mercury
+#   docker compose --env-file config/local.env up -d mercury
+# (plain `docker compose up` falls back to this file's own inline defaults, so it
+# still works for a quick local check — it just won't honor config/local.env overrides.)
 services:
   mercury:
     build: .
@@ -34,7 +42,13 @@ services:
       - secrets/local.env
     volumes:
       # certs/mercury/ is baked into the image now (see Dockerfile) — no runtime mount needed.
-      - ./src/main/resources/templates:/usr/local/runme/templates:ro
+      # Templates are ALSO baked into the image (same rationale, see Dockerfile) as a working
+      # default — this mount is an optional override so ops can point at a real host directory
+      # (e.g. C:\ambientes\mercury\templates on Windows, /opt/mercury/templates on Linux)
+      # without rebuilding the image. Set MERCURY_TEMPLATES_HOST_PATH in config/local.env (see
+      # its own comment there) — read via --env-file per the header comment above; defaults to
+      # the repo checkout's own templates when Compose falls back to its inline default.
+      - ${MERCURY_TEMPLATES_HOST_PATH:-./src/main/resources/templates}:/usr/local/runme/templates:ro
 
 networks:
   nginx_umdc-net:

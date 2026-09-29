@@ -19,7 +19,7 @@ public class ChannelConfigEntity {
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "channel_type_id", nullable = false)
     private ChannelTypeEntity channelType;
 
