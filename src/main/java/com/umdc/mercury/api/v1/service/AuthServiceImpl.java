@@ -6,7 +6,6 @@ import com.umdc.security.client.BackbonePublicClient;
 import com.umdc.security.service.AuthService;
 import com.umdc.security.to.AuthRequest;
 import com.umdc.security.to.AuthResponse;
-import feign.FeignException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -17,11 +16,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-
-import static com.umdc.commons.util.JwtUtil.getUidFromToken;
-import static org.apache.commons.lang3.BooleanUtils.FALSE;
 
 /**
  * Service implementation for authentication-related operations.
@@ -101,20 +98,45 @@ public class AuthServiceImpl implements AuthService {
                 actual.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Exchanges a backbone-issued {@code session-token-bkd} for a Mercury-signed session
+     * token carrying the same {@code uid}.
+     * <p>
+     * {@code sessionTokenBkd} is caller-supplied and this endpoint is
+     * {@code @SkipSessionValidation} (see {@code AuthAPi} in {@code security-oauth} — login
+     * endpoints can't hold a session token before one is issued), so Mercury's own
+     * {@code SessionJwtInterceptor} never validates it. Mercury and backbone-rest share the
+     * same HS256 secret ({@code APP_TOKEN_SECRET}), so {@link SessionJwtServiceImpl} can and
+     * must verify {@code sessionTokenBkd}'s signature itself before trusting its {@code uid}
+     * claim — this method used to extract it via the unverified
+     * {@code com.umdc.commons.util.JwtUtil.getUidFromToken}, which let any caller who could
+     * satisfy the registered-login-client alias/password check mint a validly-signed Mercury
+     * session token for an arbitrary {@code uid} of their choosing, impersonating any user
+     * everywhere that token is later trusted (e.g. the Template Management API).
+     * </p>
+     *
+     * @param authRequest     the registered login client's alias/password pair
+     * @param sessionTokenBkd the backbone-issued token identifying the end user this session
+     *                        is issued on behalf of
+     * @return {@code 200} with the new session token, {@code 400} for a blank alias or a
+     *         {@code sessionTokenBkd} that fails signature verification, or {@code 406} if
+     *         token generation unexpectedly yields a blank token
+     */
     @Override
     public ResponseEntity<AuthResponse> token(AuthRequest authRequest, String sessionTokenBkd) {
-        var parameters = new ConcurrentHashMap<String, String>();
         if (authRequest.alias().isBlank()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
-        UUID userId = getUidFromToken(sessionTokenBkd);
-        try {
-            parameters.put("uid", userId.toString());
-        } catch (FeignException.NotFound _) {
-            logger.info("Token is not validated {}:{}", userId, authRequest.alias());
-            parameters.put("vcCompleted", FALSE);
+        Optional<UUID> userId = sessionJwtService.getVerifiedUid(sessionTokenBkd);
+        if (userId.isEmpty()) {
+            logger.warn("Rejected session-token-bkd for alias={}: signature verification failed", authRequest.alias());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
+
+        var parameters = new ConcurrentHashMap<String, String>();
+        parameters.put("uid", userId.get().toString());
+
         var authResponse = new AuthResponse(sessionJwtService.generateSessionToken(authRequest.alias(), parameters));
         if (authResponse.token().isBlank()) {
             return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();

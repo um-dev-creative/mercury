@@ -36,6 +36,7 @@ htmlReport/
 /docs/*
 !/docs/tec/
 !/docs/issues/
+!/docs/architecture/
 !/docs/template-management-api.md
 /docs/issues/*
 !/docs/issues/create-template-management.md

@@ -1,8 +1,8 @@
 package com.prx.mercury.api.v1.controller;
 
-import com.umdc.commons.util.JwtUtil;
 import com.umdc.mercury.api.v1.controller.CampaignController;
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
 import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
 import com.umdc.mercury.api.v1.to.CampaignTO;
@@ -10,8 +10,9 @@ import com.umdc.mercury.api.v1.to.CampaignProgressTO;
 import com.umdc.mercury.api.v1.to.CreateCampaignRequest;
 import com.umdc.mercury.api.v1.to.CreateCampaignResponse;
 import com.umdc.mercury.api.v1.to.RecipientTO;
+import com.umdc.mercury.api.v1.to.UpdateCampaignRequest;
+import com.umdc.mercury.security.SessionJwtServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,6 +27,7 @@ import org.springframework.http.ResponseEntity;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -46,6 +46,9 @@ class CampaignControllerTest {
     @Mock
     private CampaignService campaignService;
 
+    @Mock
+    private SessionJwtServiceImpl sessionJwtService;
+
     @InjectMocks
     private CampaignController campaignController;
 
@@ -53,7 +56,6 @@ class CampaignControllerTest {
     private UUID templateId;
     private UUID userId;
     private UUID applicationId;
-    private MockedStatic<com.umdc.commons.util.JwtUtil> jwtUtilStatic;
 
     @BeforeEach
     void setUp() {
@@ -71,12 +73,6 @@ class CampaignControllerTest {
                 "DRAFT",
                 applicationId
         );
-        jwtUtilStatic = Mockito.mockStatic(com.umdc.commons.util.JwtUtil.class);
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (jwtUtilStatic != null) jwtUtilStatic.close();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -290,7 +286,7 @@ class CampaignControllerTest {
 
             CampaignDetailResponse detail = new CampaignDetailResponse(campaignId, "Name", "email", UUID.randomUUID(), "DRAFT", null, null, null, null, null);
 
-            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("token-value")).thenReturn(userIdLocal);
+            when(sessionJwtService.getVerifiedUid("token-value")).thenReturn(Optional.of(userIdLocal));
 
             when(campaignService.getByUserIdAndApplicationId(userIdLocal, appIdLocal)).thenReturn(List.of(detail));
 
@@ -303,14 +299,49 @@ class CampaignControllerTest {
         }
 
         @Test
-        @DisplayName("propagates exception when token parsing fails")
+        @DisplayName("rejects a session-token that fails signature verification")
         void getByApplication_invalidToken() {
             UUID appIdLocal = UUID.randomUUID();
-            jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
 
-            assertThrows(RuntimeException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
+            assertThrows(InvalidSessionTokenException.class, () -> campaignController.getByApplication(appIdLocal, "bad-token"));
 
-            Mockito.verifyNoInteractions(campaignService);
+            verifyNoInteractions(campaignService);
+        }
+    }
+
+    @Nested
+    @DisplayName("updateCampaign endpoint tests")
+    class UpdateCampaignEndpointTests {
+
+        @Test
+        @DisplayName("returns 200 OK with the updated campaign when the session-token verifies")
+        void update_returns200() {
+            UUID campaignId = UUID.randomUUID();
+            UUID requesterId = UUID.randomUUID();
+            LocalDateTime now = LocalDateTime.now();
+            var request = new UpdateCampaignRequest("New name", null, null, null, null, null, null);
+            var updated = new CampaignDetailResponse(campaignId, "New name", "email", requesterId, "DRAFT", null, null, now, now, null);
+            when(sessionJwtService.getVerifiedUid("token-value")).thenReturn(Optional.of(requesterId));
+            when(campaignService.updateCampaign(campaignId, request, requesterId)).thenReturn(updated);
+
+            ResponseEntity<CampaignDetailResponse> resp = campaignController.updateCampaign(campaignId, "token-value", request);
+
+            assertThat(resp.getStatusCode().value()).isEqualTo(200);
+            assertThat(resp.getBody()).isSameAs(updated);
+        }
+
+        @Test
+        @DisplayName("rejects a session-token that fails signature verification, without calling the service")
+        void update_invalidToken() {
+            UUID campaignId = UUID.randomUUID();
+            var request = new UpdateCampaignRequest("New name", null, null, null, null, null, null);
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+
+            assertThrows(InvalidSessionTokenException.class,
+                    () -> campaignController.updateCampaign(campaignId, "bad-token", request));
+
+            verifyNoInteractions(campaignService);
         }
     }
 
@@ -322,20 +353,19 @@ class CampaignControllerTest {
         @DisplayName("returns 204 No Content when toggle succeeds")
         void toggle_returns204() {
             UUID campaignId = UUID.randomUUID();
-            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(UUID.randomUUID());
-            // service should not throw
-            // call controller
+            when(sessionJwtService.getVerifiedUid("token-value")).thenReturn(Optional.of(UUID.randomUUID()));
+
             ResponseEntity<Void> resp = campaignController.toggleCampaign(campaignId, false, "token-value");
             assertThat(resp.getStatusCode().value()).isEqualTo(204);
         }
 
         @Test
-        @DisplayName("propagates exception when token parsing fails")
+        @DisplayName("rejects a session-token that fails signature verification")
         void toggle_invalidToken() {
             UUID campaignId = UUID.randomUUID();
-            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
 
-            assertThrows(RuntimeException.class, () -> campaignController.toggleCampaign(campaignId, false, "bad-token"));
+            assertThrows(InvalidSessionTokenException.class, () -> campaignController.toggleCampaign(campaignId, false, "bad-token"));
         }
     }
 
@@ -347,7 +377,7 @@ class CampaignControllerTest {
         @DisplayName("returns 204 No Content when delete succeeds")
         void delete_returns204() {
             UUID campaignId = UUID.randomUUID();
-            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(UUID.randomUUID());
+            when(sessionJwtService.getVerifiedUid("token-value")).thenReturn(Optional.of(UUID.randomUUID()));
 
             ResponseEntity<Void> resp = campaignController.deleteCampaign(campaignId, "token-value");
 
@@ -360,7 +390,7 @@ class CampaignControllerTest {
         void delete_notFound() {
             UUID campaignId = UUID.randomUUID();
             UUID requester = UUID.randomUUID();
-            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("token-value")).thenReturn(requester);
+            when(sessionJwtService.getVerifiedUid("token-value")).thenReturn(Optional.of(requester));
             doThrow(new CampaignNotFoundException("Campaign not found: " + campaignId))
                     .when(campaignService).deleteCampaign(campaignId, requester);
 
@@ -369,13 +399,13 @@ class CampaignControllerTest {
         }
 
         @Test
-        @DisplayName("propagates exception when token parsing fails")
+        @DisplayName("rejects a session-token that fails signature verification")
         void delete_invalidToken() {
             UUID campaignId = UUID.randomUUID();
-            jwtUtilStatic.when(() -> JwtUtil.getUidFromToken("bad-token")).thenThrow(new RuntimeException("invalid token"));
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
 
-            assertThrows(RuntimeException.class, () -> campaignController.deleteCampaign(campaignId, "bad-token"));
-            Mockito.verifyNoInteractions(campaignService);
+            assertThrows(InvalidSessionTokenException.class, () -> campaignController.deleteCampaign(campaignId, "bad-token"));
+            verifyNoInteractions(campaignService);
         }
     }
 

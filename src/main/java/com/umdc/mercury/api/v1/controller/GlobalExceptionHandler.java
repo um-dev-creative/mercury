@@ -1,6 +1,7 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
@@ -38,6 +39,8 @@ import java.util.stream.Collectors;
  *   <li>{@link CampaignNotFoundException} – campaign not found → 404</li>
  *   <li>{@link TemplateNotFoundException} – template not found or inactive → 404</li>
  *   <li>{@link MissingServletRequestParameterException} – missing required query parameter → 400</li>
+ *   <li>{@link ForbiddenException} – caller authenticated but not authorized → 403</li>
+ *   <li>{@link InvalidSessionTokenException} – session-token failed signature verification → 401</li>
  *   <li>All other {@link Exception} → 500</li>
  * </ul>
  */
@@ -170,6 +173,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Handles a {@code session-token} that failed signature verification (missing, expired,
+     * tampered, or malformed), returning {@code 401 Unauthorized}.
+     */
+    @ExceptionHandler(InvalidSessionTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidSessionToken(InvalidSessionTokenException ex,
+                                                              HttpServletRequest request) {
+        logger.warn("Invalid session token for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI()));
     }
 
     /**

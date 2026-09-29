@@ -14,6 +14,7 @@ import javax.crypto.SecretKey;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -87,6 +88,32 @@ public class SessionJwtServiceImpl implements SessionJwtService {
      */
     public String getUsernameFromToken(String token) {
         return Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload().getSubject();
+    }
+
+    /**
+     * Resolves the {@code uid} claim from {@code token} after verifying its signature and
+     * expiration against the shared HS256 secret, returning {@link Optional#empty()} for
+     * any missing, expired, tampered, or malformed token — including one that never went
+     * through this app's own {@code SessionJwtInterceptor} (e.g. a caller-supplied token on
+     * an {@code @SkipSessionValidation} endpoint, or a token minted by backbone-rest under
+     * the same shared secret). Callers that need a caller-supplied identity claim for an
+     * authorization decision must resolve it here, never via the unverified
+     * {@code com.umdc.commons.util.JwtUtil.getUidFromToken}, which only base64-decodes the
+     * payload without checking the signature at all.
+     *
+     * @param token the raw session token to verify
+     * @return the verified {@code uid} claim, or empty if the token could not be trusted
+     */
+    public Optional<UUID> getVerifiedUid(String token) {
+        if (Objects.isNull(token) || token.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            String uid = getTokenClaims(token).get(USER_ID, String.class);
+            return Objects.isNull(uid) ? Optional.empty() : Optional.of(UUID.fromString(uid));
+        } catch (CertificateSecurityException | IllegalArgumentException e) {
+            return Optional.empty();
+        }
     }
 
     /**

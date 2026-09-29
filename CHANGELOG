@@ -6,6 +6,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-09-28
 
+### Security
+- **Forgeable `uid` claim in `session-token` trusted for real authorization decisions.**
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` — used across `CampaignController`,
+  `TemplateController`, and `AuthServiceImpl` to resolve the caller's user id — only
+  base64-decodes the JWT payload; it never checks the signature. Two concrete impacts:
+  - **`AuthServiceImpl.token(AuthRequest, sessionTokenBkd)`** (`POST /api/v1/auth/token`
+    with a `session-token-bkd` header) is `@SkipSessionValidation`, so Mercury's
+    `SessionJwtInterceptor` never validated that header either. The unverified `uid` it
+    decoded was then embedded in a freshly-minted, validly Mercury-signed session token
+    — any caller who could satisfy the static registered-login-client alias/password
+    check could mint a legitimate Mercury token for an arbitrary `uid`, impersonating
+    any user everywhere that token is later trusted (e.g. the Template Management API).
+  - **`CampaignController`**'s `getByApplication`/`updateCampaign`/`toggleCampaign`/
+    `deleteCampaign` also never went through `SessionJwtInterceptor` (`CampaignApi` is
+    `@SkipSessionValidation` — its routes are M2M-only, authenticated instead by
+    `ManagedClientSecurityConfig`'s backbone opaque-token chain for the *calling
+    service*). The `uid` from that same unverified header was still used to scope the
+    `getByApplication` query and to gate the "only the owner can update/toggle/delete"
+    checks in `CampaignServiceImpl` — so any M2M caller holding a valid
+    `mercury:message:*` scope token could read, update, pause, or soft-delete any other
+    user's campaigns by self-crafting the `uid` claim.
+
+  Fixed by adding `SessionJwtServiceImpl.getVerifiedUid(String)` — verifies the token's
+  HS256 signature (the same shared `APP_TOKEN_SECRET` backbone-rest signs with) and
+  expiration via the existing `getTokenClaims`, returning the `uid` claim only if the
+  token is genuinely trustworthy. All three call sites now use it; `CampaignController`
+  and `TemplateController` throw a new `InvalidSessionTokenException` (mapped to `401`)
+  when verification fails, and `AuthServiceImpl.token(AuthRequest, String)` returns `400`
+  (matching that endpoint's already-documented contract) instead of minting a token.
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` is no longer used anywhere in this
+  codebase.
+- Documented two related, lower-severity design gaps for follow-up (not changed in this
+  pass, since both alter existing API/trust-boundary behavior rather than harden an
+  already-intended check): `CampaignController.createCampaign` attributes a campaign to
+  whatever `userId` is in the request body, with no cross-check against any token at all;
+  and `getById`/`getProgress` have no ownership scoping at all (any caller with a valid
+  M2M scope can read any campaign by id). See
+  `docs/architecture/session-token-authorization.md`.
+
 ### Added
 - **Template Management API (MER-6)** — full CRUD + search over the reusable base
   `TemplateEntity` (`mercury.templates`), distinct from `TemplateDefinedEntity`

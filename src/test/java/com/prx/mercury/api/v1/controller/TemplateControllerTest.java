@@ -1,13 +1,14 @@
 package com.prx.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.controller.TemplateController;
+import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
 import com.umdc.mercury.api.v1.service.TemplateSearchCriteria;
 import com.umdc.mercury.api.v1.service.TemplateService;
 import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateSearchResponse;
 import com.umdc.mercury.api.v1.to.UpdateTemplateRequest;
-import org.junit.jupiter.api.AfterEach;
+import com.umdc.mercury.security.SessionJwtServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -16,22 +17,24 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,26 +46,20 @@ class TemplateControllerTest {
     @Mock
     private TemplateService templateService;
 
+    @Mock
+    private SessionJwtServiceImpl sessionJwtService;
+
     @InjectMocks
     private TemplateController templateController;
 
     private UUID requesterId;
     private UUID applicationId;
-    private MockedStatic<com.umdc.commons.util.JwtUtil> jwtUtilStatic;
 
     @BeforeEach
     void setUp() {
         requesterId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
-        jwtUtilStatic = Mockito.mockStatic(com.umdc.commons.util.JwtUtil.class);
-        jwtUtilStatic.when(() -> com.umdc.commons.util.JwtUtil.getUidFromToken(SESSION_TOKEN)).thenReturn(requesterId);
-    }
-
-    @AfterEach
-    void tearDown() {
-        if (jwtUtilStatic != null) {
-            jwtUtilStatic.close();
-        }
+        lenient().when(sessionJwtService.getVerifiedUid(SESSION_TOKEN)).thenReturn(Optional.of(requesterId));
     }
 
     private TemplateDetailResponse buildDetail(UUID id) {
@@ -173,6 +170,23 @@ class TemplateControllerTest {
                     () -> assertThat(captor.getValue().size()).isEqualTo(10),
                     () -> assertThat(captor.getValue().sort()).isEqualTo("description,asc")
             );
+        }
+    }
+
+    @Nested
+    @DisplayName("invalid session-token handling")
+    class InvalidSessionToken {
+
+        @Test
+        @DisplayName("getTemplateById rejects a session-token that fails signature verification")
+        void getTemplateById_invalidToken() {
+            UUID id = UUID.randomUUID();
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+
+            assertThrows(InvalidSessionTokenException.class,
+                    () -> templateController.getTemplateById(id, "bad-token"));
+
+            verifyNoInteractions(templateService);
         }
     }
 }
