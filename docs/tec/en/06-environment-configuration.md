@@ -216,6 +216,128 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 
 ---
 
+## 📋 Complete `.env` file reference
+
+The category table above is a quick index. This section documents **every variable in every
+`.env`-style file in the repo**, file by file — what it's for, who actually reads it, and whether
+it's a real value or a safe placeholder. Real secret values are never reproduced here, even from a
+gitignored file — only variable names, purpose, and clearly-fake examples.
+
+### `config/local.env` — versioned, docker-compose bootstrap identity
+
+Loaded two ways at once, for two different purposes — see the `--env-file` note above:
+1. `env_file:` on the `mercury` service → injected as **container environment** (what the JVM
+   inside the container sees).
+2. `--env-file config/local.env` on the `docker compose` CLI invocation → used for **Compose's own
+   `${VAR}` substitution** inside `docker-compose.yml` itself (e.g. `MERCURY_TEMPLATES_HOST_PATH`
+   in the `volumes:` line). `env_file:` alone does **not** feed this second mechanism.
+
+| Variable | Purpose | Read by |
+|---|---|---|
+| `VIRTUAL_HOST` | Hostname an external reverse-proxy sidecar (e.g. `jwilder/nginx-proxy`-style) routes to this container by. | External proxy only — **not** read by Mercury's own JVM. |
+| `APP_PORT` | Port Tomcat listens on inside the container. | `docker-entrypoint.sh` / container port mapping. |
+| `SPRING_BOOT_PROFILE_ACTIVE` | Active Spring profile (`remote-supabase`, `native`, etc.) — selects which `mercury-{profile}.yml` the Config Server serves. | `spring.profiles.active` in `application.yml`. |
+| `SPRING_CLOUD_CONFIG_LABEL` | Git branch/label the Config Server resolves `mercury-{profile}.yml` from. | `spring.cloud.config.label`. |
+| `SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED` | Legacy flag — retired along with the legacy Bootstrap Context in MER-5 (see `docs/architecture/graalvm-native-image.md`). Harmless to set; nothing reads it anymore. | *(unused)* |
+| `VAULT_ENABLED` | Whether to attempt the Vault fetch at all. | `spring.cloud.vault.enabled`. |
+| `SPRING_CLOUD_VAULT_ENABLED` | Same switch, Spring Cloud's own property name. | `spring.cloud.vault.enabled` (duplicate of the above by convention). |
+| `VAULT_URI` ⚠️ | Vault base URL. **Must be spelled `VAULT_URI`, not `VAULT_URL`** — `application.yml` only binds `${VAULT_URI:https://vault.umdc-qa.tst}`; a `VAULT_URL` variable is silently ignored (the app then falls back to the hardcoded default, which happens to be correct for the QA Vault host — masking the typo rather than failing loudly). | `spring.cloud.vault.uri`. |
+| `VAULT_KV_BACKEND` | Vault KV mount/backend name (`dev`, `secret`, etc.). | `spring.cloud.vault.kv.backend`. |
+| `CNFS_URI` | Config Server base URL. | `spring.cloud.config.uri`. |
+| `SD_INSTANCE_HOST_NAME`, `SD_PORT`, `SD_REGISTER_ENABLED`, `SD_URL` | Service-discovery registration metadata. Mercury has no `eureka-client` dependency (verified against `pom.xml`), so its own JVM never reads these — kept only in case an external nginx-proxy/service-monitor sidecar on the shared network consumes them. | External sidecar only. |
+| `SSL_JKS_SD_TRUSTSTORE_LOCATION`, `SSL_JKS_SD_TRUSTSTORE_PASSWORD`, `SSL_JKS_SD_TRUSTSTORE_TYPE`, `SSL_JKS_SD_KEYSTORE_ALIAS`, `SSL_JKS_SD_KEYSTORE_LOCATION`, `SSL_JKS_SD_KEYSTORE_PASSWORD`, `SSL_JKS_SD_KEYSTORE_TYPE`, `SSL_JKS_SD_KEY_PASSWORD` | TLS material for that same external service-discovery/monitor sidecar. **Not read by `application.yml` at all** (confirmed: zero matches) — same "external sidecar only" caveat as `SD_*` above. | External sidecar only. |
+| `SSL_KEY_ALIAS`, `SSL_TRUSTSTORE_LOCATION`, `SSL_TRUSTSTORE_PASSWORD`, `SSL_TRUSTSTORE_TYPE` | Also **not** read by `application.yml`. Mercury's own keystore/truststore paths are hardcoded, unconfigurable via env var by design — see § 1 above. Safe to leave set (harmless), but don't rely on them to change Mercury's own TLS material. | *(unused by Mercury's own JVM)* |
+| `MERCURY_TEMPLATES_HOST_PATH` | Host directory bind-mounted read-only over `/usr/local/runme/templates` by `docker-compose.yml`, letting ops swap FreeMarker `.ftl` templates without rebuilding the image (which already bakes in `src/main/resources/templates` as the default). **Compose-only** — not a `${...}` placeholder anywhere in `application.yml`; resolved purely by `docker-compose.yml`'s own `volumes:` substitution, which is why the `--env-file config/local.env` flag matters. | Docker Compose only, not the JVM. Windows example: `C:\ambientes\mercury\templates`; Linux/macOS: `/opt/mercury/templates`. |
+
+### `secrets/local.env` — gitignored, the one bootstrap secret
+
+Copy `secrets/local.env.example` to `secrets/local.env` and fill it in; never commit the real file.
+
+| Variable | Purpose | Read by |
+|---|---|---|
+| `VAULT_TOKEN` | The only secret Vault itself can't hand back — needed to authenticate the very first Vault request. Everything else (DB, Mongo, mail, OAuth, Kafka SASL) is resolved from Vault's own KV store once this succeeds. | `spring.cloud.vault.token`. |
+
+### `config/native.env` — versioned, GraalVM native-image build/AOT-only
+
+**Never used for a real deployment** — every value is a syntactically-valid, harmless placeholder
+that lets `spring-boot:process-aot` and `native-image` complete a full `ApplicationContext` refresh
+without live Vault/Config Server/Postgres/MongoDB/Kafka/Eureka access, which this kind of build
+should never depend on. See `docs/architecture/graalvm-native-image.md` for the full rationale.
+
+> [!IMPORTANT]
+> Spring's AOT processor evaluates every conditional autoconfiguration decision **once**, using
+> whatever is in this file at build time, and bakes the result into the generated native binary.
+> Unlike a plain JVM app, no later runtime environment variable — a real deployment profile, Vault,
+> the Config Server — can ever re-enable an autoconfiguration excluded here. Removing a variable
+> from this file (or getting one wrong) can permanently strip functionality from every native build
+> produced from it until fixed and rebuilt — see finding 6 in the native-image doc for a real
+> incident this caused (`ServletWebSecurityAutoConfiguration` excluded here by mistake stripped out
+> the entire Spring Security filter-chain machinery).
+
+| Variable | Purpose |
+|---|---|
+| `SPRING_BOOT_PROFILE_ACTIVE` | Pinned to `native` — a profile that resolves no remote config at all. |
+| `VAULT_ENABLED`, `SPRING_CLOUD_CONFIG_ENABLED` | Both `false` — `application.yml`'s `spring.config.import=optional:vault://,optional:configserver:` already makes both optional; set explicitly here anyway, for clarity/defense. |
+| `SPRING_CLOUD_CONFIG_LABEL` | `native` — cosmetic, since the Config Server is never actually reached. |
+| `CNFS_URI` | `http://localhost:9999` — a deliberately unreachable placeholder. |
+| `LOGGING_TRACE_ENABLED` | `false` — quiets the AOT/native build log. |
+| `AUTH_ROLE_ID` | `none` — placeholder for the decommissioned Keycloak-style role-mapping property. |
+| `APP_PORT` | `8118` — same as every other environment. |
+| `AUTH_CERT_URI`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`, `AUTH_RESOURCE_PRINCIPAL`, `AUTH_TOKEN_URI`, `AUTH_URI` | Placeholders (`dummy`/`http://localhost:9999/...`) for the decommissioned OAuth2/Keycloak property tree — never resolved to real endpoints at build time. |
+| `BACKBONE_CLIENT_ID`, `BACKBONE_CLIENT_SECRET`, `BACKBONE_GRANT_TYPE`, `BACKBONE_PASSWORD`, `BACKBONE_SCOPE`, `BACKBONE_USERNAME` | Placeholders for `BackendFeignClientInterceptor`'s M2M client-credentials config — real values only matter at request time (never exercised during an AOT build). |
+| `BOOTSTRAP_SERVER_PORT`, `BOOTSTRAP_SERVER_URI` | Placeholders for the (retired) Spring Cloud Bootstrap Context's own server coordinates. |
+| `MAIL_HOST`, `MAIL_PASSWORD`, `MAIL_PORT`, `MAIL_PROTOCOL`, `MAIL_USERNAME` | SMTP placeholders — `spring.mail.*`. |
+| `MERCURY_CLIENT_ID`, `MERCURY_CLIENT_SECRET`, `MERCURY_GRANT_TYPE`, `MERCURY_PASSWORD`, `MERCURY_SCOPE`, `MERCURY_USERNAME` | Placeholders for Mercury's own outbound OAuth2 client-credentials config. |
+| `MERCURY_DB_NAME`, `MERCURY_DB_PASSWORD`, `MERCURY_DB_PORT`, `MERCURY_DB_URI`, `MERCURY_DB_USERNAME` | Postgres datasource placeholders — point at `localhost:5432`, never actually connected to during AOT processing (`SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT=-1` below prevents HikariCP from failing fast on the missing connection). |
+| `MERCURY_EMAIL_TOPIC` | Kafka topic name placeholder. |
+| `MONGO_DATABASE`, `MONGO_HOST`, `MONGO_PASSWORD`, `MONGO_PORT`, `MONGO_USERNAME` | MongoDB placeholders — same "never actually connected" rationale as the Postgres block. |
+| `PRX_VERIFICATION_CODE_TEMPLATE_ID` | A syntactically-valid nil UUID placeholder. |
+| `TEMPLATE_SUFFIX` | `.ftl` — the real value, since it's harmless and syntactically required either way. |
+| `VAULT_TOKEN` | `dummy` — never a real token; Vault is never reached in this build path. |
+| `EUREKA_CLIENT_ENABLED` | `false` — no live Eureka server available at build time. |
+| `SPRING_MAIN_WEB_APPLICATION_TYPE` | `servlet` — pins the app type explicitly for AOT processing. |
+| `SPRING_AUTOCONFIGURE_EXCLUDE` | `JerseyAutoConfiguration` only (Jersey/JAX-RS is genuinely unused anywhere in `src/main/java`). **Do not add `ServletWebSecurityAutoConfiguration` here** — see the `[!IMPORTANT]` box above. |
+| `SPRING_AOT_REPOSITORIES_ENABLED` | `false` — works around a known upstream Spring Data bug (spring-projects/spring-data-commons#3499) that fails AOT repository generation for any repository method with a Jakarta Validation parameter annotation. Falls back to normal runtime repository proxies (still fully native-image compatible). |
+| `SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT` | `-1` — lets HikariCP initialize without an immediate, blocking connection test against the placeholder (unreachable) datasource. |
+| `SPRING_JPA_PROPERTIES_HIBERNATE_BOOT_ALLOW_JDBC_METADATA_ACCESS` | `false` — skips a JDBC metadata round-trip Hibernate would otherwise attempt against the placeholder datasource at boot. |
+| `TEMPLATE_PATH` (commented out, set via shell export instead) | Must be an **absolute filesystem path**, not a classpath URI (`FreeMarkerConfig` calls `new File(templateLoaderPath)` directly). Exported separately in the documented build command: `export TEMPLATE_PATH="$(pwd)/src/main/resources/templates"`. |
+
+### `default.env` — gitignored, real local JVM/IDE credentials
+
+**Contains real secrets when filled in for actual use against QA infrastructure — never commit it,
+never paste its contents anywhere, never screenshot it.** Unlike the three files above, this one is
+not a template with placeholders; a working copy has live values. Only variable **names** and
+**purpose** are documented here — values are described generically, never reproduced.
+
+| Variable | Purpose |
+|---|---|
+| `CNFS_PORT`, `CNFS_URI` | Config Server port/URL. ⚠️ `CNFS_PORT` has no effect on the client (see [04 · Components](04-components.md)) — kept for documentation/consistency only. |
+| `SPRING_BOOT_CLOUD_BOOTSTRAP_ENABLED` | Legacy flag, unused post-MER-5 — see `config/local.env`'s own entry above. |
+| `SPRING_BOOT_PROFILE_ACTIVE` | Active profile for local runs — typically `remote-supabase`. |
+| `SPRING_CLOUD_CONFIG_LABEL` | Config Server branch/label. |
+| `VAULT_ENABLED` | Whether to fetch from Vault (`true` for any realistic local run against QA). |
+| `VAULT_KV_BACKEND` | Vault KV backend/mount name. |
+| `VAULT_URI` | Vault base URL — see the `VAULT_URI` vs. `VAULT_URL` naming pitfall documented under `config/local.env` above; the same typo risk applies here. |
+| `VAULT_TOKEN` | **Real Vault token.** Rotate immediately in Vault if this file (or its value) is ever exposed. |
+| `TEMPLATE_PATH` (commented out by default) | See the dedicated note already in this file (§ 2 above) — Vault supplies this centrally in most environments; only needed locally if you're not getting it from there. |
+| `LOGGING_TRACE_ENABLE`/`LOGGING_TRACE_ENABLED` (commented out) | Verbose request/response logging toggle. |
+| `AUTH_ROLE_ID`, `AUTH_URI`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`, `AUTH_CERT_URI` (commented out) | Decommissioned Keycloak-style OAuth2 property tree — kept commented as historical reference only; do not re-enable (see `docs/architecture/graalvm-native-image.md` finding 6). |
+| `SSL_KEYSTORE_LOCATION`, `SSL_KEYSTORE_PASSWORD`, `SSL_KEYSTORE_TYPE`, `SSL_TRUSTSTORE_LOCATION`, `SSL_TRUSTSTORE_PASSWORD`, `SSL_TRUSTSTORE_TYPE`, `SSL_KEY_ALIAS`, `SSL_KEY_PASSWORD` (commented out) | **Not read by `application.yml`** — these paths are hardcoded on purpose (§ 1 above). Left commented out as a historical warning, not a working override. |
+| `BACKBONE_BASE_URL` (commented out) | Backbone service base URL override. |
+| `DIRECTORY_BACKEND_LOGIN_ALIAS`, `DIRECTORY_BACKEND_LOGIN_PASSWORD` (commented out) | Credentials for `directory-backend` to authenticate to Mercury's own `POST /api/v1/auth/token` (see `LoginClientProperties`). |
+| `APP_PORT` | `8118`. |
+| `PRX_VERIFICATION_CODE_TEMPLATE_ID` (commented out) | Real verification-code template UUID override. |
+| `MAIL_HOST`, `MAIL_PASSWORD`, `MAIL_PORT`, `MAIL_PROPERTIES_*`, `MAIL_PROTOCOL`, `MAIL_USERNAME` (commented out) | Real SMTP credentials (e.g. a Gmail app password) for local email testing. |
+| `APP_TOKEN_EXPIRATION_SECONDS` (commented out) | Session-token TTL override. |
+| `BOOTSTRAP_SERVER_URI`, `BOOTSTRAP_SERVER_PORT`, `KAFKA_SECURITY_PROTOCOL`, `UMDC_KAFKA_*` (commented out) | Real Aiven Kafka broker coordinates and SASL/SSL material for local Kafka testing. |
+| `SRMN_URI`, `SRMN_PORT`, `SRMN_DEFAULT_ZONE`, `SRMN_HOSTNAME`, `SRMN_REGISTER_ENABLED` (commented out) | Service-monitor/Eureka-style registration overrides — same "not read by Mercury's own JVM" caveat as `SD_*` in `config/local.env`. |
+| `MERCURY_DB_NAME`, `MERCURY_DB_PASSWORD`, `MERCURY_DB_PORT`, `MERCURY_DB_URI`, `MERCURY_DB_USERNAME` (commented out) | Real Postgres (Supabase pooler) credentials, for local runs that bypass Vault for the datasource specifically. |
+| `MONGO_*` (commented out, ~15 variables) | Real MongoDB Atlas connection parameters and credentials. |
+| `PRX_CONSUMER_GROUP_ID` (commented out) | Kafka consumer group id override. |
+| `TELEGRAM_TOKEN`, `TELEGRAM_NAME`, `TELEGRAM_USERNAME` (commented out) | Real Telegram Bot API credentials for local Telegram channel testing. |
+
+---
+
 ## 🧯 Real troubleshooting
 
 Real cases hit and resolved in this repository — documented because **they will happen again**.
@@ -235,6 +357,18 @@ Real cases hit and resolved in this repository — documented because **they wil
 ```bash
 keytool -list -v -keystore certs/mercury/umdc-truststore.jks -storepass changeit | grep -A2 "Owner:"
 ```
+
+### ❌ Same PKIX error, but from `org.apache.hc.client5.http...` / a `RestTemplate`/Feign call, not Vault or Config Server
+
+**Cause:** a different class of client than the one above — Vault's and the Config Server's clients have their own explicit `trust-store` (see the previous entry), but a manually-constructed `RestTemplate` or Feign's own default transport does **not** automatically inherit the merged trust store `TrustStoreInitializer` installs JVM-wide at startup. Confirmed real-deployment cause: `BackendFeignClientInterceptor.getToken()`'s M2M token fetch, and `BackbonePublicClient`'s opaque-token introspection (used on every `/api/v1/campaigns/**`/`/api/v1/channel-types/**` request) — both previously used an unconfigured client. See `docs/architecture/graalvm-native-image.md` finding 7 for the full root-cause writeup.
+
+**Fix:** any new outbound HTTP client in this codebase must build its trust explicitly from `SSLContext.getDefault()` (read at call time, after `TrustStoreInitializer` has run) rather than relying on a library's own "system default" resolution — see `BackendFeignClientInterceptor.trustedHttpClient()` and `FeignHttpClientConfig.feignClient()` for the pattern to copy. If you add a **new** `@FeignClient`, it already picks up the global `feignClient()` bean automatically — no per-client wiring needed.
+
+### ❌ `JpaSystemException: Generation of HibernateProxy instances at runtime is not allowed when the configured BytecodeProvider is 'none'`
+
+**Cause (JVM mode):** `net.bytebuddy:byte-buddy` was missing from the packaged jar's runtime classpath — present only via `mockito-core`'s test-scope dependency, stripped by `spring-boot:repackage`. **Cause (GraalVM native-image mode):** a true native binary cannot generate proxy classes at runtime at all, regardless of what's on the classpath. See `docs/architecture/graalvm-native-image.md` finding 5 for the full root-cause writeup and why the usual fix (Hibernate's compile-time bytecode-enhancement Maven plugin) isn't available for this Hibernate release.
+
+**Fix:** `pom.xml` now declares `net.bytebuddy:byte-buddy` explicitly (fixes JVM mode). For native-image, every `FetchType.LAZY` `@ManyToOne`/`@OneToOne` entity association was converted to `FetchType.EAGER` instead — if you add a **new** single-valued association to any entity, default it to `EAGER` (or explicitly justify why `LAZY` is safe under native-image before using it).
 
 ### ❌ A value "won't override" no matter what's in `default.env`
 
