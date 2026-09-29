@@ -17,6 +17,7 @@ Related Story: [[TBD-002]](https://placeholder.local/TBD-002)
 Updates mutable fields of an existing campaign such as name, template, recipients, scheduledAt, status and metadata. Only the owner (createdBy) is allowed to perform updates — the service enforces a basic permission check.
 
 ### Implementation Notes
+* Header `session-token` is required; the controller resolves the user id via `SessionJwtServiceImpl.getVerifiedUid` (verifies the HS256 signature and expiration before trusting the `uid` claim — a token that fails verification returns `401` via `InvalidSessionTokenException`; see `docs/architecture/session-token-authorization.md`) and performs a basic ownership permission check: only the campaign owner (`createdBy`) may update. A `ForbiddenException` (403) is thrown otherwise.
 * The method finds the campaign and applies only provided mutable fields. If no mutable fields are provided, the service logs and returns the existing campaign without persisting changes.
 * Template changes validate template existence using the TemplateDefinedRepository — missing template will cause an IllegalArgumentException (400).
 * Recipients are deduplicated by identifier; an empty recipient list after deduplication raises IllegalArgumentException (400).

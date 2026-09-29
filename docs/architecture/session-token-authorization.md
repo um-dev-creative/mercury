@@ -1,7 +1,39 @@
 # `session-token` and user-scoped authorization
 
-How Mercury resolves the caller's identity from a `session-token` header, why one
-extraction path was a real vulnerability, and what's still open.
+How Mercury resolves the caller's identity from a `session-token` header, where that
+token actually comes from, why one extraction path was a real vulnerability, and what's
+still open.
+
+## Where a `session-token` comes from
+
+Mercury never authenticates end users itself — it only ever mints a `session-token` in
+response to a caller (a registered backend, e.g. `directory-backend`) presenting a
+`session-token-bkd`: a token backbone-rest already issued to the end user via its own
+`POST /api/v1/session` (alias/password) or `POST /api/v1/session/token` (email/password).
+
+Both operations below live in the shared `security-oauth` library, not in this repo
+(`AuthAPi`/`AuthApiController`), mounted at `/api/v1/auth`. They look similar but do two
+completely different things — **only one of them produces a token with a `uid` claim**:
+
+| | `POST /api/v1/auth/token` (`accessToken`) | `POST /api/v1/auth/session-token` (`generateTokenSession`) |
+|---|---|---|
+| Headers | `session-token-bkd` (required) | `session-token-bkd` (required) |
+| Body | `AuthRequest {alias, password}` — a registered login client's credentials (`umdc.mercury.login-clients`, e.g. `DIRECTORY_BACKEND_LOGIN_ALIAS`/`_PASSWORD`) | same |
+| What it does with `session-token-bkd` | `AuthApiController.accessToken` calls `authService.validate(sessionTokenBkd)` → `BackbonePublicClient.validate(...)`, a **remote call to backbone-rest** to confirm the token is genuine — then discards it | Forwards it straight into `AuthServiceImpl.token(AuthRequest, String)`, which resolves its `uid` via `SessionJwtServiceImpl.getVerifiedUid` (local HS256 check, same shared secret — no network call needed) |
+| Resulting Mercury `session-token` | **No `uid` claim** — only useful for pure M2M endpoints (`/api/v1/mail`, `/api/v1/verification-code`) | **Carries the verified `uid`** — this is the one Template Management API and Campaign's user-scoped endpoints (`getByApplication`, `updateCampaign`, `toggleCampaign`, `deleteCampaign`) require |
+
+So: **to get a `session-token` you can use against `/api/v1/templates/**` or the
+user-scoped campaign operations, call `POST /api/v1/auth/session-token`** with the end
+user's backbone `sessionToken` in the `session-token-bkd` header and a registered login
+client's alias/password in the body.
+
+```bash
+curl -s -X POST https://<mercury-host>/api/v1/auth/session-token \
+  -H "Content-Type: application/json" \
+  -H "session-token-bkd: <sessionToken issued by backbone-rest POST /api/v1/session>" \
+  -d '{"alias":"'"$DIRECTORY_BACKEND_LOGIN_ALIAS"'","password":"'"$DIRECTORY_BACKEND_LOGIN_PASSWORD"'"}'
+# → {"token": "<Mercury-signed session-token, carries uid>"}
+```
 
 ## Two extraction mechanisms — only one is safe
 
@@ -27,12 +59,15 @@ authorization decisions:
 
 ### 1. `AuthServiceImpl.token(AuthRequest, String sessionTokenBkd)` — token forging
 
-`POST /api/v1/auth/token` with a `session-token-bkd` header exchanges a backbone-issued
-token for a Mercury-signed one. The whole `AuthAPi` interface (in `security-oauth`) is
-`@SkipSessionValidation` — reasonable for the alias/password login variant, which by
-definition can't present a token before one exists — but this exchange variant *does*
-receive a caller-supplied token, and the annotation's class-level scope silently
-exempted it from `SessionJwtInterceptor` too.
+`POST /api/v1/auth/session-token` (see above) exchanges a backbone-issued token for a
+Mercury-signed one. The whole `AuthAPi` interface (in `security-oauth`) is
+`@SkipSessionValidation` — reasonable for the sibling `accessToken` operation, whose
+whole point is a caller that doesn't have a token yet — but this class-level annotation
+silently exempted `generateTokenSession` too, even though *that* operation's entire job
+is to trust a caller-supplied token. Unlike `accessToken` (which calls
+`authService.validate(sessionTokenBkd)`, a real remote check against backbone-rest),
+`generateTokenSession` never validated `sessionTokenBkd` at all — locally or remotely —
+before this fix.
 
 The old code decoded `sessionTokenBkd`'s `uid` without checking its signature, then
 embedded that value in a **newly minted, validly-signed** Mercury session token. Since

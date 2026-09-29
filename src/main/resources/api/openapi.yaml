@@ -6,6 +6,92 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/auth/token:
+    post:
+      tags:
+        - auth
+      summary: Generate a session token (M2M-only, no uid)
+      description: >-
+        Backed by security-oauth's AuthAPi#accessToken (not part of this repo, mounted
+        at /api/v1/auth by the shared library). Validates session-token-bkd remotely
+        against backbone-rest (AuthService.validate → BackbonePublicClient.validate),
+        then — if valid — checks the request body's alias/password against Mercury's
+        registered login-client registry (umdc.mercury.login-clients) and mints a
+        Mercury-signed session-token. The resulting token carries no uid claim — it only
+        authenticates the calling backend service, not an end user — so it's only useful
+        against pure M2M endpoints (/api/v1/mail, /api/v1/verification-code). For a
+        session-token usable against user-scoped endpoints (Template Management, or
+        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign), use
+        POST /api/v1/auth/session-token instead.
+      operationId: accessToken
+      parameters:
+        - name: session-token-bkd
+          in: header
+          required: true
+          description: A backbone-rest-issued session token; validated remotely before this operation proceeds, then discarded (not embedded in the response token).
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Successfully generated session token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid session-token-bkd, blank alias, or unregistered login client.
+        '406':
+          description: Token generation unexpectedly produced a blank token.
+
+  /api/v1/auth/session-token:
+    post:
+      tags:
+        - auth
+      summary: Exchange a backbone session token for a Mercury one carrying the verified uid
+      description: >-
+        Backed by security-oauth's AuthAPi#generateTokenSession (not part of this repo,
+        mounted at /api/v1/auth by the shared library). This is the operation that
+        produces a session-token usable against endpoints that scope by end user
+        (GET/PUT/DELETE /api/v1/templates/**, and Campaign's getByApplication/
+        updateCampaign/toggleCampaign/deleteCampaign). Verifies session-token-bkd's
+        HS256 signature locally (SessionJwtServiceImpl.getVerifiedUid, against the same
+        APP_TOKEN_SECRET backbone-rest signs with — no network call), then mints a new
+        Mercury-signed session-token embedding that verified uid claim. The alias/password
+        in the request body identify a registered login client
+        (umdc.mercury.login-clients, e.g. DIRECTORY_BACKEND_LOGIN_ALIAS/_PASSWORD) — not
+        the end user.
+      operationId: generateTokenSession
+      parameters:
+        - name: session-token-bkd
+          in: header
+          required: true
+          description: The end user's session token, as issued by backbone-rest's POST /api/v1/session or POST /api/v1/session/token.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Successfully generated a session token carrying the verified uid claim.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Blank alias, or session-token-bkd failed signature verification (missing, expired, tampered, or malformed).
+        '406':
+          description: Token generation unexpectedly produced a blank token.
+
   /api/v1/campaigns:
     post:
       tags:
@@ -602,6 +688,26 @@ paths:
 
 components:
   schemas:
+    AuthRequest:
+      type: object
+      description: >-
+        Credentials of a registered Mercury login client (umdc.mercury.login-clients)
+        — not an end user's credentials.
+      required:
+        - alias
+        - password
+      properties:
+        alias:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The newly minted Mercury-signed session-token.
     CreateCampaignRequest:
       type: object
       required:

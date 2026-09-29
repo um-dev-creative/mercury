@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `com.umdc.commons.util.JwtUtil.getUidFromToken` — used across `CampaignController`,
   `TemplateController`, and `AuthServiceImpl` to resolve the caller's user id — only
   base64-decodes the JWT payload; it never checks the signature. Two concrete impacts:
-  - **`AuthServiceImpl.token(AuthRequest, sessionTokenBkd)`** (`POST /api/v1/auth/token`
-    with a `session-token-bkd` header) is `@SkipSessionValidation`, so Mercury's
+  - **`AuthServiceImpl.token(AuthRequest, sessionTokenBkd)`** (`POST /api/v1/auth/session-token`,
+    the `generateTokenSession` operation — not the same as `POST /api/v1/auth/token`,
+    `accessToken`, which validates `session-token-bkd` remotely against backbone before
+    ever reaching this method) is `@SkipSessionValidation`, so Mercury's
     `SessionJwtInterceptor` never validated that header either. The unverified `uid` it
     decoded was then embedded in a freshly-minted, validly Mercury-signed session token
     — any caller who could satisfy the static registered-login-client alias/password
@@ -44,6 +46,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `getById`/`getProgress` have no ownership scoping at all (any caller with a valid
   M2M scope can read any campaign by id). See
   `docs/architecture/session-token-authorization.md`.
+
+### Fixed (documentation)
+- Corrected a path error in the security writeup above and its first `CHANGELOG` entry:
+  the vulnerable exchange operation is `POST /api/v1/auth/session-token`
+  (`generateTokenSession`), not `POST /api/v1/auth/token` (`accessToken` — a different
+  operation that validates `session-token-bkd` remotely against backbone-rest and never
+  embeds a `uid` in its output). Verified against the actual `security-oauth` bytecode
+  (decompiled with CFR) rather than assumed.
+- `docs/get-campaigns-by-application.md`, `docs/toggle-campaign.md`,
+  `docs/update-campaign.md` still described the now-removed unverified
+  `JwtUtil.getUidFromToken` extraction — updated to describe `getVerifiedUid` and the
+  `401`/`InvalidSessionTokenException` behavior. `docs/get-campaign-progress.md` gained a
+  note that its `session-token` parameter is accepted but unused (one of the two open
+  design questions above).
+
+### Added (documentation & tooling)
+- `docs/generate-session-token.md` — documents both session-token-issuing operations
+  (`POST /api/v1/auth/token`, `POST /api/v1/auth/session-token`). Neither is implemented
+  in this repo (`AuthAPi`/`AuthApiController` live in `security-oauth`), which is why
+  neither previously appeared in `src/main/resources/api/openapi.yaml` — that file is
+  hand-maintained (see `pom.xml`) and only ever covered this repo's own controllers.
+  Added both, with request/response schemas (`AuthRequest`/`AuthResponse`), to close that
+  gap; `OpenApiSpecTest` now asserts both `operationId`s stay present.
+- Explicit `springdoc.*` configuration in `application.yml` (`api-docs.path`,
+  `swagger-ui.path`/`enabled`, sorters, `show-actuator: false`) — replaces a dead
+  `swagger.*` block left over from a pre-springdoc setup (referenced an undefined
+  `${app.description}` property; springdoc never read `swagger.*` in the first place).
+  Deliberately does **not** set `springdoc.packages-to-scan`, so the live spec
+  (`GET /v3/api-docs`, `GET /swagger-ui.html`) reflects every `@RestController` bean the
+  app actually exposes, including ones contributed by dependency jars.
+- Removed a dead `app.api.excludes`/`app.api.exclude.methods: accessToken,generateTokenSession`
+  block from `application.yml` — confirmed unconsumed anywhere in this app or in any
+  currently-used version of `commons`/`commons-services`/`security-oauth` (decompiled all
+  three). Its method names matched `security-oauth`'s `AuthAPi` exactly, suggesting a
+  pre-`@SkipSessionValidation` exclusion mechanism that was superseded and never deleted.
 
 ### Added
 - **Template Management API (MER-6)** — full CRUD + search over the reusable base

@@ -182,16 +182,19 @@ umdc:
         password: changeit
 app:
   clientRoles: ${AUTH_ROLE_ID}
-  # The environments for the application
-  api:
-    excludes: none
-    exclude:
-      methods: accessToken,generateTokenSession
-    endpoint: /api/v1  # API endpoint for the application
   # The name of the application
   name: mercury
   # The version of the application
   version: 0.0.1
+  # NOTE: an `api.excludes`/`api.exclude.methods: accessToken,generateTokenSession`
+  # sub-block used to live here. It had no consumer anywhere in this app or in any
+  # currently-used shared-library jar (commons, commons-services, security-oauth) —
+  # confirmed by decompiling all three at the versions this pom.xml actually pulls.
+  # Its method names matched security-oauth's AuthAPi#accessToken/#generateTokenSession
+  # exactly, which strongly suggests it was a pre-@SkipSessionValidation exclusion
+  # mechanism, superseded and left behind (compare umdc.api.excludes above, which is
+  # explicitly documented as intentionally-unused for the same reason). Removed as
+  # dead config — do not resurrect without wiring a real consumer.
 # Spring Boot specific configurations
 # Server specific configurations
 server:
@@ -407,15 +410,33 @@ logging:
   level:
     org.springframework.cloud.configuration.SSLContextFactory: ERROR
 
-swagger:
-  base-package: 'com.umdc.mercury.api.v1.controller'
-  api-info:
-    title: ${app.name}
-    version: ${app.version}
-    description: ${app.description}
-    contact:
-      name: 'Luis Antonio Mata'
-      url: 'www.prx.test'
-      email: 'luis.antonio.mata@gmail.com'
-    cache:
-      disabled: true
+# The `swagger.*` block that used to live here (base-package, api-info, ...) predates
+# this app's move to springdoc-openapi and has no consumer: springdoc reads
+# `springdoc.*`, not `swagger.*` — Springfox is not on the classpath (see
+# springdoc.version in pom.xml). It also referenced an undefined ${app.description}
+# property. Replaced below with the real, explicit springdoc.* configuration.
+springdoc:
+  api-docs:
+    enabled: true
+    # Default is /v3/api-docs; explicit here so it's a stable, documented contract
+    # rather than "whatever springdoc currently defaults to."
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    # Alphabetical tag/operation ordering makes a spec with many controllers (and,
+    # importantly, endpoints contributed by shared-library jars like security-oauth's
+    # AuthAPi — see below) easier to scan than declaration order.
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: false
+  default-produces-media-type: application/json
+  # Deliberately NOT set: springdoc scans every @RestController bean in the Spring
+  # context by default, including ones registered from dependency jars rather than
+  # this repo's own source — e.g. security-oauth's AuthApiController
+  # (POST /api/v1/auth/token, POST /api/v1/auth/session-token). Setting
+  # packages-to-scan to com.umdc.mercury.* here would silently hide those from
+  # /v3/api-docs and /swagger-ui.html, the way the hand-maintained
+  # src/main/resources/api/openapi.yaml already did (see
+  # docs/architecture/session-token-authorization.md). Leave unset so the live
+  # spec always reflects every endpoint this app actually exposes.
