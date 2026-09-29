@@ -1,1 +1,119 @@
+# Changelog
+All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased] - 2026-09-28
+
+### Added
+- **Template Management API (MER-6)** — full CRUD + search over the reusable base
+  `TemplateEntity` (`mercury.templates`), distinct from `TemplateDefinedEntity`
+  (application/user-specific usage, referenced by campaigns/messages — untouched):
+  - `POST   /api/v1/templates` — create (always persisted active)
+  - `PUT    /api/v1/templates/{id}` — update mutable metadata; `applicationId` immutable
+  - `DELETE /api/v1/templates/{id}` — soft-delete (`active=false`), idempotent
+  - `GET    /api/v1/templates/{id}` — active-only lookup; unknown/inactive both 404
+  - `GET    /api/v1/templates` — application-scoped, paginated, filtered search
+  - `TemplateApi`/`TemplateController`, `TemplateService`/`TemplateServiceImpl`,
+    `TemplateUpdateApplier`, `TemplateSpecifications` (DB-level filter/paging/sort)
+  - DTOs: `CreateTemplateRequest`, `UpdateTemplateRequest`, `TemplateDetailResponse`,
+    `TemplateSearchResponse`, internal `TemplateSearchCriteria`
+  - `TemplateNotFoundException` + `GlobalExceptionHandler` 404 mapping;
+    `MissingServletRequestParameterException` → 400 mapping (was falling through to 500)
+  - New lookup repositories: `ApplicationRepository`, `SeverityTypeRepository`
+  - OpenAPI paths/schemas in `src/main/resources/api/openapi.yaml`;
+    `docs/template-management-api.md`
+- **Real application-scoped authorization**, replacing a local placeholder:
+  `ApplicationAuthorizationService`/`ApplicationAuthorizationServiceImpl` calls
+  backbone-rest's `POST /api/v1/iam/permissions/check` (new `BackbonePermissionClient`
+  Feign client + `PermissionCheckRequest`/`PermissionCheckResponse`), which now
+  actually enforces the caller's role against the real
+  `general.application_role_user` ACL for the requested application (previously the
+  `applicationId` field on that endpoint was accepted but silently ignored — see
+  companion changes in the `backbone-rest` repo). Fails closed: a denied check, or
+  backbone-rest being unreachable/erroring, both reject with `403`.
+- `FeignHttpClientConfig` — global `feign.Client` bean used by every `@FeignClient`
+  in the app (see Fixed, below, for why this was necessary).
+- `docs/tec/en/06-environment-configuration.md` — complete, file-by-file variable
+  reference for `config/local.env`, `secrets/local.env`, `config/native.env`, and
+  `default.env` (names/purpose only for the latter — it carries real secrets and is
+  gitignored); two new troubleshooting entries for the PKIX and Hibernate-proxy
+  issues below.
+- `MERCURY_TEMPLATES_HOST_PATH` (`config/local.env`) — lets ops point
+  `docker-compose.yml`'s template mount at a real host directory (e.g.
+  `C:\ambientes\mercury\templates`) instead of the repo checkout path, without
+  rebuilding the image. Requires `docker compose --env-file config/local.env ...`
+  (documented) since Compose never reads `env_file:` entries for its own `${...}`
+  substitution.
+
+### Fixed
+- **`JpaSystemException: Generation of HibernateProxy instances at runtime is not
+  allowed when the configured BytecodeProvider is 'none'`** on any lazy entity
+  association (e.g. `GET /api/v1/campaigns/{id}`):
+  - JVM mode: `net.bytebuddy:byte-buddy` was present only via `mockito-core`'s
+    test-scope dependency and got stripped from the packaged jar by
+    `spring-boot:repackage`, leaving Hibernate with no bytecode provider at all.
+    Added as an explicit `compile`-scope dependency in `pom.xml`.
+  - GraalVM native-image mode: a true native binary cannot generate proxy classes
+    at runtime regardless of the classpath, and no `hibernate-enhance-maven-plugin`
+    release exists matching `hibernate-core:7.4.5.Final` (confirmed against Maven
+    Central). Converted every `FetchType.LAZY` `@ManyToOne`/`@OneToOne` association
+    to `FetchType.EAGER` across all entities (`CampaignEntity`,
+    `CampaignMetricsEntity`, `ChannelConfigEntity`, `MessageDeliveryLogEntity`,
+    `MessageRecordEntity`, `TemplateDefinedEntity`, `TemplateEntity`,
+    `VerificationCodeEntity`) instead.
+- **`AuthenticationServiceException` / `PKIX path building failed` fetching
+  `.../protocol/openid-connect/certs`** on requests that should never touch JWT
+  decoding: excluding the decommissioned Keycloak-style `SecurityConfig` from
+  component-scan (pre-existing) only stops that one custom bean — it does not stop
+  Spring Boot's own `OAuth2ResourceServerAutoConfiguration`/
+  `OAuth2ResourceServerWebSecurityAutoConfiguration` from independently building a
+  `JwtDecoder` if the JWK-set-URI property still resolves from Vault/Config Server.
+  Both now explicitly listed in `application.yml`'s `spring.autoconfigure.exclude`.
+- **Same PKIX symptom, different call sites** — every outbound HTTPS call this app
+  makes to PRX-internal hosts via a manually-built HTTP client
+  (`BackendFeignClientInterceptor.getToken()`'s M2M token fetch, and — more
+  broadly — every `@FeignClient` in the app, including `BackbonePublicClient`'s
+  opaque-token introspection used on **every** `/api/v1/campaigns/**` and
+  `/api/v1/channel-types/**` request) did not reliably pick up the JVM-wide trust
+  store `TrustStoreInitializer` installs at startup. Both now build their client
+  explicitly from `SSLContext.getDefault()` (read at call time); confirmed via the
+  Spring Boot condition-evaluation report that the new global `feignClient()` bean
+  is the one actually used by every Feign client in the app.
+- **FreeMarker templates missing inside the container** (`spring.freemarker.template-loader-path`
+  resolves to an empty/missing directory — `FreeMarkerConfig` reads it as a plain
+  filesystem path, not a classpath resource): `Dockerfile` never copied
+  `src/main/resources/templates/` into the image; the only prior mechanism was
+  `docker-compose.yml`'s runtime bind-mount of the host checkout path, which never
+  generalized beyond "Compose invoked from a git clone on this exact host." Both
+  `Dockerfile` and `Dockerfile.native` now bake the templates in at build time;
+  `application.yml`'s `TEMPLATE_PATH`/`TEMPLATE_SUFFIX` gained matching defaults.
+- `TemplateMapper.toTemplateTO` hardcoded `isActive` to `true` and never mapped
+  severity — now maps the real persisted `active` state and severity type.
+
+### Changed
+- `TemplateMapper` gained `toEntity(CreateTemplateRequest, ...)` and
+  `toDetailResponse(TemplateEntity)` for the new API, alongside the existing
+  (bug-fixed) `toSource`/`toTemplateTO` methods.
+
+### Documentation
+- `docs/template-management-api.md` — new: endpoints, auth/application-scope model
+  (including the real backbone-rest ACL call), request/response/query fields,
+  pagination, error statuses, `TemplateEntity` vs. `TemplateDefinedEntity`,
+  soft-delete/reference retention, `location`-as-metadata, sequence + lifecycle
+  Mermaid diagrams.
+- `docs/architecture/graalvm-native-image.md` — appended findings 5–8 to the
+  "Real-deployment findings" section: the Hibernate/byte-buddy and
+  `FetchType.EAGER` fix, the `spring.autoconfigure.exclude` fix, the Feign/`RestTemplate`
+  trust-store fix, and the templates-baked-into-image fix.
+- `docs/tec/en/06-environment-configuration.md` — complete `.env` file reference
+  (see Added, above) and two new troubleshooting entries.
+- `docs/openapi-client/README.md` — new `operationId -> path` rows for the five
+  Template Management endpoints.
+- `docker-compose.yml`, `config/local.env` — inline comments explaining the
+  `--env-file` requirement and `MERCURY_TEMPLATES_HOST_PATH`.
+
+---
+
+*(No prior entries — this file was empty before this release.)*

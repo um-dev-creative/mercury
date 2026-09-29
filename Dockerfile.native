@@ -103,7 +103,18 @@ RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.c
     cp /run/secrets/aiven-kafka-7e59598.key /staging-certs/mercury/aiven-kafka-7e59598.key && \
     cp /run/secrets/aiven-kafka-7e59598.pem /staging-certs/mercury/aiven-kafka-7e59598.pem && \
     cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/aiven-kafka.p12 && \
-    cp /run/secrets/svc.pem /staging-certs/mercury/svc.pem
+    cp /run/secrets/svc.pem /staging-certs/mercury/svc.pem && \
+    chmod 0444 /staging-certs/mercury/*
+# BuildKit mounts each --secret at mode 0400 owned by root, and `cp` (no -p flag) still
+# preserves those source permission bits — so, unlike the JIT Dockerfile (which chowns/chmods
+# the whole app dir to its own non-root APP_USER before switching to it), the files staged
+# above land as root-owned, owner-only-readable. The final stage below runs as `nonroot`
+# (distroless's fixed uid 65532, a different identity than root) — chmod here, while still
+# root in the builder stage, is what makes them world-readable so COPY --from=builder (which
+# preserves file mode) hands the final stage files nonroot can actually open. Confirmed the
+# actual cause of a real-deployment "Permission denied" TLS/keystore failure (every cert/jks
+# read failed identically, including the Tomcat SSL connector's own keystore) after the
+# equally real "certs never made it into the image at all" failure above was fixed.
 
 # cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
 # build uses the plain default `--no-fallback` native-image linking (dynamically linked against
@@ -122,7 +133,6 @@ COPY --from=builder /staging/usr/lib/ /usr/lib/
 # stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
 COPY --from=builder /staging-certs/mercury/ certs/mercury/
 COPY src/main/resources/templates/ templates/
-
 EXPOSE 8118
 
 # No shell in a distroless image, so no docker-entrypoint.sh here — everything that
@@ -130,7 +140,12 @@ EXPOSE 8118
 # (Spring's native launcher still honors -D the same way the JVM does). -XX flags
 # (like -XX:+UseCompactObjectHeaders from the JIT entrypoint) do not apply to a
 # Substrate VM binary and are intentionally omitted.
+#
+# spring.freemarker.template-loader-path is deliberately NOT hardcoded here (a -D flag
+# would always win over the TEMPLATE_PATH env var, making it un-overridable) — it falls
+# through to application.yml's own ${TEMPLATE_PATH:/usr/local/runme/templates} default,
+# which already matches where this image bakes the .ftl files in above. Set TEMPLATE_PATH
+# at container-run time to point at a different mounted/host directory instead.
 ENTRYPOINT ["/usr/local/runme/mercury", \
     "-Dspring.application.name=mercury", \
-    "-Dapi.info.version=0.0.3", \
-    "-Dspring.freemarker.template-loader-path=/usr/local/runme/templates"]
+    "-Dapi.info.version=0.0.3"]

@@ -22,7 +22,7 @@ public class VerificationCodeEntity {
     private UUID userId;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "application_id", nullable = false)
     private ApplicationEntity applicationEntity;
 
@@ -69,7 +69,7 @@ public class VerificationCodeEntity {
     private LocalDateTime modifiedAt;
 
     @NotNull
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "message_record_id", nullable = false)
     private MessageRecordEntity messageRecord;
 

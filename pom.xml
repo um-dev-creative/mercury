@@ -153,6 +153,21 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
+        <!-- Hibernate 7's bytecode provider (needed to generate HibernateProxy instances for
+             FetchType.LAZY @ManyToOne/@OneToOne associations, e.g. CampaignEntity.channelType,
+             TemplateEntity.application) is no longer pulled in transitively by hibernate-core.
+             Without it explicitly present at compile/runtime scope, the only byte-buddy on the
+             classpath is mockito-core's test-scope copy, which spring-boot:repackage strips from
+             the packaged jar — Hibernate then falls back to bytecode.provider=none and throws
+             "Generation of HibernateProxy instances at runtime is not allowed" the first time any
+             lazy association needs a proxy (e.g. GET /api/v1/campaigns/{id}). Version is managed
+             by spring-boot-dependencies (same version mockito-core already resolves to).
+             See docs/architecture/graalvm-native-image.md for related but distinct native-image
+             bytecode-provider considerations. -->
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>

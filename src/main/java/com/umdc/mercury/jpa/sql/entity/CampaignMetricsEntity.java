@@ -17,7 +17,7 @@ public class CampaignMetricsEntity {
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "campaign_id", nullable = false)
     private CampaignEntity campaign;
 

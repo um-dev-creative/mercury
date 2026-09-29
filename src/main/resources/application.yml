@@ -3,6 +3,9 @@ log:
   debug: ${LOGGING_TRACE_ENABLED}
 
 umdc:
+  app:
+    title: Mercury
+    version: 0.0.3
   mercury:
     # Backend callers allowed to obtain a Mercury session-token via
     # POST /api/v1/auth/token (LoginClientProperties) — e.g. directory-backend,
@@ -93,6 +96,12 @@ umdc:
     jwt:
       secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
       expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
+    permissions:
+      # Role/feature name backbone-rest's general.role / general.feature must grant a caller
+      # (via general.application_role_user, scoped to the request's applicationId) for
+      # TemplateServiceImpl's ApplicationAuthorizationService check to pass. Must match a
+      # seeded role or feature name in backbone-rest for the relevant application(s).
+      template-manage: ${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}
     # AuthProperties/JwtConverterProperties (security-oauth jar) bind to umdc.security.auth.* -
     # this block was previously (wrongly) at umdc.auth.*, one level too shallow, so
     # AuthProperties.getClients() always returned null and BackendFeignClientInterceptor's
@@ -243,8 +252,13 @@ spring:
       # also does NOT auto-start when Kafka is unavailable locally
       auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
   freemarker:
-    template-loader-path: ${TEMPLATE_PATH}
-    suffix: ${TEMPLATE_SUFFIX}
+    # FreeMarkerConfig loads this as a plain java.io.File directory (not a classpath
+    # resource), so it must resolve to a real directory inside the running container —
+    # both Dockerfile and Dockerfile.native bake the .ftl files at this exact
+    # WORKDIR-relative path; docker-compose.yml can additionally bind-mount a host
+    # directory over it (see MERCURY_TEMPLATES_HOST_PATH there) without changing this default.
+    template-loader-path: ${TEMPLATE_PATH:/usr/local/runme/templates}
+    suffix: ${TEMPLATE_SUFFIX:.ftl}
     check-template-location: false
 
   mail:
@@ -315,11 +329,24 @@ spring:
     name: ${app.name}
   # spring.security.oauth2.{client,resourceserver.jwt} intentionally removed: leftover
   # config for the decommissioned Keycloak-style IdP (see SessionTokenSecurityConfig's
-  # javadoc). MercuryApplication now excludes com.umdc.security.config.SecurityConfig
-  # (the only consumer of these properties) from component scanning, so nothing resolves
-  # them anymore. Leaving them in place made Spring Boot autoconfigure a JwtDecoder and
-  # advertise RFC 9728 Protected Resource Metadata (a "resource_metadata" WWW-Authenticate
-  # challenge pointing at /.well-known/oauth-protected-resource) that nothing actually serves.
+  # javadoc). MercuryApplication excludes com.umdc.security.config.SecurityConfig (the
+  # custom chain that used to consume these properties) from component scanning — but
+  # that exclusion only stops OUR OWN class; it does nothing about Spring Boot's OWN
+  # built-in OAuth2ResourceServerAutoConfiguration / OAuth2ResourceServerWebSecurityAutoConfiguration
+  # (spring-boot-security-oauth2-resource-server), which auto-configures a JwtDecoder and
+  # its own SecurityFilterChain purely from these properties resolving — from ANY source,
+  # including Vault/Config Server remotely, which can still serve stale values for this
+  # key from before the Keycloak IdP was decommissioned, entirely outside this file's
+  # control. Confirmed by hitting the exact symptom in a real deployment: every request
+  # 500ing trying to fetch a JWKS from a host that no longer serves it. Explicitly
+  # excluding both autoconfiguration classes below closes this regardless of what any
+  # remote config source still serves for this key — safe because ManagedClientSecurityConfig
+  # injects its own BackboneOpaqueTokenIntrospector bean directly rather than relying on
+  # either of these classes to supply one.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration
   cloud:
     # The Spring Cloud Config specific configurations
     #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>

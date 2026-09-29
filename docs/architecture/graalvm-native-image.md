@@ -427,6 +427,158 @@ mode) passes unchanged after both changes. Still unconfirmed, same caveat as
 the rest of this document: whether the live Vault fetch path succeeds
 end-to-end with real credentials against `vault.umdc-qa.tst`.
 
+5. **Hibernate lazy-association proxies need a bytecode provider — none was
+   present at runtime in JVM mode, and no compatible bytecode-enhancement
+   plugin exists for this Hibernate release under native-image.**
+   **Symptom (JVM mode):**
+   `org.springframework.orm.jpa.JpaSystemException: Generation of
+   HibernateProxy instances at runtime is not allowed when the configured
+   BytecodeProvider is 'none'` — thrown the first time any
+   `FetchType.LAZY` `@ManyToOne`/`@OneToOne` association needed a runtime
+   proxy (e.g. loading a `CampaignEntity` via `GET /api/v1/campaigns/{id}`).
+   **Cause:** `net.bytebuddy:byte-buddy` — Hibernate's default bytecode
+   provider — was present on the build classpath only transitively, via
+   `mockito-core`'s **test**-scope dependency. `spring-boot:repackage`
+   correctly strips test-scope dependencies from the packaged jar, so the
+   deployed application had zero bytecode provider available at all;
+   Hibernate silently fell back to `'none'`.
+   **Fix (JVM mode):** `pom.xml` now declares `net.bytebuddy:byte-buddy` as
+   an explicit `compile`-scope dependency (version left unpinned — inherited
+   from `spring-boot-dependencies`, the same version Mockito already
+   resolves). Confirmed present in `BOOT-INF/lib/` of the repackaged jar
+   afterwards, and confirmed loadable via a direct
+   `org.hibernate.bytecode.internal.bytebuddy.BytecodeProviderImpl`
+   instantiation against that exact classpath.
+   **Cause (native-image mode) — a separate, harder problem:** byte-buddy
+   being on the classpath does not help a true GraalVM native binary at all.
+   Substrate VM's closed-world model cannot generate new classes at
+   runtime under any circumstances — Hibernate's `HibernateProxy` generation
+   is fundamentally, not incidentally, impossible there. The documented,
+   supported mitigation is Hibernate's own **compile-time** bytecode
+   enhancement (`hibernate-enhance-maven-plugin`, bound to the `compile`
+   phase, so `native-image` only ever sees already-enhanced classes and
+   never needs to generate a proxy at runtime). That plugin has **no
+   published release matching `hibernate-core:7.4.5.Final`** on Maven
+   Central as of this writing: `org.hibernate.orm:hibernate-enhance-maven-plugin`
+   404s outright (that groupId was never used for this artifact), and the
+   legacy `org.hibernate:hibernate-enhance-maven-plugin` groupId tops out
+   at `7.0.0.Beta1` — three major/minor versions behind. Forcing that
+   mismatch would risk silently-incompatible enhanced bytecode; rejected.
+   **Fix (native-image mode):** converted every `FetchType.LAZY`
+   `@ManyToOne`/`@OneToOne` association, across every entity
+   (`CampaignEntity`, `CampaignMetricsEntity`, `ChannelConfigEntity`,
+   `MessageDeliveryLogEntity`, `MessageRecordEntity`,
+   `TemplateDefinedEntity`, `TemplateEntity`, `VerificationCodeEntity`), to
+   `FetchType.EAGER`. Hibernate then always joins/fetches the real target
+   entity at load time and never needs a runtime-generated proxy
+   placeholder, sidestepping the bytecode-provider requirement entirely —
+   at the cost of losing laziness on those associations (more eager joins
+   per query; accepted as a reasonable trade-off given these are small,
+   routinely-needed single-valued reference associations, not deep or
+   rarely-used object graphs). `mvn clean test` (645/645) unaffected.
+
+6. **Excluding the decommissioned Keycloak-style `SecurityConfig` from
+   component-scan does not stop Spring Boot's own OAuth2 resource-server
+   autoconfiguration from building the same dead `JwtDecoder`.**
+   **Symptom:** `AuthenticationServiceException: An error occurred while
+   attempting to decode the Jwt: I/O error on GET request for
+   "https://api.umdc-qa.tst/backbone/protocol/openid-connect/certs" ...
+   PKIX path building failed`, thrown from Spring Security's
+   `JwtAuthenticationProvider` / `OAuth2ProtectedResourceMetadataFilter` on
+   requests that should never touch JWT/JWKS decoding at all — the same
+   underlying symptom `application.yml`'s own pre-existing comment already
+   described (see "spring.security.oauth2.{client,resourceserver.jwt}
+   intentionally removed" there), but still reachable in a real deployment.
+   **Cause:** `MercuryApplication`'s
+   `@ComponentScan(excludeFilters = {ASSIGNABLE_TYPE SecurityConfig.class})`
+   only stops classpath component-scanning from registering that one
+   custom `@Configuration` class (`com.umdc.security.config.SecurityConfig`,
+   from the closed-source `security-oauth` jar). It has **no effect** on
+   Spring Boot's own, entirely separate `spring-boot-security-oauth2-resource-server`
+   autoconfiguration module — `OAuth2ResourceServerAutoConfiguration` and
+   (Spring Boot 4's new) `OAuth2ResourceServerWebSecurityAutoConfiguration`
+   independently build a `JwtDecoder` the moment
+   `spring.security.oauth2.resourceserver.jwt.jwk-set-uri`/`issuer-uri`
+   resolves from **any** property source — including Vault/Config Server
+   still serving a stale value left over from before the Keycloak IdP was
+   decommissioned, entirely outside `application.yml`'s control. Confirmed
+   `OAuth2ResourceServerWebSecurityAutoConfiguration`'s own
+   `@ConditionalOnDefaultWebSecurity` (`@ConditionalOnMissingBean(SecurityFilterChain.class)`)
+   correctly backs off given Mercury's own `SessionTokenSecurityConfig`/
+   `ManagedClientSecurityConfig` beans — ruling it out as the direct cause —
+   which narrowed this down to the remote-config-value theory above.
+   **Fix:** `application.yml`'s `spring.autoconfigure.exclude` now
+   explicitly excludes both
+   `org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration`
+   and
+   `org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration`
+   by fully-qualified class name — independent of, and in addition to, the
+   existing component-scan exclusion. Verified safe:
+   `ManagedClientSecurityConfig` injects its own `BackboneOpaqueTokenIntrospector`
+   bean directly via constructor, never relying on either excluded class to
+   supply one.
+
+7. **Manually-constructed HTTP clients for outbound M2M/Feign calls to
+   PRX-internal hosts don't reliably pick up the JVM-wide trust store fix
+   #2 above installs.**
+   **Symptom:** the same `PKIX path building failed: unable to find valid
+   certification path to requested target`, but this time from
+   `org.apache.hc.client5.http...` under a plain Spring `RestTemplate`
+   (`BackendFeignClientInterceptor.getToken()`, fetching an M2M access
+   token) and, separately, from Feign's own request transport
+   (`BackbonePublicClient`'s opaque-token introspection call — used on
+   **every** M2M-authenticated request to `/api/v1/campaigns/**` and
+   `/api/v1/channel-types/**` via `ManagedClientSecurityConfig`).
+   **Cause:** both call sites built their own HTTP client with zero
+   explicit trust configuration (`new RestTemplate()`; Feign's own default
+   client, since `feign-hc5`/`feign-httpclient` aren't on the classpath —
+   confirmed via the condition-evaluation report:
+   `FeignAutoConfiguration.HttpClient5FeignConfiguration: Did not match —
+   @ConditionalOnClass did not find required class 'feign.hc5.ApacheHttp5Client'`).
+   This matches `TrustStoreInitializer`'s own documented finding, above:
+   Apache HttpClient5's "system default" SSL resolution reads
+   `javax.net.ssl.trustStore` system properties directly rather than
+   `SSLContext.getDefault()`, and empirically does not reach an
+   unconfigured client the way it reaches Tomcat's connector or Eureka's
+   registration client.
+   **Fix:** `BackendFeignClientInterceptor.getToken()` now builds its
+   `RestTemplate` from an explicit Apache HttpClient5 `CloseableHttpClient`,
+   wired with `new DefaultClientTlsStrategy(SSLContext.getDefault())` —
+   read at call time, well after `MercuryApplication.main()` has already
+   installed the merged context. A new `FeignHttpClientConfig` supplies a
+   global `feign.Client` bean (`Client.Default` with an `SSLSocketFactory`
+   from that same `SSLContext.getDefault()`) that Spring Cloud OpenFeign
+   uses for **every** `@FeignClient` in the app once present
+   (`@ConditionalOnMissingBean(Client.class)`) — confirmed directly via the
+   condition-evaluation report:
+   `DefaultFeignLoadBalancerConfiguration#feignClient: Did not match —
+   found beans of type 'feign.Client' feignClient`.
+
+8. **`docker-compose.yml`'s templates mount only ever worked when Compose
+   was invoked from a git checkout on the same host as the container.**
+   **Symptom:** `FreeMarkerConfig` loads `spring.freemarker.template-loader-path`
+   as a plain `java.io.File` directory (not a classpath resource — see
+   `FreeMarkerConfig.java`), which resolved to an empty or missing
+   directory in any container not started via this exact
+   `docker-compose.yml` from a repo checkout.
+   **Cause:** `Dockerfile` (JIT) never copied
+   `src/main/resources/templates/` into the image at all — the only place
+   the container ever got real `.ftl` files was `docker-compose.yml`'s
+   runtime bind-mount of the *host's own checkout path*
+   (`./src/main/resources/templates:/usr/local/runme/templates:ro`), which
+   silently fails to generalize to `docker run`, a different orchestrator,
+   or any deploy host without that exact checkout at that exact relative
+   path. `Dockerfile.native` already baked templates in and even carried a
+   comment assuming the JIT `Dockerfile` did the same — it didn't.
+   **Fix:** both `Dockerfile` and `Dockerfile.native` now
+   `COPY src/main/resources/templates/ templates/` at build time, so every
+   image is self-sufficient by default. `docker-compose.yml`'s bind-mount
+   is now an **optional override** — its host-side path is driven by
+   `MERCURY_TEMPLATES_HOST_PATH` (see `config/local.env`, and the `.env`
+   file reference in
+   [06 · Environment Configuration](../tec/en/06-environment-configuration.md))
+   — rather than the only mechanism that ever populated the directory.
+
 ## Non-goals / explicitly out of scope for this ticket
 
 - Verifying the real Vault/Config Server fetch path

@@ -1,6 +1,7 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -34,6 +36,8 @@ import java.util.stream.Collectors;
  *   <li>{@link CompletionException} wrapping {@link IllegalStateException} → 422</li>
  *   <li>{@link IllegalStateException} – disabled channel or other state violations → 422</li>
  *   <li>{@link CampaignNotFoundException} – campaign not found → 404</li>
+ *   <li>{@link TemplateNotFoundException} – template not found or inactive → 404</li>
+ *   <li>{@link MissingServletRequestParameterException} – missing required query parameter → 400</li>
  *   <li>All other {@link Exception} → 500</li>
  * </ul>
  */
@@ -100,6 +104,32 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
                 .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Handles requests for templates that do not exist (or are no longer active),
+     * returning {@code 404 Not Found}.
+     */
+    @ExceptionHandler(TemplateNotFoundException.class)
+    public ResponseEntity<ApiError> handleTemplateNotFound(TemplateNotFoundException ex,
+                                                           HttpServletRequest request) {
+        logger.warn("Template not found for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Handles a missing required query parameter (e.g. {@code applicationId} on a search
+     * endpoint), returning {@code 400 Bad Request}.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex,
+                                                           HttpServletRequest request) {
+        logger.warn("Missing required parameter for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
     }
 
     /**

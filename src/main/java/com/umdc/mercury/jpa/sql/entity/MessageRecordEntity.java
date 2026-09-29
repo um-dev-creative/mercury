@@ -45,12 +45,12 @@ public class MessageRecordEntity {
     private LocalDateTime updatedAt;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "message_status_type_id", nullable = false)
     private MessageStatusTypeEntity messageStatusType;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "template_defined_id", nullable = false)
     private TemplateDefinedEntity templateDefined;
 

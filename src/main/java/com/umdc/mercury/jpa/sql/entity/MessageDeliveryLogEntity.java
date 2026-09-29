@@ -21,11 +21,11 @@ public class MessageDeliveryLogEntity {
     @Column(name = "message_id", nullable = false)
     private String messageId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "campaign_id")
     private CampaignEntity campaign;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "channel_type_id")
     private ChannelTypeEntity channelType;
 

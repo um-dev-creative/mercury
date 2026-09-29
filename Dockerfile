@@ -13,6 +13,15 @@ WORKDIR /usr/local/runme
 COPY ${TARGET_FILE}${JAR_FILE} ${JAR_FILE}
 COPY docker-entrypoint.sh docker-entrypoint.sh
 
+# Baked-in default templates so the container is self-sufficient even when run
+# standalone (`docker run`, no docker-compose). FreeMarkerConfig loads
+# spring.freemarker.template-loader-path as a plain filesystem directory — these
+# .ftl files must exist on disk at that exact path, not just inside the jar.
+# docker-compose.yml can still bind-mount a real host directory over this same
+# path (see its MERCURY_TEMPLATES_HOST_PATH) to let ops manage templates without
+# rebuilding the image; the mount transparently replaces what's baked in here.
+COPY src/main/resources/templates/ templates/
+
 # certs/mercury/ (gitignored — never in git history, unlike the old keystore.jks incident) is
 # baked into the image here by explicit choice: these keystores/truststores are read as
 # file:certs/mercury/... (relative to WORKDIR, i.e. this exact path) by application.yml — see

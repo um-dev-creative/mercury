@@ -28,11 +28,11 @@ public class CampaignEntity {
     private String name;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "channel_type_id", nullable = false)
     private ChannelTypeEntity channelType;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "template_defined_id")
     private TemplateDefinedEntity templateDefined;
 
