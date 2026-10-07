@@ -296,8 +296,8 @@ spring:
         lob.non_contextual_creation: true  # Non-contextual LOB creation
       hibernate:
         boot:
-                  allow_jdbc_metadata_access: true
-    log-level: error
+          allow_jdbc_metadata_access: true
+      log-level: error
     defer-datasource-initialization: true
   # SSL configuration
   ssl:
