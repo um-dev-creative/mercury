@@ -28,6 +28,8 @@ class OpenApiSpecTest {
         boolean foundGetById = false;
         boolean foundGetByApp = false;
         boolean foundSendEmail = false;
+        boolean foundAccessToken = false;
+        boolean foundGenerateTokenSession = false;
 
         for (Object pathObj : paths.values()) {
             Map<?,?> methods = (Map<?,?>) pathObj;
@@ -38,12 +40,22 @@ class OpenApiSpecTest {
                 if ("getCampaignById".equals(opId)) foundGetById = true;
                 if ("getCampaignsByApplication".equals(opId)) foundGetByApp = true;
                 if ("sendEmail".equals(opId)) foundSendEmail = true;
+                if ("accessToken".equals(opId)) foundAccessToken = true;
+                if ("generateTokenSession".equals(opId)) foundGenerateTokenSession = true;
             }
         }
         assertTrue(foundCreate, "createCampaign operationId must exist in YAML");
         assertTrue(foundGetById, "getCampaignById operationId must exist in YAML");
         assertTrue(foundGetByApp, "getCampaignsByApplication operationId must exist in YAML");
         assertTrue(foundSendEmail, "sendEmail operationId must exist in YAML");
+        // accessToken (POST /api/v1/auth/token) and generateTokenSession
+        // (POST /api/v1/auth/session-token) are implemented by security-oauth's AuthAPi,
+        // not by a controller in this repo — but they're real endpoints this app exposes
+        // at runtime, and generateTokenSession is the ONLY operation that mints a
+        // session-token carrying a verified uid claim (see
+        // docs/architecture/session-token-authorization.md). Keep them documented here.
+        assertTrue(foundAccessToken, "accessToken operationId must exist in YAML");
+        assertTrue(foundGenerateTokenSession, "generateTokenSession operationId must exist in YAML");
     }
 
     @Test

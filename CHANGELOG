@@ -6,6 +6,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-09-28
 
+### Security
+- **Forgeable `uid` claim in `session-token` trusted for real authorization decisions.**
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` — used across `CampaignController`,
+  `TemplateController`, and `AuthServiceImpl` to resolve the caller's user id — only
+  base64-decodes the JWT payload; it never checks the signature. Two concrete impacts:
+  - **`AuthServiceImpl.token(AuthRequest, sessionTokenBkd)`** (`POST /api/v1/auth/session-token`,
+    the `generateTokenSession` operation — not the same as `POST /api/v1/auth/token`,
+    `accessToken`, which validates `session-token-bkd` remotely against backbone before
+    ever reaching this method) is `@SkipSessionValidation`, so Mercury's
+    `SessionJwtInterceptor` never validated that header either. The unverified `uid` it
+    decoded was then embedded in a freshly-minted, validly Mercury-signed session token
+    — any caller who could satisfy the static registered-login-client alias/password
+    check could mint a legitimate Mercury token for an arbitrary `uid`, impersonating
+    any user everywhere that token is later trusted (e.g. the Template Management API).
+  - **`CampaignController`**'s `getByApplication`/`updateCampaign`/`toggleCampaign`/
+    `deleteCampaign` also never went through `SessionJwtInterceptor` (`CampaignApi` is
+    `@SkipSessionValidation` — its routes are M2M-only, authenticated instead by
+    `ManagedClientSecurityConfig`'s backbone opaque-token chain for the *calling
+    service*). The `uid` from that same unverified header was still used to scope the
+    `getByApplication` query and to gate the "only the owner can update/toggle/delete"
+    checks in `CampaignServiceImpl` — so any M2M caller holding a valid
+    `mercury:message:*` scope token could read, update, pause, or soft-delete any other
+    user's campaigns by self-crafting the `uid` claim.
+
+  Fixed by adding `SessionJwtServiceImpl.getVerifiedUid(String)` — verifies the token's
+  HS256 signature (the same shared `APP_TOKEN_SECRET` backbone-rest signs with) and
+  expiration via the existing `getTokenClaims`, returning the `uid` claim only if the
+  token is genuinely trustworthy. All three call sites now use it; `CampaignController`
+  and `TemplateController` throw a new `InvalidSessionTokenException` (mapped to `401`)
+  when verification fails, and `AuthServiceImpl.token(AuthRequest, String)` returns `400`
+  (matching that endpoint's already-documented contract) instead of minting a token.
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` is no longer used anywhere in this
+  codebase.
+- Documented two related, lower-severity design gaps for follow-up (not changed in this
+  pass, since both alter existing API/trust-boundary behavior rather than harden an
+  already-intended check): `CampaignController.createCampaign` attributes a campaign to
+  whatever `userId` is in the request body, with no cross-check against any token at all;
+  and `getById`/`getProgress` have no ownership scoping at all (any caller with a valid
+  M2M scope can read any campaign by id). See
+  `docs/architecture/session-token-authorization.md`.
+
+### Fixed (documentation)
+- Corrected a path error in the security writeup above and its first `CHANGELOG` entry:
+  the vulnerable exchange operation is `POST /api/v1/auth/session-token`
+  (`generateTokenSession`), not `POST /api/v1/auth/token` (`accessToken` — a different
+  operation that validates `session-token-bkd` remotely against backbone-rest and never
+  embeds a `uid` in its output). Verified against the actual `security-oauth` bytecode
+  (decompiled with CFR) rather than assumed.
+- `docs/get-campaigns-by-application.md`, `docs/toggle-campaign.md`,
+  `docs/update-campaign.md` still described the now-removed unverified
+  `JwtUtil.getUidFromToken` extraction — updated to describe `getVerifiedUid` and the
+  `401`/`InvalidSessionTokenException` behavior. `docs/get-campaign-progress.md` gained a
+  note that its `session-token` parameter is accepted but unused (one of the two open
+  design questions above).
+
+### Added (documentation & tooling)
+- `docs/generate-session-token.md` — documents both session-token-issuing operations
+  (`POST /api/v1/auth/token`, `POST /api/v1/auth/session-token`). Neither is implemented
+  in this repo (`AuthAPi`/`AuthApiController` live in `security-oauth`), which is why
+  neither previously appeared in `src/main/resources/api/openapi.yaml` — that file is
+  hand-maintained (see `pom.xml`) and only ever covered this repo's own controllers.
+  Added both, with request/response schemas (`AuthRequest`/`AuthResponse`), to close that
+  gap; `OpenApiSpecTest` now asserts both `operationId`s stay present.
+- Explicit `springdoc.*` configuration in `application.yml` (`api-docs.path`,
+  `swagger-ui.path`/`enabled`, sorters, `show-actuator: false`) — replaces a dead
+  `swagger.*` block left over from a pre-springdoc setup (referenced an undefined
+  `${app.description}` property; springdoc never read `swagger.*` in the first place).
+  Deliberately does **not** set `springdoc.packages-to-scan`, so the live spec
+  (`GET /v3/api-docs`, `GET /swagger-ui.html`) reflects every `@RestController` bean the
+  app actually exposes, including ones contributed by dependency jars.
+- Removed a dead `app.api.excludes`/`app.api.exclude.methods: accessToken,generateTokenSession`
+  block from `application.yml` — confirmed unconsumed anywhere in this app or in any
+  currently-used version of `commons`/`commons-services`/`security-oauth` (decompiled all
+  three). Its method names matched `security-oauth`'s `AuthAPi` exactly, suggesting a
+  pre-`@SkipSessionValidation` exclusion mechanism that was superseded and never deleted.
+
 ### Added
 - **Template Management API (MER-6)** — full CRUD + search over the reusable base
   `TemplateEntity` (`mercury.templates`), distinct from `TemplateDefinedEntity`

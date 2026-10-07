@@ -36,7 +36,9 @@ htmlReport/
 /docs/*
 !/docs/tec/
 !/docs/issues/
+!/docs/architecture/
 !/docs/template-management-api.md
+!/docs/generate-session-token.md
 /docs/issues/*
 !/docs/issues/create-template-management.md
 
@@ -51,3 +53,4 @@ htmlReport/
 
 # OS / tooling noise
 .DS_Store
+/mercury.iml
