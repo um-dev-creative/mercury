@@ -4,6 +4,75 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-10-06
+
+### Security
+- **MER-11 — `session-token` verification now validates `iss`, `aud` and revocation.** It
+  previously required only a valid HS256 signature, `type` and `exp`, so a token signed with the
+  shared secret by another service, meant for another audience, or already invalidated was
+  accepted until `exp`. `SessionJwtServiceImpl.getTokenClaims` (the gate behind
+  `SessionJwtInterceptor`, `getVerifiedUid` and `getUsernameFromToken`) now also rejects a wrong
+  `iss`/`aud` and a revoked `jti`, failing closed if the denylist is unreachable.
+  `generateSessionToken` stamps configurable `iss`/`aud` (`umdc.security.jwt.issuer` /
+  `.audience`) and ignores caller-supplied ones. Revocation is a MongoDB denylist
+  (`revoked_tokens`, TTL-purged at the token's `exp`) behind the new `TokenRevocationService`.
+  `umdc.security.jwt.trusted-issuers` / `.trusted-audiences` list the extra `iss`/`aud` values
+  to accept (backbone-rest's, since it issues the end user's token). Transition switch
+  `umdc.security.jwt.allow-missing-claims` (default `true`) tolerates tokens with no `iss`/`aud`
+  (backbone-rest, pre-MER-11) while still rejecting mismatching ones; set it to `false` once all
+  issuers stamp both claims. See `docs/architecture/session-token-authorization.md`.
+
+- **MER-11 — refresh tokens no longer accepted as a `session-token`.** backbone-rest signs its
+  7-day refresh tokens (`type=refresh-token`, carrying `uid`) with the shared key; `getTokenClaims`
+  now requires `type=session-token`.
+- **MER-11 — `/api/v1/templates/**` now requires the service's `Authorization: Bearer` token** (scope
+  `mercury:message:read` for GET, `mercury:message:write` otherwise), like Campaign and ChannelType,
+  in addition to the end user's `session-token`.
+
+- **MER-11 — a logout at backbone-rest is now honoured by Mercury.** Backbone keeps its own `jti`
+  deny-list, so a logged-out token used to stay valid here until `exp`. A token Mercury did not mint is
+  now also checked with `GET /api/v1/session/validate` (`BackboneSessionValidator`, through Mercury's own
+  `BackboneSessionClient`: backbone-rest reads the token from `Authorization` whereas `security-oauth`'s
+  `BackbonePublicClient` sends `session-token`, which would have made every Backbone token look invalid); positive answers are
+  cached 30s (`umdc.security.jwt.backbone-validation-cache-ttl`), failures reject the token (fail closed).
+- **MER-11 — `POST /api/v1/auth/logout`** revokes the presented session-token in Mercury's denylist
+  (`SessionJwtServiceImpl.revokeToken`), making `TokenRevocationService` reachable.
+- **MER-11 — `POST /api/v1/auth/token` is throttled and audited.** With `session-token-bkd` gone the
+  alias/password is the only barrier: 5 failures per alias + address in 15m ⇒ `429` + `Retry-After`;
+  successes/failures are logged (never the password).
+- **MER-11 — `APP_TOKEN_SECRET` no longer has a committed default.** The dev value in `application.yml`
+  let anyone with the repo forge a session-token wherever the variable was unset; the app now refuses to
+  start without it (set it in Vault, or `secrets/local.env` locally — see `secrets/local.env.example`).
+- **MER-11 — `iss`/`aud` are mandatory by default** (`allow-missing-claims=false`).
+- **MER-11 — Campaign identity/ownership.** `createCampaign` requires the `session-token` and its verified
+  `uid` must equal the request `userId` (`403` otherwise); `getById` and `getProgress` require it and
+  enforce ownership (`403` for a non-owner), like update/toggle/delete.
+
+### Documentation
+- **MER-11 — essential configuration documented across projects.** Mercury: `docs/tec/en/06-environment-configuration.md`
+  (new *Authentication & token configuration* section, cross-project matching table, troubleshooting),
+  `CLAUDE.md`, `README.md`, `docs/tec/en/02-architecture.md`. backbone-rest: `docs/v1/00-prerequisites.md`,
+  `docs/v1/02-authentication-sessions.md` (fixed the `validate` path/header), `CLAUDE.md`. directory-backend:
+  `CLAUDE.md`, `README.md`.
+
+### Changed
+- **MER-11 — `POST /api/v1/auth/token` no longer takes `session-token-bkd`.** Served by the new
+  `AuthTokenController`; `security-oauth`'s `AuthApiController` is excluded from the component scan.
+  The registered alias/password alone authenticates the caller. `AuthServiceImpl` drops
+  `validate`/`BackbonePublicClient`.
+- **Breaking for API clients:** `POST /api/v1/campaigns` and `GET /api/v1/campaigns/{id}` now require the
+  `session-token` header; `/api/v1/templates/**` requires `Authorization: Bearer`. No client in the
+  workspace calls them today (directory-backend only uses `/auth/token` and `/verification-code`).
+- `umdc.security.jwt.trusted-issuers` / `.trusted-audiences` default to backbone-rest's own
+  (`backbone-rest` / `backbone-rest-client`).
+
+### Removed
+- **MER-11 — `session-token-bkd` → Mercury `session-token` exchange.** The end user's backbone-rest
+  session token is now sent directly in the `session-token` header (and the calling service's
+  opaque token in `Authorization: Bearer`, for Campaign/ChannelType). `AuthServiceImpl` no longer
+  overrides `token(AuthRequest, String)`, and `POST /api/v1/auth/session-token` no longer exists
+  (the library controller that mapped it is excluded).
+
 ## [Unreleased] - 2026-09-28
 
 ### Security

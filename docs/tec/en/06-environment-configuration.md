@@ -212,7 +212,69 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 | Certificates | *(none — hardcoded)* | Fixed paths in `application.yml` (`certs/mercury/`) — not configurable via env var, on purpose |
 | Kafka | `KAFKA_SECURITY_PROTOCOL`, `KAFKA_SASL_MECHANISM`, `KAFKA_SASL_JAAS_CONFIG`, `KAFKA_SSL_*`, `BOOTSTRAP_SERVER_URI/PORT` | Vault (production) |
 | Database / Mongo / Mail / OAuth / Telegram | `MERCURY_DB_*`, `MONGO_*`, `MAIL_*`, `AUTH_*`, `BACKBONE_*`, `TELEGRAM_*` | **Vault only** — never duplicate into versioned local files |
-| App | `APP_PORT`, `APP_TOKEN_SECRET`, `APP_TOKEN_EXPIRATION`, `TEMPLATE_PATH`, `TEMPLATE_SUFFIX` | Mixed — see the `TEMPLATE_PATH` case below |
+| App | `APP_PORT`, `TEMPLATE_PATH`, `TEMPLATE_SUFFIX` | Mixed — see the `TEMPLATE_PATH` case below |
+| Authentication / session tokens | `APP_TOKEN_SECRET` (**required, no default**), `APP_TOKEN_EXPIRATION`, `APP_TOKEN_ISSUER`, `APP_TOKEN_AUDIENCE`, `APP_TOKEN_TRUSTED_ISSUERS`, `APP_TOKEN_TRUSTED_AUDIENCES`, `APP_TOKEN_ALLOW_MISSING_CLAIMS`, `APP_TOKEN_VALIDATE_WITH_BACKBONE`, `APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL`, `LOGIN_THROTTLE_*`, `DIRECTORY_BACKEND_LOGIN_ALIAS/PASSWORD` | Vault (production) — see [Authentication & token configuration](#-authentication--token-configuration-essential) |
+
+---
+
+## 🔐 Authentication & token configuration (essential)
+
+Mercury authenticates **two different kinds of caller**, with two different credentials. Getting either
+one wrong shows up as `401`/`403`, or as the app refusing to start.
+
+| Who is calling | Credential | Header | Verified by |
+|---|---|---|---|
+| A **client application** (a service, e.g. directory-backend) | Backbone opaque access token (scopes `mercury:message:read` / `:write`) | `Authorization: Bearer <token>` | `ManagedClientSecurityConfig`, via Backbone's introspection — paths `/api/v1/campaigns/**`, `/api/v1/channel-types/**`, `/api/v1/templates/**` |
+| An **end user** | The session JWT backbone-rest issued at login | `session-token` | `SessionJwtInterceptor` / `SessionJwtServiceImpl` — locally (HS256), plus backbone-rest's deny-list |
+| A **backend caller** of the M2M endpoints (`/api/v1/mail`, `/api/v1/verification-code`) | A Mercury-issued token, obtained with a registered alias/password at `POST /api/v1/auth/token` | `session-token` | `SessionJwtInterceptor` |
+
+User-scoped operations (campaigns by application, update/toggle/delete, `getById`, `getProgress`,
+`createCampaign`, all of Template Management) need **both** the Bearer (which service) and the
+`session-token` (which user). `session-token-bkd` is no longer used anywhere.
+
+### Required for the app to start
+
+`APP_TOKEN_SECRET` has **no default** in `application.yml` — on purpose: a committed default would let
+anyone with the repository forge a session-token in any environment where the variable is unset. Without
+it the context fails with `Could not resolve placeholder 'APP_TOKEN_SECRET'`.
+
+- Must be **base64**, **≥ 256 bits**, and **exactly the value backbone-rest signs with**.
+- Production/test: from Vault, like every other secret.
+- Local without Vault: put it in `secrets/local.env` (see `secrets/local.env.example`). Generate one with
+  `openssl rand -base64 48`.
+
+### Settings (`umdc.security.jwt.*`, `umdc.security.login-throttle.*`)
+
+| Env variable | Default | What it does |
+|---|---|---|
+| `APP_TOKEN_SECRET` | **none (required)** | HS256 key to sign and verify session tokens. |
+| `APP_TOKEN_EXPIRATION` | `3600000` | TTL (ms) of tokens Mercury itself issues (`/auth/token`). |
+| `APP_TOKEN_ISSUER` / `APP_TOKEN_AUDIENCE` | `mercury` / `mercury` | `iss` / `aud` Mercury stamps on its own tokens; always accepted. |
+| `APP_TOKEN_TRUSTED_ISSUERS` / `APP_TOKEN_TRUSTED_AUDIENCES` | `backbone-rest` / `backbone-rest-client` | Extra `iss` / `aud` accepted (comma-separated) — backbone-rest's, since it issues the end user's token. |
+| `APP_TOKEN_ALLOW_MISSING_CLAIMS` | `false` | `iss` and `aud` are **mandatory**. Set `true` only in an environment whose backbone-rest does not stamp them; a present-but-wrong claim is rejected either way. |
+| `APP_TOKEN_VALIDATE_WITH_BACKBONE` | `true` | Also ask backbone-rest whether a token it issued is still active (honours its logout / deny-list). |
+| `APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL` | `30s` | Positive answers are cached this long. It is the **worst-case delay** before a logout at backbone-rest is reflected here. |
+| `LOGIN_THROTTLE_MAX_ATTEMPTS` / `LOGIN_THROTTLE_WINDOW` | `5` / `15m` | Failed `POST /api/v1/auth/token` attempts per alias + caller address before `429` + `Retry-After`. Per instance. |
+| `DIRECTORY_BACKEND_LOGIN_ALIAS` / `_PASSWORD` | *(empty)* | A registered backend caller (`umdc.mercury.login-clients`) allowed to obtain an M2M token. Must match what that caller sends. |
+
+### What must match across projects
+
+| Mercury | Other project | Rule |
+|---|---|---|
+| `APP_TOKEN_SECRET` | backbone-rest `APP_TOKEN_SECRET` | **Identical value.** Different secrets ⇒ every user token is rejected. |
+| `APP_TOKEN_TRUSTED_ISSUERS` | backbone-rest `JWT_ISSUER` (default `backbone-rest`) | Must contain it. |
+| `APP_TOKEN_TRUSTED_AUDIENCES` | backbone-rest `JWT_AUDIENCE` (default `backbone-rest-client`) | Must contain it. |
+| `umdc.backbone.base-url` | backbone-rest | Reachable from Mercury: introspection (`/managed-clients/introspect`) and session validation (`GET /api/v1/session/validate`, public, token in the `Authorization` header). |
+| `DIRECTORY_BACKEND_LOGIN_*` | directory-backend's Mercury `AuthRequest` alias/password | Same pair. |
+
+### Other runtime dependencies this adds
+
+- **MongoDB**: the `revoked_tokens` collection (Mercury's denylist). Its TTL index is created because
+  `spring.data.mongodb.auto-index-creation` is `true`.
+- **backbone-rest must be up** to authenticate end users: if it cannot be reached the token is rejected
+  (fail closed), as is a token when MongoDB is unreachable.
+
+See [session-token-authorization](../../architecture/session-token-authorization.md) for the full trust model.
 
 ---
 
@@ -255,6 +317,7 @@ Copy `secrets/local.env.example` to `secrets/local.env` and fill it in; never co
 
 | Variable | Purpose | Read by |
 |---|---|---|
+| `APP_TOKEN_SECRET` (optional, commented out in the example) | Only for running **without** Vault supplying it: the HS256 session-token secret, which has no default. See *Authentication & token configuration*. | `umdc.security.jwt.secret`. |
 | `VAULT_TOKEN` | The only secret Vault itself can't hand back — needed to authenticate the very first Vault request. Everything else (DB, Mongo, mail, OAuth, Kafka SASL) is resolved from Vault's own KV store once this succeeds. | `spring.cloud.vault.token`. |
 
 ### `config/native.env` — versioned, GraalVM native-image build/AOT-only
@@ -375,6 +438,22 @@ keytool -list -v -keystore certs/mercury/umdc-truststore.jks -storepass changeit
 **Cause:** almost certainly Vault or the Config Server already define that value, and they **win by precedence** over any local variable (see the bootstrap section above). It's not a bug or a caching issue.
 
 **Fix:** query Vault directly (see the `curl` snippet in the local-development section) to confirm where the value actually comes from before continuing to try to override it locally. If the value genuinely needs to differ per environment, the fix is to change it in Vault (affects every environment — coordinate with the team), or, if it's purely a local-vs-container path difference, replicate the exact path on the local machine (e.g. create `/usr/local/runme/templates` if that's the value Vault provides).
+
+### ❌ `Could not resolve placeholder 'APP_TOKEN_SECRET'` at startup
+
+**Cause:** the session-token secret deliberately has no default. **Fix:** provide it (Vault, or `secrets/local.env` locally — base64, ≥ 256 bits, the same value as backbone-rest).
+
+### ❌ `401` on a user-scoped call although the user's token is fresh from backbone-rest
+
+Check, in order: **(1)** the secret differs from backbone-rest's; **(2)** the token's `iss`/`aud` are not in `APP_TOKEN_TRUSTED_ISSUERS` / `_AUDIENCES` (decode the JWT payload and compare), or backbone-rest stamps none and `APP_TOKEN_ALLOW_MISSING_CLAIMS` is `false`; **(3)** it is a **refresh** token (`type=refresh-token`) — only `session-token` is accepted; **(4)** backbone-rest reports it inactive (logged out) or is unreachable — Mercury fails closed; **(5)** it was revoked via `POST /api/v1/auth/logout`. Mercury never says which one in the response; the cause is only in server logs.
+
+### ❌ `401` on `/api/v1/campaigns/**`, `/channel-types/**` or `/templates/**` with a valid `session-token`
+
+These paths also need `Authorization: Bearer <opaque token>` with `mercury:message:read` (GET) or `:write` (everything else). `401` ⇒ missing/inactive Bearer; `403` ⇒ wrong scope.
+
+### ❌ `429` on `POST /api/v1/auth/token`
+
+Too many failed alias/password attempts from that address (`LOGIN_THROTTLE_*`). Wait `Retry-After` seconds. Behind a proxy that hides the caller's address, all clients share one counter.
 
 ### ❌ `docker exec mercury keytool -list` fails with `Keystore file does not exist: /home/jvapps/.keystore`
 

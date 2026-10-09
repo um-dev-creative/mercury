@@ -12,25 +12,16 @@ paths:
         - auth
       summary: Generate a session token (M2M-only, no uid)
       description: >-
-        Backed by security-oauth's AuthAPi#accessToken (not part of this repo, mounted
-        at /api/v1/auth by the shared library). Validates session-token-bkd remotely
-        against backbone-rest (AuthService.validate → BackbonePublicClient.validate),
-        then — if valid — checks the request body's alias/password against Mercury's
-        registered login-client registry (umdc.mercury.login-clients) and mints a
-        Mercury-signed session-token. The resulting token carries no uid claim — it only
-        authenticates the calling backend service, not an end user — so it's only useful
-        against pure M2M endpoints (/api/v1/mail, /api/v1/verification-code). For a
-        session-token usable against user-scoped endpoints (Template Management, or
-        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign), use
-        POST /api/v1/auth/session-token instead.
+        Implemented by AuthTokenController. Checks the request body's alias/password
+        against Mercury's registered login-client registry (umdc.mercury.login-clients)
+        and mints a Mercury-signed session-token. The resulting token carries no uid
+        claim — it only authenticates the calling backend service, not an end user — so
+        it's only useful against pure M2M endpoints (/api/v1/mail,
+        /api/v1/verification-code). User-scoped endpoints (Template Management,
+        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign) do NOT
+        use this token: the caller sends the end user's backbone-rest session token
+        directly in the session-token header.
       operationId: accessToken
-      parameters:
-        - name: session-token-bkd
-          in: header
-          required: true
-          description: A backbone-rest-issued session token; validated remotely before this operation proceeds, then discarded (not embedded in the response token).
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -45,52 +36,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Invalid session-token-bkd, blank alias, or unregistered login client.
+          description: Blank alias.
+        '401':
+          description: Alias/password not in the registered login-client registry.
+        '429':
+          description: Too many failed attempts for this alias and address; see the Retry-After header.
         '406':
           description: Token generation unexpectedly produced a blank token.
 
-  /api/v1/auth/session-token:
+  /api/v1/auth/logout:
     post:
       tags:
         - auth
-      summary: Exchange a backbone session token for a Mercury one carrying the verified uid
+      summary: Revoke the presented session token
       description: >-
-        Backed by security-oauth's AuthAPi#generateTokenSession (not part of this repo,
-        mounted at /api/v1/auth by the shared library). This is the operation that
-        produces a session-token usable against endpoints that scope by end user
-        (GET/PUT/DELETE /api/v1/templates/**, and Campaign's getByApplication/
-        updateCampaign/toggleCampaign/deleteCampaign). Verifies session-token-bkd's
-        HS256 signature locally (SessionJwtServiceImpl.getVerifiedUid, against the same
-        APP_TOKEN_SECRET backbone-rest signs with — no network call), then mints a new
-        Mercury-signed session-token embedding that verified uid claim. The alias/password
-        in the request body identify a registered login client
-        (umdc.mercury.login-clients, e.g. DIRECTORY_BACKEND_LOGIN_ALIAS/_PASSWORD) — not
-        the end user.
-      operationId: generateTokenSession
+        Implemented by AuthLogoutController. Adds the token's jti to Mercury's denylist until
+        the token's own expiry, so every Mercury endpoint rejects it from now on. It does not
+        log the user out of backbone-rest: do that there as well to invalidate it everywhere.
+      operationId: logout
       parameters:
-        - name: session-token-bkd
+        - name: session-token
           in: header
           required: true
-          description: The end user's session token, as issued by backbone-rest's POST /api/v1/session or POST /api/v1/session/token.
+          description: The session token to revoke.
           schema:
             type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthRequest'
       responses:
-        '200':
-          description: Successfully generated a session token carrying the verified uid claim.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Blank alias, or session-token-bkd failed signature verification (missing, expired, tampered, or malformed).
-        '406':
-          description: Token generation unexpectedly produced a blank token.
+        '204':
+          description: Token revoked.
+        '401':
+          description: Missing, expired, tampered, already revoked or jti-less token.
 
   /api/v1/campaigns:
     post:
@@ -99,6 +74,13 @@ paths:
       summary: Create a new campaign
       description: Creates a new messaging campaign and publishes messages to recipients via the specified channel.
       operationId: createCampaign
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -114,6 +96,10 @@ paths:
                 $ref: '#/components/schemas/CreateCampaignResponse'
         '400':
           description: Invalid request payload.
+        '401':
+          description: Missing, expired, tampered or revoked session-token.
+        '403':
+          description: The request userId does not match the session-token user.
         '422':
           description: Channel type not found or disabled.
     get:
@@ -155,7 +141,7 @@ paths:
       tags:
         - campaigns
       summary: Get campaign by ID
-      description: Retrieves the full details of a campaign identified by its UUID.
+      description: Retrieves the full details of a campaign identified by its UUID. Only the campaign's owner (the session-token user) may read it.
       operationId: getCampaignById
       parameters:
         - name: id
@@ -164,6 +150,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
       responses:
         '200':
           description: Campaign found and returned.

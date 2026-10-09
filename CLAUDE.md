@@ -102,6 +102,32 @@ SendEmailScheduler (fixed-rate)
 - **MapStruct mappers**: place in `mapper/` package; processor is on the annotation processing path, so no manual `new` instantiation of mappers.
 - **Kafka**: `UMDC_KAFKA_AUTO_STARTUP=false` by default (set in `bootstrap.yml`) so listeners don't crash local dev without a running broker. Set to `true` in deployed environments.
 
+## Authentication essentials
+
+Full detail: `docs/architecture/session-token-authorization.md` and
+`docs/tec/en/06-environment-configuration.md#-authentication--token-configuration-essential`.
+
+- **Two credentials.** A client *application* sends `Authorization: Bearer <Backbone opaque token>` (scopes
+  `mercury:message:read`/`write`, enforced by `ManagedClientSecurityConfig` on `/campaigns`, `/channel-types`,
+  `/templates`). An end *user* sends `session-token: <session JWT issued by backbone-rest>`. User-scoped
+  operations need both. `session-token-bkd` is gone.
+- **`APP_TOKEN_SECRET` is required and has no default** (base64, ≥ 256 bits, identical to backbone-rest's).
+  Never reintroduce a default in `application.yml`; locally use `secrets/local.env`.
+- **`SessionJwtServiceImpl.getTokenClaims` is the only trust gate** (signature, `exp`, `type=session-token`,
+  `iss`/`aud`, local `jti` denylist, backbone-rest's deny-list). Resolve a caller's identity with
+  `getVerifiedUid`; never decode a JWT payload by hand (`JwtUtil.getUidFromToken` is unverified — don't use it).
+- **Trusted `iss`/`aud`:** backbone-rest's (`backbone-rest` / `backbone-rest-client` by default) are listed in
+  `umdc.security.jwt.trusted-*`; `iss`/`aud` are mandatory (`allow-missing-claims=false`).
+- **Backbone validation uses `BackboneSessionClient`, not `security-oauth`'s `BackbonePublicClient.validate`**:
+  backbone-rest reads the token from `Authorization`, the jar sends `session-token`. Pinned by
+  `BackboneSessionClientContractTest`.
+- **Fail closed:** MongoDB or backbone-rest unreachable ⇒ token rejected.
+- **`POST /api/v1/auth/token`** (own `AuthTokenController`; the jar's `AuthApiController` is excluded in
+  `MercuryApplication`) is throttled (`umdc.security.login-throttle.*`). **`POST /api/v1/auth/logout`** revokes
+  the presented token locally.
+- **Test the real filter chains** with `SecurityFilterChainsTest` (`@WebMvcTest` + probe controllers) when changing
+  anything in `security/`; mocks alone cannot catch wiring or header-contract mistakes.
+
 ## External Dependencies
 
 - **prx-commons**, **commons-services**, **security-oauth** — private PRX libraries hosted at `https://repo.repsy.io/mvn/lmata/prx`. Required for compilation; credentials must be in `~/.m2/settings.xml`.

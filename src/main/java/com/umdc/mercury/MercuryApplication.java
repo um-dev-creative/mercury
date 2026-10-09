@@ -13,6 +13,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.umdc.mercury.security.TrustStoreInitializer;
 import com.umdc.security.config.SecurityConfig;
+import com.umdc.security.controller.AuthApiController;
 
 /**
  * MercuryApplication.
@@ -34,7 +35,12 @@ import com.umdc.security.config.SecurityConfig;
 // (TypeExcludeFilter for test slices, AutoConfigurationExcludeFilter to avoid double-registering
 // autoconfig classes) so behavior otherwise matches the shorthand exactly.
 //
-// The added filter excludes com.umdc.security.config.SecurityConfig: the decommissioned
+// The added filter also excludes com.umdc.security.controller.AuthApiController: its
+// POST /api/v1/auth/token requires a session-token-bkd header (validated remotely against
+// backbone-rest) and it also maps POST /api/v1/auth/session-token (the removed bkd exchange).
+// Mercury serves its own AuthTokenController at /api/v1/auth/token instead, with no bkd.
+//
+// It excludes com.umdc.security.config.SecurityConfig: the decommissioned
 // Keycloak-style JWT resource-server chain (see SessionTokenSecurityConfig's and
 // ManagedClientSecurityConfig's javadoc) from the closed-source security-oauth jar. It
 // hard-requires spring.security.oauth2.resourceserver.jwt.jwk-set-uri via a bare @Value field
@@ -51,7 +57,8 @@ import com.umdc.security.config.SecurityConfig;
         excludeFilters = {
                 @ComponentScan.Filter(type = FilterType.CUSTOM, classes = TypeExcludeFilter.class),
                 @ComponentScan.Filter(type = FilterType.CUSTOM, classes = AutoConfigurationExcludeFilter.class),
-                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = SecurityConfig.class)
+                @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE,
+                        classes = {SecurityConfig.class, AuthApiController.class})
         }
 )
 public class MercuryApplication {

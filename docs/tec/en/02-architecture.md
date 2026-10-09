@@ -116,7 +116,7 @@ sequenceDiagram
 
 - Client authentication over OAuth2 (`mercury-backend-client` registration, `authorization-grant-type: password`) against the `external` provider (Keycloak-style, `${AUTH_URI}`).
 - `BackboneClient` (Feign) validates session tokens against the Backbone service.
-- Custom JWT (`SessionJwtServiceImpl`) for application session tokens — configurable secret and expiration (`APP_TOKEN_SECRET`, `APP_TOKEN_EXPIRATION`).
+- Custom JWT (`SessionJwtServiceImpl`) for session tokens — the secret is required and shared with backbone-rest (`APP_TOKEN_SECRET`, no default); `iss`/`aud`/`type`, a local `jti` denylist and backbone-rest's own deny-list are all enforced. Client applications use a Backbone opaque Bearer. Full detail: [Authentication & token configuration](06-environment-configuration.md#-authentication--token-configuration-essential) and `docs/architecture/session-token-authorization.md`.
 - `spring.autoconfigure.exclude: ServletWebSecurityAutoConfiguration` — Spring Boot's standard HTTP security is excluded; Mercury implements its own scheme.
 
 ---

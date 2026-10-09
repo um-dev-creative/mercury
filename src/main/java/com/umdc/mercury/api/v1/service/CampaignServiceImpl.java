@@ -139,15 +139,17 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
-    public CampaignProgressTO getProgress(UUID campaignId) {
-        logger.debug("Fetching campaign progress. campaignId={}", campaignId);
+    public CampaignProgressTO getProgress(UUID campaignId, UUID requesterId) {
+        logger.debug("Fetching campaign progress. campaignId={}, requesterId={}", campaignId, requesterId);
+        assertOwner(requireExisting(campaignId), requesterId, "view");
         return campaignProgressService.getProgress(campaignId);
     }
 
     @Override
-    public CampaignDetailResponse getById(UUID id) {
-        logger.debug("Fetching campaign by id. id={}", id);
+    public CampaignDetailResponse getById(UUID id, UUID requesterId) {
+        logger.debug("Fetching campaign by id. id={}, requesterId={}", id, requesterId);
         CampaignEntity entity = requireExisting(id);
+        assertOwner(entity, requesterId, "view");
         logger.debug("{} id={}, name={}, status={}", CAMPAIGN_NOT_FOUND_MESSAGE, entity.getId(), entity.getName(), entity.getStatus());
         return campaignMapper.toCampaignDetailResponse(entity);
     }
@@ -158,12 +160,7 @@ public class CampaignServiceImpl implements CampaignService {
 
         CampaignEntity entity = requireExisting(campaignId);
 
-        // simple permission check: only owner can update (createdBy) or same application admin - placeholder
-        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
-            // In real app, more sophisticated role checks would be applied
-            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
-            throw new ForbiddenException("Caller lacks permission to update this campaign");
-        }
+        assertOwner(entity, requesterId, "update");
 
         boolean changed = campaignUpdateApplier.apply(entity, updateRequest);
 
@@ -196,10 +193,7 @@ public class CampaignServiceImpl implements CampaignService {
         CampaignEntity entity = requireExisting(campaignId);
 
         // permission check: only owner can toggle
-        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
-            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
-            throw new ForbiddenException("Caller lacks permission to toggle this campaign");
-        }
+        assertOwner(entity, requesterId, "toggle");
 
         Boolean previous = entity.getEnabled();
         if (Objects.isNull(previous)) previous = Boolean.TRUE;
@@ -224,10 +218,7 @@ public class CampaignServiceImpl implements CampaignService {
 
         CampaignEntity entity = requireExisting(campaignId);
 
-        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
-            logger.warn("Requester {} is not owner of campaign {}", requesterId, campaignId);
-            throw new ForbiddenException("Caller lacks permission to delete this campaign");
-        }
+        assertOwner(entity, requesterId, "delete");
 
         LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
         entity.setStatus(DELETED_STATUS);
@@ -241,6 +232,17 @@ public class CampaignServiceImpl implements CampaignService {
     /**
      * Fetches a campaign by id, treating a soft-deleted campaign the same as a missing one.
      */
+    /**
+     * Only the campaign's owner ({@code createdBy}) may act on it. A legacy campaign with no recorded
+     * owner stays open, as it was before ownership was enforced on every operation.
+     */
+    private void assertOwner(CampaignEntity entity, UUID requesterId, String action) {
+        if (Objects.nonNull(entity.getCreatedBy()) && !entity.getCreatedBy().equals(requesterId)) {
+            logger.warn("Requester {} is not owner of campaign {}", requesterId, entity.getId());
+            throw new ForbiddenException("Caller lacks permission to " + action + " this campaign");
+        }
+    }
+
     private CampaignEntity requireExisting(UUID campaignId) {
         CampaignEntity entity = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new CampaignNotFoundException(CAMPAIGN_NOT_FOUND_MESSAGE + campaignId));

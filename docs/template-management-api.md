@@ -1,6 +1,6 @@
 # 🧩 Template Management API
 
-> **Base path:** `/api/v1/templates` · **Auth:** `session-token` header · **Status:** Implemented (MER-6)
+> **Base path:** `/api/v1/templates` · **Auth:** `Authorization: Bearer` (service) + `session-token` header (end user) · **Status:** Implemented (MER-6)
 
 ### Modification Log
 | Name              | Detail | Date |
@@ -45,8 +45,9 @@ OpenAPI annotations live on `TemplateApi` only (`src/main/java/com/umdc/mercury/
 
 ### 🔐 Auth & application scope
 
-Every operation requires a `session-token` header (Mercury's self-issued session JWT — same mechanism as the
-other user-scoped Mercury endpoints). Missing/invalid tokens are rejected at the MVC dispatch layer
+Every operation requires the calling service's `Authorization: Bearer` token (scope `mercury:message:read` for
+GET, `mercury:message:write` otherwise, checked by `ManagedClientSecurityConfig`) **and** a `session-token` header
+(the end user's backbone-rest session JWT). Missing/invalid tokens are rejected at the MVC dispatch layer
 (`SessionJwtInterceptor`) with `401` before a controller method ever runs.
 
 Beyond authentication, every operation is authorized against the **real** `general.application_role_user` ACL — the shared, canonical
@@ -87,8 +88,8 @@ sequenceDiagram
 
 **Trust model.** Mercury and backbone-rest sign/verify session-tokens with the *same* shared
 `APP_TOKEN_SECRET` (both use the `security-oauth` library's `SessionJwtService`), so a token minted by either
-service is valid to the other — Mercury forwards whichever `session-token` it received (its own, exchanged
-from a backbone token via `POST /api/v1/auth/token`, or a raw backbone token) as-is in the request body.
+service is valid to the other — Mercury forwards the `session-token` it received (the end user's backbone-issued token, sent
+directly by the client) as-is in the request body.
 Backbone-rest resolves the caller's `uid` from that token and looks up their *single* role for the requested
 application; `permission` is granted if it matches that role's name or one of the role's active granted
 features (case-insensitive).

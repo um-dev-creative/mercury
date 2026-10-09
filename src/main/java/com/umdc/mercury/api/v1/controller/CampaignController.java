@@ -1,5 +1,6 @@
 package com.umdc.mercury.api.v1.controller;
 
+import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
 import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.*;
@@ -67,7 +68,11 @@ public class CampaignController implements CampaignApi {
     }
 
     @Override
-    public ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request) {
+    public ResponseEntity<CreateCampaignResponse> createCampaign(CreateCampaignRequest request, String sessionToken) {
+        UUID verifiedUserId = resolveVerifiedUserId(sessionToken);
+        if (!verifiedUserId.equals(request.userId())) {
+            throw new ForbiddenException("userId does not match the session-token user");
+        }
         CampaignTO campaignTO = new CampaignTO(
                 request.name(),
                 request.channelTypeCode(),
@@ -95,8 +100,8 @@ public class CampaignController implements CampaignApi {
     }
 
     @Override
-    public ResponseEntity<CampaignDetailResponse> getById(UUID id) {
-        return ResponseEntity.ok(campaignService.getById(id));
+    public ResponseEntity<CampaignDetailResponse> getById(UUID id, String sessionToken) {
+        return ResponseEntity.ok(campaignService.getById(id, resolveVerifiedUserId(sessionToken)));
     }
 
     @Override
@@ -129,6 +134,6 @@ public class CampaignController implements CampaignApi {
 
     @Override
     public ResponseEntity<CampaignProgressTO> getProgress(UUID id, String sessionToken) {
-        return ResponseEntity.ok(campaignService.getProgress(id));
+        return ResponseEntity.ok(campaignService.getProgress(id, resolveVerifiedUserId(sessionToken)));
     }
 }
