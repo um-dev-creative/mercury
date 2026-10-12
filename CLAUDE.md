@@ -119,8 +119,10 @@ Full detail: `docs/architecture/session-token-authorization.md` and
 - **Trusted `iss`/`aud`:** backbone-rest's (`backbone-rest` / `backbone-rest-client` by default) are listed in
   `umdc.security.jwt.trusted-*`; `iss`/`aud` are mandatory (`allow-missing-claims=false`).
 - **Backbone validation uses `BackboneSessionClient`, not `security-oauth`'s `BackbonePublicClient.validate`**:
-  backbone-rest reads the token from `Authorization`, the jar sends `session-token`. Pinned by
-  `BackboneSessionClientContractTest`.
+  it sends the token in `session-token` (what the current backbone-rest reads) and also as the raw `Authorization` value
+  (the only header older backbone-rest versions read; the jar sends just `session-token`). Pinned by
+  `BackboneSessionClientContractTest`. backbone-rest session tokens now carry the application they were opened for (`aid`);
+  Mercury serves several applications and does not restrict it.
 - **Fail closed:** MongoDB or backbone-rest unreachable ⇒ token rejected.
 - **`POST /api/v1/auth/token`** (own `AuthTokenController`; the jar's `AuthApiController` is excluded in
   `MercuryApplication`) is throttled (`umdc.security.login-throttle.*`). **`POST /api/v1/auth/logout`** revokes

@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-10-06
 
+### Changed
+- `BackboneSessionClient` sends the session token to backbone-rest's `GET /api/v1/session/validate` in the `session-token`
+  header (what backbone-rest now reads; on its session endpoints `Authorization: Bearer` carries an application client) **and**,
+  for environments still running an older backbone-rest, as the raw `Authorization` value. No deployment order is needed.
+
 ### Security
 - **MER-11 — `session-token` verification now validates `iss`, `aud` and revocation.** It
   previously required only a valid HS256 signature, `type` and `exp`, so a token signed with the

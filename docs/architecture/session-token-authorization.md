@@ -150,9 +150,10 @@ token is rejected, never let through.
 ### Backbone logout is honoured, with a bounded delay
 
 The call goes through Mercury's own `BackboneSessionClient`, **not** `security-oauth`'s
-`BackbonePublicClient.validate`: backbone-rest reads the token from the `Authorization` header (raw JWT, no
-`Bearer`), while the jar sends `session-token`, so the jar's client would get `400` and every Backbone token
-would look invalid. `BackboneSessionClientContractTest` pins path and header.
+`BackbonePublicClient.validate`. Mercury sends the token in **both** `session-token` (what the current backbone-rest
+reads: on its session endpoints `Authorization: Bearer` now carries an application client) and the raw `Authorization`
+header (no `Bearer`; the only one older backbone-rest versions read, which answered `400` to the jar's `session-token`-only
+call), so it works whichever version an environment runs. `BackboneSessionClientContractTest` pins path and headers.
 
 Backbone answers `validate` with `true`/`false` (`false`: wrong type or revoked) or `401` (expired or
 malformed). Only **positive** answers are cached, by SHA-256 of the token (never the token), for
