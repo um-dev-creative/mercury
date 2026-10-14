@@ -2,6 +2,7 @@ package com.prx.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.controller.CampaignController;
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
 import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
@@ -52,6 +53,8 @@ class CampaignControllerTest {
     @InjectMocks
     private CampaignController campaignController;
 
+    private static final String TOKEN = "token-value";
+
     private CreateCampaignRequest validRequest;
     private UUID templateId;
     private UUID userId;
@@ -62,6 +65,7 @@ class CampaignControllerTest {
         templateId = UUID.randomUUID();
         userId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
+        lenient().when(sessionJwtService.getVerifiedUid(TOKEN)).thenReturn(Optional.of(userId));
         validRequest = new CreateCampaignRequest(
                 "Spring Promotion 2026",
                 "email",
@@ -97,7 +101,7 @@ class CampaignControllerTest {
             when(campaignService.createCampaign(any(CampaignTO.class)))
                     .thenReturn(CompletableFuture.completedFuture(progress));
 
-            ResponseEntity<CreateCampaignResponse> response = campaignController.createCampaign(validRequest);
+            ResponseEntity<CreateCampaignResponse> response = campaignController.createCampaign(validRequest, TOKEN);
 
             assertAll("response",
                     () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED),
@@ -119,7 +123,7 @@ class CampaignControllerTest {
             when(campaignService.createCampaign(captor.capture()))
                     .thenReturn(CompletableFuture.completedFuture(progress));
 
-            campaignController.createCampaign(validRequest);
+            campaignController.createCampaign(validRequest, TOKEN);
 
             CampaignTO captured = captor.getValue();
             assertAll("CampaignTO mapping",
@@ -147,7 +151,7 @@ class CampaignControllerTest {
             when(campaignService.createCampaign(any(CampaignTO.class)))
                     .thenReturn(CompletableFuture.completedFuture(progress));
 
-            ResponseEntity<CreateCampaignResponse> response = campaignController.createCampaign(scheduledRequest);
+            ResponseEntity<CreateCampaignResponse> response = campaignController.createCampaign(scheduledRequest, TOKEN);
 
             assertThat(response.getBody()).isNotNull();
             assertThat(response.getBody().scheduledAt()).isEqualTo(scheduledAt);
@@ -161,7 +165,7 @@ class CampaignControllerTest {
             when(campaignService.createCampaign(any(CampaignTO.class)))
                     .thenReturn(CompletableFuture.completedFuture(progress));
 
-            campaignController.createCampaign(validRequest);
+            campaignController.createCampaign(validRequest, TOKEN);
 
             verify(campaignService).createCampaign(any(CampaignTO.class));
         }
@@ -179,7 +183,7 @@ class CampaignControllerTest {
                             new IllegalArgumentException("Channel type not found: email")));
 
             assertThrows(CompletionException.class,
-                    () -> campaignController.createCampaign(validRequest));
+                    () -> campaignController.createCampaign(validRequest, TOKEN));
         }
 
         @Test
@@ -190,7 +194,7 @@ class CampaignControllerTest {
                             new IllegalStateException("Channel type is disabled: Email")));
 
             assertThrows(CompletionException.class,
-                    () -> campaignController.createCampaign(validRequest));
+                    () -> campaignController.createCampaign(validRequest, TOKEN));
         }
 
         @Test
@@ -201,14 +205,14 @@ class CampaignControllerTest {
                             new IllegalArgumentException("Template not found: " + templateId)));
 
             assertThrows(CompletionException.class,
-                    () -> campaignController.createCampaign(validRequest));
+                    () -> campaignController.createCampaign(validRequest, TOKEN));
         }
 
         @Test
         @DisplayName("throws NullPointerException when request is null")
         void createCampaign_nullRequest_throwsNPE() {
             assertThrows(NullPointerException.class,
-                    () -> campaignController.createCampaign(null));
+                    () -> campaignController.createCampaign(null, TOKEN));
         }
     }
 
@@ -226,9 +230,9 @@ class CampaignControllerTest {
             CampaignDetailResponse detail = new CampaignDetailResponse(
                     id, "Summer Promo 2026", "email", UUID.randomUUID(),
                     "DRAFT", 50, null, now, now, Map.of("ownerId", "abc"));
-            when(campaignService.getById(id)).thenReturn(detail);
+            when(campaignService.getById(id, userId)).thenReturn(detail);
 
-            ResponseEntity<CampaignDetailResponse> response = campaignController.getById(id);
+            ResponseEntity<CampaignDetailResponse> response = campaignController.getById(id, TOKEN);
 
             assertAll("getById response",
                     () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
@@ -248,12 +252,12 @@ class CampaignControllerTest {
         void getById_delegatesToServiceOnce() {
             UUID id = UUID.randomUUID();
             LocalDateTime now = LocalDateTime.now();
-            when(campaignService.getById(id)).thenReturn(
+            when(campaignService.getById(id, userId)).thenReturn(
                     new CampaignDetailResponse(id, "N", "sms", null, "DRAFT", 0, null, now, now, null));
 
-            campaignController.getById(id);
+            campaignController.getById(id, TOKEN);
 
-            verify(campaignService).getById(id);
+            verify(campaignService).getById(id, userId);
         }
     }
 
@@ -265,11 +269,11 @@ class CampaignControllerTest {
         @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
         void getById_notFound_throwsCampaignNotFoundException() {
             UUID id = UUID.randomUUID();
-            when(campaignService.getById(id))
+            when(campaignService.getById(id, userId))
                     .thenThrow(new CampaignNotFoundException("Campaign not found: " + id));
 
             assertThrows(CampaignNotFoundException.class,
-                    () -> campaignController.getById(id));
+                    () -> campaignController.getById(id, TOKEN));
         }
     }
 
@@ -418,9 +422,9 @@ class CampaignControllerTest {
         void getProgress_returns200WithBody() {
             UUID campaignId = UUID.randomUUID();
             CampaignProgressTO progress = buildProgress(campaignId, "Spring Promotion 2026", "IN_PROGRESS");
-            when(campaignService.getProgress(campaignId)).thenReturn(progress);
+            when(campaignService.getProgress(campaignId, userId)).thenReturn(progress);
 
-            ResponseEntity<CampaignProgressTO> response = campaignController.getProgress(campaignId, "token-value");
+            ResponseEntity<CampaignProgressTO> response = campaignController.getProgress(campaignId, TOKEN);
 
             assertAll("getProgress response",
                     () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK),
@@ -434,11 +438,56 @@ class CampaignControllerTest {
         @DisplayName("propagates CampaignNotFoundException when campaign does not exist")
         void getProgress_notFound() {
             UUID campaignId = UUID.randomUUID();
-            when(campaignService.getProgress(campaignId))
+            when(campaignService.getProgress(campaignId, userId))
                     .thenThrow(new CampaignNotFoundException("Campaign not found: " + campaignId));
 
             assertThrows(CampaignNotFoundException.class,
-                    () -> campaignController.getProgress(campaignId, "token-value"));
+                    () -> campaignController.getProgress(campaignId, TOKEN));
+        }
+    }
+
+    @Nested
+    @DisplayName("identity enforcement on create / getById / getProgress")
+    class IdentityEnforcement {
+
+        @Test
+        @DisplayName("createCampaign rejects a body userId different from the session-token user")
+        void createCampaign_userIdMismatch_forbidden() {
+            when(sessionJwtService.getVerifiedUid(TOKEN)).thenReturn(Optional.of(UUID.randomUUID()));
+
+            assertThrows(ForbiddenException.class,
+                    () -> campaignController.createCampaign(validRequest, TOKEN));
+            verifyNoInteractions(campaignService);
+        }
+
+        @Test
+        @DisplayName("createCampaign rejects an invalid session-token before touching the service")
+        void createCampaign_invalidToken_unauthorized() {
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+
+            assertThrows(InvalidSessionTokenException.class,
+                    () -> campaignController.createCampaign(validRequest, "bad-token"));
+            verifyNoInteractions(campaignService);
+        }
+
+        @Test
+        @DisplayName("getById rejects an invalid session-token before touching the service")
+        void getById_invalidToken_unauthorized() {
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+
+            assertThrows(InvalidSessionTokenException.class,
+                    () -> campaignController.getById(UUID.randomUUID(), "bad-token"));
+            verifyNoInteractions(campaignService);
+        }
+
+        @Test
+        @DisplayName("getProgress rejects an invalid session-token before touching the service")
+        void getProgress_invalidToken_unauthorized() {
+            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+
+            assertThrows(InvalidSessionTokenException.class,
+                    () -> campaignController.getProgress(UUID.randomUUID(), "bad-token"));
+            verifyNoInteractions(campaignService);
         }
     }
 }

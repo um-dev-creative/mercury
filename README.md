@@ -212,6 +212,8 @@ Notes:
 - CHANGELOG.md — project changelog and migration notes
 - BUILD_VALIDATION_REPORT.md — results of the upgrade validation and recommended fixes
 - README-BUILD.md — build/run instructions and CI guidance
+- docs/architecture/session-token-authorization.md — authentication trust model (session tokens, Bearer tokens, revocation, throttling)
+- docs/tec/en/06-environment-configuration.md — environment configuration, including the **required** authentication settings (`APP_TOKEN_SECRET` has no default)
 
 
 ```pwsh

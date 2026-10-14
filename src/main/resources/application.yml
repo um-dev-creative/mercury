@@ -94,8 +94,35 @@ umdc:
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
   security:
     jwt:
-      secret: ${APP_TOKEN_SECRET:bG9jYWxEZXZTZWNyZXRLZXlGb3JNZXJjdXJ5Tm90Rm9yUHJvZHVjdGlvblVzZTEyMzQ1Ng==}
+      # No default on purpose: a default committed here would let anyone with the repo forge a
+      # session-token in any environment where this is unset. Base64, >= 256 bits, and the SAME
+      # value backbone-rest signs with. Missing => the app refuses to start. Local dev: set it in
+      # secrets/local.env (see secrets/local.env.example).
+      secret: ${APP_TOKEN_SECRET}
       expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
+      # Expected iss/aud of a session-token (SessionJwtClaimsProperties); stamped on issuance
+      # and checked on every verification.
+      issuer: ${APP_TOKEN_ISSUER:mercury}
+      audience: ${APP_TOKEN_AUDIENCE:mercury}
+      # The end user's session-token is issued by backbone-rest (same secret), so its iss/aud must
+      # be accepted too. Comma-separated extra values, on top of issuer/audience above. Defaults
+      # match backbone-rest's own (JWT_ISSUER / JWT_AUDIENCE in its application.yml); override
+      # here if those are set differently in the deployed environment.
+      trusted-issuers: ${APP_TOKEN_TRUSTED_ISSUERS:backbone-rest}
+      trusted-audiences: ${APP_TOKEN_TRUSTED_AUDIENCES:backbone-rest-client}
+      # iss and aud are mandatory. Set true only for an environment whose backbone-rest does not
+      # stamp them (JWT_ISSUER / JWT_AUDIENCE unset there): a token with NO iss/aud is then still
+      # accepted, while a PRESENT but different one is always rejected.
+      allow-missing-claims: ${APP_TOKEN_ALLOW_MISSING_CLAIMS:false}
+      # A token Mercury did not mint is also checked against backbone-rest's own deny-list
+      # (GET /api/v1/session/validate), so a logout there is honoured here. Positive answers are
+      # cached for this long, which is the worst-case delay before a logout is reflected.
+      validate-with-backbone: ${APP_TOKEN_VALIDATE_WITH_BACKBONE:true}
+      backbone-validation-cache-ttl: ${APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL:30s}
+    # Failed-login throttle for POST /api/v1/auth/token (LoginThrottleProperties)
+    login-throttle:
+      max-attempts: ${LOGIN_THROTTLE_MAX_ATTEMPTS:5}
+      window: ${LOGIN_THROTTLE_WINDOW:15m}
     permissions:
       # Role/feature name backbone-rest's general.role / general.feature must grant a caller
       # (via general.application_role_user, scoped to the request's applicationId) for
@@ -397,6 +424,10 @@ spring:
         trust-store: file:certs/mercury/umdc-truststore.jks
         trust-store-password: changeit
         trust-store-type: PKCS12
+  data:
+    mongodb:
+      # Needed for the TTL index on revoked_tokens.expiresAt (RevokedTokenDocument)
+      auto-index-creation: true
   mongodb:
     representation:
       uuid: STANDARD

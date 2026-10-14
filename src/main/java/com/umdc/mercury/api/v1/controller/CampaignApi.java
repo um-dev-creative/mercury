@@ -46,7 +46,9 @@ public interface CampaignApi {
      *
      * @param request the campaign creation request containing the channel,
      *                template, recipients and optional scheduling information.
-     *                Must not be {@code null} and must pass bean validation.
+     *                Must not be {@code null} and must pass bean validation. Its {@code userId}
+     *                must match the {@code uid} of the verified {@code session-token}.
+     * @param sessionToken the end user's session token; the campaign is attributed to its verified uid.
      * @return a ResponseEntity containing a CreateCampaignResponse
      *         with the newly created campaign details and HTTP status {@code 201 Created}.
      */
@@ -59,12 +61,14 @@ public interface CampaignApi {
             @ApiResponse(responseCode = "201", description = "Campaign created successfully."),
             @ApiResponse(responseCode = CODE_400, description = "Invalid request payload or missing required fields."),
             @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED),
-            @ApiResponse(responseCode = CODE_403, description = "Caller lacks permission to create campaigns."),
+            @ApiResponse(responseCode = CODE_403, description = "The request userId does not match the session-token user."),
             @ApiResponse(responseCode = "422", description = "Channel type not found or disabled."),
             @ApiResponse(responseCode = "500", description = "Unexpected internal error.")
     })
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<CreateCampaignResponse> createCampaign(@RequestBody @Valid CreateCampaignRequest request);
+    ResponseEntity<CreateCampaignResponse> createCampaign(
+            @RequestBody @Valid CreateCampaignRequest request,
+            @RequestHeader(SESSION_TOKEN_KEY) String sessionToken);
 
     /**
      * Retrieves a campaign by its unique identifier.
@@ -73,6 +77,7 @@ public interface CampaignApi {
      * audit timestamps, status and optional metadata.</p>
      *
      * @param id the UUID of the campaign to retrieve; must be a valid UUID.
+     * @param sessionToken the end user's session token; only the campaign's owner may read it.
      * @return a ResponseEntity containing a CampaignDetailResponse
      *         with HTTP status {@code 200 OK}.
      */
@@ -90,7 +95,7 @@ public interface CampaignApi {
             @ApiResponse(responseCode = "500", description = "Unexpected internal error.")
     })
     @GetMapping(value = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<CampaignDetailResponse> getById(@PathVariable UUID id);
+    ResponseEntity<CampaignDetailResponse> getById(@PathVariable UUID id, @RequestHeader(SESSION_TOKEN_KEY) String sessionToken);
 
     /**
      * Retrieves campaigns for the authenticated user filtered by application id.

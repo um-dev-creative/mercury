@@ -41,6 +41,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CampaignServiceImpl unit tests")
@@ -314,15 +315,25 @@ class CampaignServiceImplTest {
     @DisplayName("getProgress tests")
     class GetProgress {
 
+        private CampaignEntity ownedBy(UUID id, UUID owner) {
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setStatus("IN_PROGRESS");
+            entity.setCreatedBy(owner);
+            return entity;
+        }
+
         @Test
-        @DisplayName("returns the expected projection when metrics exist")
+        @DisplayName("returns the expected projection to the campaign's owner")
         void getProgress_success() {
             UUID id = UUID.randomUUID();
+            UUID owner = UUID.randomUUID();
             CampaignProgressTO expected = new CampaignProgressTO(id, "Test", null, 10, 5, 4, 1, 0, 2, 1,
                     0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "IN_PROGRESS");
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(ownedBy(id, owner)));
             when(campaignProgressService.getProgress(id)).thenReturn(expected);
 
-            CampaignProgressTO result = campaignServiceImpl.getProgress(id);
+            CampaignProgressTO result = campaignServiceImpl.getProgress(id, owner);
 
             assertAll("progress",
                     () -> assertThat(result).isNotNull(),
@@ -330,13 +341,25 @@ class CampaignServiceImplTest {
         }
 
         @Test
-        @DisplayName("throws when campaign does not exist")
+        @DisplayName("throws CampaignNotFoundException when campaign does not exist")
         void getProgress_campaignNotFound() {
             UUID unknown = UUID.randomUUID();
-            when(campaignProgressService.getProgress(unknown))
-                    .thenThrow(new IllegalArgumentException("Campaign not found: " + unknown));
+            when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
 
-            assertThrows(IllegalArgumentException.class, () -> campaignServiceImpl.getProgress(unknown));
+            assertThrows(CampaignNotFoundException.class,
+                    () -> campaignServiceImpl.getProgress(unknown, UUID.randomUUID()));
+            verifyNoInteractions(campaignProgressService);
+        }
+
+        @Test
+        @DisplayName("throws ForbiddenException, without reading progress, when the caller is not the owner")
+        void getProgress_notOwner_forbidden() {
+            UUID id = UUID.randomUUID();
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(ownedBy(id, UUID.randomUUID())));
+
+            assertThrows(ForbiddenException.class,
+                    () -> campaignServiceImpl.getProgress(id, UUID.randomUUID()));
+            verifyNoInteractions(campaignProgressService);
         }
     }
 
@@ -372,7 +395,7 @@ class CampaignServiceImplTest {
             when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
             when(campaignMapper.toCampaignDetailResponse(entity)).thenReturn(expected);
 
-            CampaignDetailResponse result = campaignServiceImpl.getById(id);
+            CampaignDetailResponse result = campaignServiceImpl.getById(id, UUID.randomUUID());
 
             assertAll("getById",
                     () -> assertThat(result).isNotNull(),
@@ -392,8 +415,40 @@ class CampaignServiceImplTest {
             when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
 
             assertThrows(CampaignNotFoundException.class,
-                    () -> campaignServiceImpl.getById(unknown));
+                    () -> campaignServiceImpl.getById(unknown, UUID.randomUUID()));
             verify(campaignRepository).findById(unknown);
+        }
+
+        @Test
+        @DisplayName("throws ForbiddenException when the caller is not the owner")
+        void getById_notOwner_forbidden() {
+            UUID id = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setStatus("DRAFT");
+            entity.setCreatedBy(UUID.randomUUID());
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+
+            assertThrows(ForbiddenException.class,
+                    () -> campaignServiceImpl.getById(id, UUID.randomUUID()));
+            verifyNoInteractions(campaignMapper);
+        }
+
+        @Test
+        @DisplayName("returns the campaign to its owner")
+        void getById_owner_allowed() {
+            UUID id = UUID.randomUUID();
+            UUID owner = UUID.randomUUID();
+            CampaignEntity entity = new CampaignEntity();
+            entity.setId(id);
+            entity.setStatus("DRAFT");
+            entity.setCreatedBy(owner);
+            CampaignDetailResponse expected = new CampaignDetailResponse(
+                    id, "N", "email", null, "DRAFT", null, null, LocalDateTime.now(), LocalDateTime.now(), null);
+            when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
+            when(campaignMapper.toCampaignDetailResponse(entity)).thenReturn(expected);
+
+            assertThat(campaignServiceImpl.getById(id, owner)).isSameAs(expected);
         }
     }
 
@@ -786,7 +841,7 @@ class CampaignServiceImplTest {
             entity.setStatus("DELETED");
             when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
 
-            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id));
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id, UUID.randomUUID()));
         }
 
         @Test

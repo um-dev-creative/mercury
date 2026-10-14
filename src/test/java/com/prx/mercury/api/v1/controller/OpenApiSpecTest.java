@@ -29,7 +29,6 @@ class OpenApiSpecTest {
         boolean foundGetByApp = false;
         boolean foundSendEmail = false;
         boolean foundAccessToken = false;
-        boolean foundGenerateTokenSession = false;
 
         for (Object pathObj : paths.values()) {
             Map<?,?> methods = (Map<?,?>) pathObj;
@@ -41,33 +40,31 @@ class OpenApiSpecTest {
                 if ("getCampaignsByApplication".equals(opId)) foundGetByApp = true;
                 if ("sendEmail".equals(opId)) foundSendEmail = true;
                 if ("accessToken".equals(opId)) foundAccessToken = true;
-                if ("generateTokenSession".equals(opId)) foundGenerateTokenSession = true;
             }
         }
         assertTrue(foundCreate, "createCampaign operationId must exist in YAML");
         assertTrue(foundGetById, "getCampaignById operationId must exist in YAML");
         assertTrue(foundGetByApp, "getCampaignsByApplication operationId must exist in YAML");
         assertTrue(foundSendEmail, "sendEmail operationId must exist in YAML");
-        // accessToken (POST /api/v1/auth/token) and generateTokenSession
-        // (POST /api/v1/auth/session-token) are implemented by security-oauth's AuthAPi,
-        // not by a controller in this repo — but they're real endpoints this app exposes
-        // at runtime, and generateTokenSession is the ONLY operation that mints a
-        // session-token carrying a verified uid claim (see
-        // docs/architecture/session-token-authorization.md). Keep them documented here.
+        // accessToken (POST /api/v1/auth/token) is implemented by security-oauth's AuthAPi, not by
+        // a controller in this repo, but it is a real endpoint this app exposes at runtime.
         assertTrue(foundAccessToken, "accessToken operationId must exist in YAML");
-        assertTrue(foundGenerateTokenSession, "generateTokenSession operationId must exist in YAML");
+        // The session-token-bkd exchange (generateTokenSession) was removed: the end user's
+        // backbone session token is presented directly in the session-token header.
+        assertFalse(paths.containsKey("/api/v1/auth/session-token"),
+                "/api/v1/auth/session-token must not be documented");
     }
 
     @Test
     void interfacesContainOperationAnnotations() throws Exception {
         // reflectively inspect CampaignApi methods
         var cls = CampaignApi.class;
-        var m1 = cls.getMethod("createCampaign", CreateCampaignRequest.class);
+        var m1 = cls.getMethod("createCampaign", CreateCampaignRequest.class, String.class);
         Operation op = m1.getAnnotation(Operation.class);
         assertNotNull(op);
         assertEquals("createCampaign", op.operationId());
 
-        var m2 = cls.getMethod("getById", java.util.UUID.class);
+        var m2 = cls.getMethod("getById", java.util.UUID.class, String.class);
         Operation op2 = m2.getAnnotation(Operation.class);
         assertNotNull(op2);
         assertEquals("getCampaignById", op2.operationId());
