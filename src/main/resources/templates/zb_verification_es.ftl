@@ -16,7 +16,7 @@
     <div class="header"><h1>Verifica tu correo</h1></div>
     <p>Usa este código para verificar tu correo en ZeroBound:</p>
     <p><span class="code">${vc?html}</span></p>
-    <p class="muted">Código válido por ${expiresInHours?html} horas.</p>
+    <p class="muted">Código válido por ${expiresInMinutes?html} minutos.</p>
     <p class="footer">Este es un correo automático, no respondas a este mensaje. Puedes desactivar estos avisos en tus preferencias de ZeroBound.</p>
 </div>
 </body>

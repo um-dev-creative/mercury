@@ -16,7 +16,7 @@
     <div class="header"><h1>Verify your email</h1></div>
     <p>Use this code to verify your email in ZeroBound:</p>
     <p><span class="code">${vc?html}</span></p>
-    <p class="muted">Code valid for ${expiresInHours?html} hours.</p>
+    <p class="muted">Code valid for ${expiresInMinutes?html} minutes.</p>
     <p class="footer">This is an automatic email, please do not reply. You can turn these notices off in your ZeroBound preferences.</p>
 </div>
 </body>

@@ -49,7 +49,7 @@ parameter makes the render fail instead of sending a half-empty mail. No uid, ac
 | `critical_insight` | `title`, `summary` |
 | `price_alert` | `symbol`, `direction`, `threshold`, `price` |
 | `weekly_summary` | `periodStart`, `periodEnd`, `income`, `spending`, `net` |
-| `verification` | `vc`, `expiresInHours` |
+| `verification` | `vc`, `expiresInMinutes` |
 
 `ZeroboundTemplatesTest` renders all 14 with exactly these params.
 

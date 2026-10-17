@@ -24,7 +24,7 @@ class ZeroboundTemplatesTest {
             "critical_insight", Map.of("title", "Low emergency fund", "summary", "Covers 1.2 months"),
             "price_alert", Map.of("symbol", "AAPL", "direction", "rose above", "threshold", "200", "price", "201.5"),
             "weekly_summary", Map.of("periodStart", "2026-10-10", "periodEnd", "2026-10-16", "income", "≈ 900", "spending", "≈ 700", "net", "≈ 200"),
-            "verification", Map.of("vc", "483920", "expiresInHours", "24"));
+            "verification", Map.of("vc", "483920", "expiresInMinutes", "15"));
 
     private final Configuration config = configuration();
 
