@@ -1,5 +1,6 @@
 package com.umdc.mercury.api.v1.service;
 
+import com.umdc.mercury.api.v1.to.MailStatusResponse;
 import com.umdc.mercury.api.v1.to.SendEmailRequest;
 import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * EmailService.
@@ -26,6 +28,22 @@ public interface EmailService {
      * @return a ResponseEntity containing the email response and HTTP status
      */
     default ResponseEntity<SendEmailResponse> sendMail(SendEmailRequest mail) {
+        return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+    }
+
+    /**
+     * Accept an email from a backend caller.
+     *
+     * @param mail           the request
+     * @param caller         login-client alias (token subject)
+     * @param idempotencyKey optional key; the same key and request is accepted once
+     */
+    default ResponseEntity<SendEmailResponse> sendMail(SendEmailRequest mail, String caller, String idempotencyKey) {
+        return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+    }
+
+    /** Delivery state of a mail {@code caller} submitted. */
+    default ResponseEntity<MailStatusResponse> mailStatus(UUID id, String caller) {
         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
     }
 

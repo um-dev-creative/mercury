@@ -38,7 +38,7 @@ class MailApiTest {
                 Map.of());
         SendEmailResponse response = new SendEmailResponse(UUID.randomUUID(), "Delivered", "body");
 
-        when(emailService.sendMail(any(SendEmailRequest.class))).thenReturn(ResponseEntity.ok(response));
+        when(emailService.sendMail(any(SendEmailRequest.class), any(), any())).thenReturn(ResponseEntity.ok(response));
 
         MailApi mailApi = new MailApi() {
             @Override
@@ -47,7 +47,7 @@ class MailApiTest {
             }
         };
 
-        ResponseEntity<SendEmailResponse> result = mailApi.send(request);
+        ResponseEntity<SendEmailResponse> result = mailApi.send(request, null, null);
 
         assertEquals(200, result.getStatusCode().value());
         assertEquals("Delivered", result.getBody().status());
@@ -64,6 +64,6 @@ class MailApiTest {
             }
         };
 
-        assertThrows(NullPointerException.class, () -> mailApi.send(null));
+        assertThrows(NullPointerException.class, () -> mailApi.send(null, null, null));
     }
 }

@@ -40,6 +40,9 @@ class EmailServiceImplTest {
     @Mock
     EmailMessageNSRepository emailMessageNSRepository;
 
+    @Mock
+    com.umdc.mercury.api.v1.service.MailTrackingService mailTracking;
+
     @InjectMocks
     EmailServiceImpl emailServiceImpl;
 

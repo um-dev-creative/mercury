@@ -2,6 +2,7 @@ package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
+import com.umdc.mercury.api.v1.exception.MailNotFoundException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
@@ -157,6 +158,13 @@ public class GlobalExceptionHandler {
     /**
      * Handles argument violations (e.g. unknown template id, empty recipients).
      */
+    @ExceptionHandler(MailNotFoundException.class)
+    public ResponseEntity<ApiError> handleMailNotFound(MailNotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex,
                                                           HttpServletRequest request) {

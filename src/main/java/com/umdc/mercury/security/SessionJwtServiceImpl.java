@@ -147,6 +147,31 @@ public class SessionJwtServiceImpl implements SessionJwtService {
     }
 
     /**
+     * Claims of a token Mercury minted itself for a backend caller ({@code POST /api/v1/auth/token}):
+     * trusted by {@link #getTokenClaims}, issued by <em>this</em> service ({@code iss} and {@code aud}
+     * are the configured own values, not the extra trusted ones of backbone-rest) and carrying no
+     * {@code uid}. The pure M2M endpoints ({@code /mail}, {@code /verification-code}) accept nothing else.
+     *
+     * @param token the raw token
+     * @return its claims, or empty if it is not a trusted machine token
+     */
+    public Optional<Claims> getMachineClaims(String token) {
+        if (Objects.isNull(token) || token.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            Claims claims = getTokenClaims(token);
+            boolean own = claimsProperties.getIssuer().equals(claims.getIssuer())
+                    && Objects.nonNull(claims.getAudience())
+                    && claims.getAudience().contains(claimsProperties.getAudience());
+            boolean machine = Objects.isNull(claims.get(USER_ID)) && Objects.nonNull(claims.getSubject());
+            return own && machine ? Optional.of(claims) : Optional.empty();
+        } catch (CertificateSecurityException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
      * Retrieves the username from the given token.
      *
      * @param token the JWT token
