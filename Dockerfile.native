@@ -85,25 +85,26 @@ RUN MULTIARCH="$(gcc -print-multiarch)" \
 # `--secret id=<name>,src=<path on the build host>` per file below: prx_internal_ca,
 # mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert, aiven_kafka_key,
 # aiven_kafka_pem, aiven_kafka_p12, svc_pem
-RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt \
-    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks \
-    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks \
-    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks \
-    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert \
-    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key \
-    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem \
-    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12 \
-    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem \
+# Local fallback for the secrets below: certs/mercury/ when present in the build context. pom.xml
+# is listed only so the COPY has at least one source when the (gitignored) directory is absent.
+COPY pom.xml certs/mercury/ ./certs/mercury/
+
+RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt,required=false \
+    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks,required=false \
+    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks,required=false \
+    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks,required=false \
+    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert,required=false \
+    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key,required=false \
+    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem,required=false \
+    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12,required=false \
+    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem,required=false \
     mkdir -p /staging-certs/mercury && \
-    cp /run/secrets/prx-internal-ca.crt /staging-certs/mercury/prx-internal-ca.crt && \
-    cp /run/secrets/mercury.jks /staging-certs/mercury/mercury.jks && \
-    cp /run/secrets/backbone.jks /staging-certs/mercury/backbone.jks && \
-    cp /run/secrets/umdc-truststore.jks /staging-certs/mercury/umdc-truststore.jks && \
-    cp /run/secrets/aiven-kafka-7e59598.cert /staging-certs/mercury/aiven-kafka-7e59598.cert && \
-    cp /run/secrets/aiven-kafka-7e59598.key /staging-certs/mercury/aiven-kafka-7e59598.key && \
-    cp /run/secrets/aiven-kafka-7e59598.pem /staging-certs/mercury/aiven-kafka-7e59598.pem && \
-    cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/aiven-kafka.p12 && \
-    cp /run/secrets/svc.pem /staging-certs/mercury/svc.pem && \
+    for f in prx-internal-ca.crt mercury.jks backbone.jks umdc-truststore.jks \
+             aiven-kafka-7e59598.cert aiven-kafka-7e59598.key aiven-kafka-7e59598.pem \
+             aiven-kafka.p12 svc.pem; do \
+      if [ -f "/run/secrets/$f" ]; then cp "/run/secrets/$f" "/staging-certs/mercury/$f"; \
+      else cp "/build/certs/mercury/$f" "/staging-certs/mercury/$f"; fi || exit 1; \
+    done && \
     chmod 0444 /staging-certs/mercury/*
 # BuildKit mounts each --secret at mode 0400 owned by root, and `cp` (no -p flag) still
 # preserves those source permission bits — so, unlike the JIT Dockerfile (which chowns/chmods
