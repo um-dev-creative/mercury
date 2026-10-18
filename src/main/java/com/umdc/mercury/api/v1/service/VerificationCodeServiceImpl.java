@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -23,6 +24,11 @@ import java.util.List;
  */
 @Service
 public class VerificationCodeServiceImpl implements VerificationCodeService {
+
+    /** Header of a {@code 406}: guesses left on the code that can still be confirmed. */
+    public static final String ATTEMPTS_REMAINING = "Attempts-Remaining";
+
+    private static final ZoneId UTC = ZoneId.of("UTC");
 
     private static final Logger logger = LoggerFactory.getLogger(VerificationCodeServiceImpl.class);
 
@@ -54,7 +60,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         var verificationCodeEntityOptional = this.verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(
                 verificationCodeRequest.userId(),
                 verificationCodeRequest.applicationId(),
-                LocalDateTime.now(ZoneId.of("UTC")), false);
+                LocalDateTime.now(UTC), false);
         if (verificationCodeEntityOptional.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .header("message", "No valid verification code found for the user and application")
@@ -66,6 +72,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         // is used deliberately instead of a stream, since the body performs mutation/side
         // effects rather than a pure transformation.
         boolean anyVerified = false;
+        int attemptsLeft = 0;
         List<VerificationCodeEntity> collectionResult = new ArrayList<>();
         for (VerificationCodeEntity verificationCodeEntity : verificationCodeEntityOptional) {
             if (Boolean.TRUE.equals(verificationCodeEntity.getIsVerified())
@@ -73,22 +80,24 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
                 continue;
             }
             verificationCodeEntity.setAttempts(verificationCodeEntity.getAttempts() + 1);
-            verificationCodeEntity.setModifiedAt(LocalDateTime.now(ZoneId.of("UTC")));
+            verificationCodeEntity.setModifiedAt(LocalDateTime.now(UTC));
             verificationCodeEntity.setModifiedBy(verificationCodeRequest.userId().toString());
             if (verificationCodeEntity.getVerificationCode().equals(verificationCodeRequest.code())) {
                 verificationCodeEntity.setIsVerified(true);
-                verificationCodeEntity.setVerifiedAt(LocalDateTime.now(ZoneId.of("UTC")));
+                verificationCodeEntity.setVerifiedAt(LocalDateTime.now(UTC));
                 anyVerified = true;
                 logger.debug("Verification code confirmed: {}", verificationCodeEntity);
             }
             collectionResult.add(verificationCodeEntity);
+            attemptsLeft = Math.max(attemptsLeft, verificationCodeEntity.getMaxAttempts() - verificationCodeEntity.getAttempts());
         }
 
         verificationCodeRepository.saveAll(collectionResult);
 
+        // a wrong code says how many guesses are left (0 = ask for a new code), so a client can tell "wrong" from "exhausted"
         return anyVerified
                 ? ResponseEntity.status(HttpStatus.ACCEPTED).build()
-                : ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).build();
+                : ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).header(ATTEMPTS_REMAINING, String.valueOf(attemptsLeft)).build();
     }
 
     /**
@@ -100,8 +109,11 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
      * @return The created verification code as a transfer object
      */
     @Override
+    @Transactional
     public VerificationCodeTO create(VerificationCodeTO verificationCodeTO) {
         logger.debug("Creating verification code: {}", verificationCodeTO);
+        // a new code replaces the pending ones of the same user and application (resend): the old code stops working
+        verificationCodeRepository.expirePending(verificationCodeTO.userId(), verificationCodeTO.applicationId(), LocalDateTime.now(UTC));
 
         return verificationCodeMapper.toVerificationCodeTO(
                 verificationCodeRepository.save(verificationCodeMapper

@@ -53,6 +53,18 @@ parameter makes the render fail instead of sending a half-empty mail. No uid, ac
 
 `ZeroboundTemplatesTest` renders all 14 with exactly these params.
 
+### The verification code (T-96, decision D-10 of zerobound-rest)
+`verification` is the one template that makes mercury **keep a code**. zerobound-rest generates the six digits and sends them as `vc`;
+when `SendEmailScheduler` has sent the message, `MessageProcessor` stores the code for the template's user and application when the template
+is of the type configured as `PRX_VERIFICATION_CODE_TEMPLATE_ID`; `POST /api/v1/verification-code {applicationId, userId, code}` then checks it.
+
+* **Template type.** Only `zb_verification_{es,en}` must be of that type; the seed gives it `verification_type_id` and every other `zb_*` template the ordinary
+  `type_id` (they have no `vc`, so the wrong type would make them fail). The two ids must differ.
+* **Expiry.** The code lives `expiresInMinutes` (what the e-mail tells the user), never more than 2 days; absent, zero, negative or not a number means 2 days.
+* **Attempts.** 3 per code. A wrong code answers `406` with the header `Attempts-Remaining` (`0` = exhausted: ask for a new code); `404` = no code that can still be confirmed (expired, none, or already verified).
+* **Resend.** Issuing a code for the same user and application **expires the pending ones**, so only the newest can be confirmed and a wrong guess counts against it alone. (This applies to every application, not only ZeroBound.)
+* The e-mail is transactional: its footer does not mention notification preferences, which a visitor does not have yet.
+
 ### Registering them in an environment
 Templates are files (`TEMPLATE_PATH`, baked into the images from `src/main/resources/templates/`) **plus** rows in
 `mercury.templates` / `mercury.template_defined`. `scripts/zerobound/seed-templates.sql` creates the rows (idempotent) and prints

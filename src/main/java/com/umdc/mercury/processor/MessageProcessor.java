@@ -23,6 +23,8 @@ package com.umdc.mercury.processor;
                 public class MessageProcessor {
 
                     private static final Logger logger = LoggerFactory.getLogger(MessageProcessor.class);
+                    /** What a verification code lived for before the sender could ask for less, and still the ceiling. */
+                    public static final java.time.Duration MAX_CODE_LIFETIME = java.time.Duration.ofDays(2);
 
                     private final EmailService emailService;
                     private final MessageRecordService messageRecordService;
@@ -127,6 +129,27 @@ package com.umdc.mercury.processor;
                      * @param messageRecordTO The created message record
                      * @return A new VerificationCodeTO object with data from the email message
                      */
+                    /**
+                     * How long the code lives: the {@code expiresInMinutes} the sender printed in the e-mail, so what the user is told
+                     * is what is enforced, never longer than {@link #MAX_CODE_LIFETIME} (which is also the default when it is absent,
+                     * zero, negative or not a number).
+                     */
+                    public static java.time.Duration expiryOf(java.util.Map<String, ?> params) {
+                        Object minutes = params == null ? null : params.get("expiresInMinutes");
+                        if (minutes != null) {
+                            try {
+                                long value = Long.parseLong(minutes.toString().trim());
+                                if (value > 0) {
+                                    return java.time.Duration.ofMinutes(value).compareTo(MAX_CODE_LIFETIME) < 0
+                                            ? java.time.Duration.ofMinutes(value) : MAX_CODE_LIFETIME;
+                                }
+                            } catch (NumberFormatException _) {
+                                // not a number: the default applies
+                            }
+                        }
+                        return MAX_CODE_LIFETIME;
+                    }
+
                     private VerificationCodeTO getVerificationCodeTO(EmailMessageDocument emailMessageDocument,
                                                                      TemplateDefinedTO templateDefinedTO, MessageRecordTO messageRecordTO) {
                         return new VerificationCodeTO(null,
@@ -135,7 +158,7 @@ package com.umdc.mercury.processor;
                                 emailMessageDocument.params().get("vc").toString(),
                                 emailMessageDocument.sendDate(),
                                 emailMessageDocument.sendDate(),
-                                emailMessageDocument.sendDate().plusDays(2),
+                                emailMessageDocument.sendDate().plus(expiryOf(emailMessageDocument.params())),
                                 null,
                                 false,
                                 0,

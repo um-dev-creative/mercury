@@ -4,6 +4,7 @@ import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -39,6 +40,20 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
             @Param("applicationId") UUID applicationId,
             @Param("expiresAtAfter") LocalDateTime expiresAtAfter,
             @Param("isVerified") @NotNull Boolean isVerified);
+
+    /**
+     * Expires the codes of a user and application that are still pending (not verified, not yet expired), so that a newly issued
+     * code replaces them: a resend must leave exactly one code that can be confirmed, and the attempts of a wrong guess are
+     * then counted against that one only.
+     *
+     * @param userId        the user
+     * @param applicationId the application
+     * @param now           the instant they expire at
+     * @return how many codes were expired
+     */
+    @Modifying
+    @Query("UPDATE VerificationCodeEntity vce SET vce.expiresAt = :now WHERE vce.userId = :userId AND vce.applicationEntity.id = :applicationId AND vce.isVerified = false AND vce.expiresAt > :now")
+    int expirePending(@Param("userId") UUID userId, @Param("applicationId") UUID applicationId, @Param("now") LocalDateTime now);
 
     /**
      * Finds the is_verified status of the most recent verification code for a user.
