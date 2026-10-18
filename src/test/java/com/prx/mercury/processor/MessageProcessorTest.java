@@ -192,4 +192,38 @@ class MessageProcessorTest {
         assertEquals(messageRecordTO.id(), result.messageRecordId());
         assertFalse(result.isVerified());
     }
+
+    @Test
+    @DisplayName("expiryOf follows expiresInMinutes, never beyond two days, and falls back to two days")
+    void expiryOf_followsTheSendersMinutesWithinTheCeiling() {
+        assertEquals(java.time.Duration.ofMinutes(15), MessageProcessor.expiryOf(Map.of("expiresInMinutes", "15")));
+        assertEquals(java.time.Duration.ofMinutes(10), MessageProcessor.expiryOf(Map.of("expiresInMinutes", 10)));
+        assertEquals(java.time.Duration.ofMinutes(20), MessageProcessor.expiryOf(Map.of("expiresInMinutes", " 20 ")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(Map.of("expiresInMinutes", "999999")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(Map.of("expiresInMinutes", "0")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(Map.of("expiresInMinutes", "-5")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(Map.of("expiresInMinutes", "soon")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(Map.of("vc", "123456")));
+        assertEquals(MessageProcessor.MAX_CODE_LIFETIME, MessageProcessor.expiryOf(null));
+        assertEquals(java.time.Duration.ofDays(2), MessageProcessor.MAX_CODE_LIFETIME);
+    }
+
+    @Test
+    @DisplayName("the stored code expires when the e-mail says it does")
+    void getVerificationCodeTO_expiresAtTheMinutesTheEmailPromises() {
+        UUID applicationId = UUID.randomUUID();
+        LocalDateTime sent = LocalDateTime.of(2026, 10, 18, 12, 0);
+        EmailMessageDocument doc = new EmailMessageDocument("id-4", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "from@example.com",
+                null, null, "subject", "body", sent, Map.of("vc", "111222", "expiresInMinutes", "15"), DeliveryStatusType.SENT);
+        TemplateTypeTO templateTypeTO = new TemplateTypeTO(verificationCodeTemplateId, "verification", "vdesc", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO templateTO = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", templateTypeTO, applicationId, LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateDefinedTO templateDefinedTO = new TemplateDefinedTO(UUID.randomUUID(), templateTO, UUID.randomUUID(), applicationId, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+        MessageRecordTO messageRecordTO = new MessageRecordTO(UUID.randomUUID(), UUID.randomUUID(), "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());
+
+        VerificationCodeTO result = ReflectionTestUtils.invokeMethod(messageProcessor, "getVerificationCodeTO", doc, templateDefinedTO, messageRecordTO);
+
+        assertNotNull(result);
+        assertEquals(sent.plusMinutes(15), result.expiredAt());
+        assertEquals(3, result.maxAttempts());
+    }
 }

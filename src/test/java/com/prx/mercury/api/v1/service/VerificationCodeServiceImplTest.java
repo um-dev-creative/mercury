@@ -330,4 +330,76 @@ class VerificationCodeServiceImplTest {
         assertFalse(saved.get(1).getIsVerified());
     }
 
+
+    private VerificationCodeEntity pending(String code, int attempts, int max) {
+        VerificationCodeEntity entity = new VerificationCodeEntity();
+        entity.setUserId(UUID.randomUUID());
+        entity.setApplication(new ApplicationEntity());
+        entity.setAttempts(attempts);
+        entity.setMaxAttempts(max);
+        entity.setIsVerified(false);
+        entity.setVerificationCode(code);
+        return entity;
+    }
+
+    @Test
+    @DisplayName("a wrong code answers NOT_ACCEPTABLE with the guesses that are left")
+    void confirmCode_WrongCodeSaysAttemptsRemaining() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        VerificationCodeEntity entity = pending("111111", 0, 3);
+        when(verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(eq(userId), eq(applicationId), any(LocalDateTime.class), eq(false)))
+                .thenReturn(List.of(entity));
+
+        ResponseEntity<Void> response = verificationCodeServiceImpl.confirmCode(new VerificationCodeRequest(applicationId, userId, "999999"));
+
+        assertEquals(HttpStatus.NOT_ACCEPTABLE, response.getStatusCode());
+        assertEquals("2", response.getHeaders().getFirst(VerificationCodeServiceImpl.ATTEMPTS_REMAINING));
+        assertEquals(1, entity.getAttempts());
+    }
+
+    @Test
+    @DisplayName("the last wrong guess and an exhausted code both say 0 attempts left")
+    void confirmCode_ExhaustedSaysZeroRemaining() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        when(verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(eq(userId), eq(applicationId), any(LocalDateTime.class), eq(false)))
+                .thenReturn(List.of(pending("111111", 2, 3)), List.of(pending("111111", 3, 3)));
+        var request = new VerificationCodeRequest(applicationId, userId, "999999");
+
+        assertEquals("0", verificationCodeServiceImpl.confirmCode(request).getHeaders().getFirst(VerificationCodeServiceImpl.ATTEMPTS_REMAINING));
+        assertEquals("0", verificationCodeServiceImpl.confirmCode(request).getHeaders().getFirst(VerificationCodeServiceImpl.ATTEMPTS_REMAINING));
+    }
+
+    @Test
+    @DisplayName("a right code answers ACCEPTED without the attempts header")
+    void confirmCode_RightCodeHasNoAttemptsHeader() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        when(verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(eq(userId), eq(applicationId), any(LocalDateTime.class), eq(false)))
+                .thenReturn(List.of(pending("111111", 0, 3)));
+
+        ResponseEntity<Void> response = verificationCodeServiceImpl.confirmCode(new VerificationCodeRequest(applicationId, userId, "111111"));
+
+        assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+        assertNull(response.getHeaders().getFirst(VerificationCodeServiceImpl.ATTEMPTS_REMAINING));
+    }
+
+    @Test
+    @DisplayName("creating a code expires the pending ones of the same user and application first")
+    void create_ExpiresThePendingCodesBeforeSaving() {
+        UUID userId = UUID.randomUUID();
+        UUID applicationId = UUID.randomUUID();
+        LocalDateTime now = LocalDateTime.now();
+        VerificationCodeTO to = new VerificationCodeTO(null, userId, applicationId, "222222", now, now, now.plusMinutes(15), null, false, 0, 3, "", "", UUID.randomUUID());
+        when(verificationCodeMapper.toVerificationCodeEntity(to)).thenReturn(new VerificationCodeEntity());
+        when(verificationCodeRepository.save(any(VerificationCodeEntity.class))).thenReturn(new VerificationCodeEntity());
+        when(verificationCodeMapper.toVerificationCodeTO(any(VerificationCodeEntity.class))).thenReturn(to);
+
+        verificationCodeServiceImpl.create(to);
+
+        var order = inOrder(verificationCodeRepository);
+        order.verify(verificationCodeRepository).expirePending(eq(userId), eq(applicationId), any(LocalDateTime.class));
+        order.verify(verificationCodeRepository).save(any(VerificationCodeEntity.class));
+    }
 }
