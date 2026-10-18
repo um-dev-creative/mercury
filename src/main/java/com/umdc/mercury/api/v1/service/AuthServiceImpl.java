@@ -77,8 +77,11 @@ public class AuthServiceImpl implements AuthService {
      */
     private boolean isRegisteredLoginClient(AuthRequest authRequest) {
         List<LoginClientProperties.LoginClient> clients = loginClientProperties.getLoginClients();
+        // a client declared with an empty alias or password (an unset env placeholder) never matches
         return Objects.nonNull(clients) && clients.stream().anyMatch(client ->
-                constantTimeEquals(client.getAlias(), authRequest.alias())
+                Objects.nonNull(client.getAlias()) && !client.getAlias().isBlank()
+                        && Objects.nonNull(client.getPassword()) && !client.getPassword().isBlank()
+                        && constantTimeEquals(client.getAlias(), authRequest.alias())
                         && constantTimeEquals(client.getPassword(), authRequest.password()));
     }
 

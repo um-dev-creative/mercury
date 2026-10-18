@@ -285,6 +285,19 @@ class GlobalExceptionHandlerTest {
         }
     }
 
+    // ── MailNotFoundException (404) ───────────────────────────────────────────
+
+    @Test
+    @DisplayName("handleMailNotFound – 404 without saying whose mail it is")
+    void handleMailNotFound_returns404() {
+        ResponseEntity<ApiError> response = handler.handleMailNotFound(
+                new com.umdc.mercury.api.v1.exception.MailNotFoundException("Mail not found"), request);
+
+        assertAll("mail not found",
+                () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND),
+                () -> assertThat(response.getBody().message()).isEqualTo("Mail not found"));
+    }
+
     // ── TemplateNotFoundException (404) ───────────────────────────────────────
 
     @Nested

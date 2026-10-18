@@ -35,11 +35,11 @@ class MailControllerTest {
                 Map.of());
         SendEmailResponse response = new SendEmailResponse(UUID.randomUUID(), "Delivered", "body");
 
-        when(emailService.sendMail(any(SendEmailRequest.class))).thenReturn(ResponseEntity.ok(response));
+        when(emailService.sendMail(any(SendEmailRequest.class), any(), any())).thenReturn(ResponseEntity.ok(response));
 
         MailController mailController = new MailController(emailService);
 
-        ResponseEntity<SendEmailResponse> result = mailController.send(request);
+        ResponseEntity<SendEmailResponse> result = mailController.send(request, null, null);
 
         assertTrue(result.getStatusCode().is2xxSuccessful());
         assertEquals("Delivered", Objects.requireNonNull(result.getBody()).status());
@@ -51,7 +51,7 @@ class MailControllerTest {
         EmailServiceImpl emailService = mock(EmailServiceImpl.class);
         MailController mailController = new MailController(emailService);
 
-        assertThrows(NullPointerException.class, () -> mailController.send(null));
+        assertThrows(NullPointerException.class, () -> mailController.send(null, null, null));
     }
 
     @Test
@@ -69,11 +69,11 @@ class MailControllerTest {
                 LocalDateTime.now(),
                 Map.of());
 
-        when(emailService.sendMail(any(SendEmailRequest.class))).thenThrow(new IllegalArgumentException("Invalid email address"));
+        when(emailService.sendMail(any(SendEmailRequest.class), any(), any())).thenThrow(new IllegalArgumentException("Invalid email address"));
 
         MailController mailController = new MailController(emailService);
 
-        assertThrows(IllegalArgumentException.class, () -> mailController.send(request));
+        assertThrows(IllegalArgumentException.class, () -> mailController.send(request, null, null));
     }
 
     @Test
@@ -91,10 +91,10 @@ class MailControllerTest {
                 LocalDateTime.now(),
                 Map.of());
 
-        when(emailService.sendMail(any(SendEmailRequest.class))).thenThrow(new IllegalArgumentException("Subject cannot be empty"));
+        when(emailService.sendMail(any(SendEmailRequest.class), any(), any())).thenThrow(new IllegalArgumentException("Subject cannot be empty"));
 
         MailController mailController = new MailController(emailService);
 
-        assertThrows(IllegalArgumentException.class, () -> mailController.send(request));
+        assertThrows(IllegalArgumentException.class, () -> mailController.send(request, null, null));
     }
 }

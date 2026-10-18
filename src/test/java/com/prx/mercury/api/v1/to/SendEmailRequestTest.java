@@ -98,7 +98,8 @@ class SendEmailRequestTest {
                 params
         );
 
-        String expected = "SendEmailRequest{templateId='" + templateId + "', userId='" + userId + "', from='from@example.com', to=" + to + ", cc=" + cc + ", subject='Subject', body='Body', sendDate=" + sendDate + ", params=" + params + "}";
+        String expected = "SendEmailRequest{templateId='" + templateId + "', userId='" + userId
+                + "', recipients=1, cc=1, sendDate=" + sendDate + ", params=1 keys}";
         assertEquals(expected, request.toString());
     }
 }

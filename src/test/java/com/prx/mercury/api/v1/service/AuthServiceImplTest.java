@@ -101,6 +101,25 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("a client declared with empty credentials (unset env placeholders) never logs in")
+    void tokenShouldReturnUnauthorizedForClientsWithEmptyCredentials() {
+        var properties = new LoginClientProperties();
+        var noPassword = new LoginClientProperties.LoginClient();
+        noPassword.setAlias("zerobound");
+        noPassword.setPassword("");
+        var noAlias = new LoginClientProperties.LoginClient();
+        noAlias.setAlias("");
+        noAlias.setPassword("");
+        var nulls = new LoginClientProperties.LoginClient();
+        properties.setLoginClients(List.of(noPassword, noAlias, nulls));
+        var service = new AuthServiceImpl(sessionJwtService, properties);
+
+        assertEquals(HttpStatus.UNAUTHORIZED, service.token(new AuthRequest("zerobound", "")).getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, service.token(new AuthRequest("zerobound", "x")).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, service.token(new AuthRequest(" ", "")).getStatusCode());
+    }
+
+    @Test
     @DisplayName("token should return NOT_ACCEPTABLE status with blank token")
     void tokenShouldReturnNotAcceptableStatusWithBlankToken() {
         AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");

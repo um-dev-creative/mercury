@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 2026-10-06
 
+### Added
+- **T-71 — mail for zerobound-rest** (see `docs/zerobound-mail-templates.md`). `POST /api/v1/mail` is implemented (it answered 501):
+  queues the mail, optional `Idempotency-Key` (same key + request = one mail, `Idempotent-Replayed: true`; same key + other request = 422)
+  and `GET /api/v1/mail/{id}` with the delivery log (`mail_tracking`, TTL 30 days, no personal data). Login clients
+  `ZEROBOUND_LOGIN_*` / `ZEROBOUND_NEXT_LOGIN_*` (rotation slot). 14 FreeMarker templates `zb_<kind>_<es|en>.ftl`
+  and `scripts/zerobound/seed-templates.sql` (not run against any database).
+
+### Security
+- `/api/v1/mail` and `/api/v1/verification-code` accept only tokens Mercury minted for a login client (own `iss`/`aud`, no `uid`):
+  a backbone-rest user session is now `401` there (`MachineTokenInterceptor`). Login clients with an empty alias or password never match.
+- Request logging no longer prints recipients, subject, body or params (`SendEmailRequest`, `EmailMessageDocument`).
+
 ### Changed
 - `BackboneSessionClient` sends the session token to backbone-rest's `GET /api/v1/session/validate` in the `session-token`
   header (what backbone-rest now reads; on its session endpoints `Authorization: Bearer` carries an application client) **and**,

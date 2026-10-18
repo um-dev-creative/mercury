@@ -1,6 +1,9 @@
 package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.MailStatusResponse;
+import com.umdc.mercury.api.v1.to.SendEmailRequest;
+import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
 import com.umdc.mercury.api.v1.to.TemplateTO;
 import com.umdc.mercury.constant.DeliveryStatusType;
@@ -14,6 +17,7 @@ import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -43,6 +47,7 @@ public class EmailServiceImpl implements EmailService {
     private final Configuration freemarkerConfig;
     private final EmailMessageNSRepository emailMessageNSRepository;
     private final JavaMailSender mailSender;
+    private final MailTrackingService mailTracking;
 
     /**
      * Constructs an EmailServiceImpl with required dependencies.
@@ -50,12 +55,29 @@ public class EmailServiceImpl implements EmailService {
      * @param freemarkerConfig         The FreeMarker configuration for processing email templates
      * @param emailMessageNSRepository The repository for email message document persistence
      * @param mailSender               The JavaMailSender used to send emails
+     * @param mailTracking             Accepts mail from backend callers and keeps its delivery log
      */
-    public EmailServiceImpl(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig, EmailMessageNSRepository emailMessageNSRepository, JavaMailSender mailSender
-    ) {
+    public EmailServiceImpl(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig, EmailMessageNSRepository emailMessageNSRepository, JavaMailSender mailSender,
+                            MailTrackingService mailTracking) {
+        this.mailTracking = mailTracking;
         this.freemarkerConfig = freemarkerConfig;
         this.emailMessageNSRepository = emailMessageNSRepository;
         this.mailSender = mailSender;
+    }
+
+    @Override
+    public ResponseEntity<SendEmailResponse> sendMail(SendEmailRequest mail, String caller, String idempotencyKey) {
+        var accepted = mailTracking.accept(mail, caller, idempotencyKey);
+        var answer = ResponseEntity.ok();
+        if (accepted.replayed()) {
+            answer.header("Idempotent-Replayed", "true");
+        }
+        return answer.body(accepted.response());
+    }
+
+    @Override
+    public ResponseEntity<MailStatusResponse> mailStatus(UUID id, String caller) {
+        return ResponseEntity.ok(mailTracking.status(id, caller));
     }
 
     /**
@@ -89,6 +111,7 @@ public class EmailServiceImpl implements EmailService {
             throw new IllegalArgumentException("Email message document is required");
         }
         emailMessageNSRepository.save(emailMessageDocument);
+        mailTracking.recordStatus(emailMessageDocument.messageId(), emailMessageDocument.deliveryStatus());
     }
 
     /**

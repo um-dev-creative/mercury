@@ -105,19 +105,9 @@ class EmailMessageDocumentTest {
                 id, messageId, templateDefinedId, userId, from, to, cc, subject, body, sendDate, params, deliveryStatus
         );
 
-        String expectedString = "MessageValueDTO{" +
-                "id=" + id +
-                ", templateDefinedId=" + templateDefinedId +
-                ", userId=" + userId +
-                ", from='" + from + '\'' +
-                ", to='" + to + '\'' +
-                ", cc='" + cc + '\'' +
-                ", subject='" + subject + '\'' +
-                ", body='" + body + '\'' +
-                ", sendDate='" + sendDate + '\'' +
-                ", params='" + params + '\'' +
-                ", deliveryStatus='" + deliveryStatus + '\'' +
-                '}';
+        String expectedString = "EmailMessage{id=" + id + ", messageId=" + messageId
+                + ", templateDefinedId=" + templateDefinedId + ", userId=" + userId + ", recipients=1, sendDate="
+                + sendDate + ", deliveryStatus=" + deliveryStatus + "}";
 
         assertEquals(expectedString, emailMessageDocument.toString());
     }

@@ -219,9 +219,21 @@ paths:
     post:
       tags:
         - mail
-      summary: Send an email
-      description: Send an email.
+      summary: Accept an email for delivery
+      description: |
+        Backend callers only: the `session-token` must be one Mercury minted for a registered login client
+        (`POST /api/v1/auth/token`); a user session issued by backbone-rest is refused with 401.
+        The mail is queued (`OPENED`) and sent by the scheduler. With an `Idempotency-Key` (scoped to the caller)
+        the same key and request is accepted once: a repeat answers the first message with the
+        `Idempotent-Replayed: true` header, and the same key with a different request is 422.
       operationId: sendEmail
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Chosen by the caller; makes retries safe.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -230,11 +242,47 @@ paths:
               $ref: '#/components/schemas/SendEmailRequest'
       responses:
         '200':
-          description: Email sent successfully.
+          description: Accepted (or the replay of an earlier request with the same Idempotency-Key).
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SendEmailResponse'
+        '400':
+          description: Invalid request or unknown template.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/mail/{id}:
+    get:
+      tags:
+        - mail
+      summary: Delivery state of a mail this caller submitted
+      operationId: getMailStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+        '404':
+          description: Unknown id, another caller's mail, or past retention.
 
   /api/v1/verification-code:
     post:
@@ -836,6 +884,25 @@ components:
         sendDate: "2026-03-13T12:00:00Z"
         params:
           firstName: "John"
+
+    MailStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [OPENED, PENDING, IN_PROGRESS, SENT, DELIVERED, REJECTED, CANCELED, ABORTED, FAILED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
 
     SendEmailResponse:
       type: object

@@ -15,6 +15,12 @@ umdc:
     login-clients:
       - alias: ${DIRECTORY_BACKEND_LOGIN_ALIAS:}
         password: ${DIRECTORY_BACKEND_LOGIN_PASSWORD:}
+      # zerobound-rest (T-71, zerobound decision D-8): its alias/password live in Vault; a client left
+      # empty never matches (AuthServiceImpl). Rotate by adding the next client before removing this one.
+      - alias: ${ZEROBOUND_LOGIN_ALIAS:}
+        password: ${ZEROBOUND_LOGIN_PASSWORD:}
+      - alias: ${ZEROBOUND_NEXT_LOGIN_ALIAS:}
+        password: ${ZEROBOUND_NEXT_LOGIN_PASSWORD:}
   backbone:
     # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
     # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing

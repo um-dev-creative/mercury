@@ -5,6 +5,7 @@ import com.umdc.security.exception.CertificateSecurityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -38,8 +39,11 @@ public class BackboneSessionValidator {
     private final Clock clock;
     private final Map<String, Instant> activeUntil = new ConcurrentHashMap<>();
 
+    // @Lazy breaks a startup cycle: building the Feign client needs the MVC message converters, whose
+    // WebMvcConfigurers (the session/machine interceptors) need the session JWT service that owns this validator.
     @Autowired
-    public BackboneSessionValidator(BackboneSessionClient backboneSessionClient, SessionJwtClaimsProperties properties) {
+    public BackboneSessionValidator(@Lazy BackboneSessionClient backboneSessionClient,
+                                    SessionJwtClaimsProperties properties) {
         this(backboneSessionClient, properties, Clock.systemUTC());
     }
 
