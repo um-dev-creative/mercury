@@ -13,13 +13,13 @@ To run a focused batch of unit tests (service and mapper tests used during devel
 
 ```pwsh
 # Run a focused test set using Surefire (avoids PMD lifecycle) 
-mvn -Dtest="com.prx.mercury.api.v1.service.EmailServiceImplTest,com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest,com.prx.mercury.api.v1.to.VerificationCodeRequestTest,com.prx.mercury.mapper.VerificationCodeMapperTest,com.prx.mercury.mapper.TemplateMapperTest,com.prx.mercury.mapper.MessageRecordMapperTest" surefire:test -DtrimStackTrace=false
+mvn -Dtest="com.umdc.mercury.api.v1.service.EmailServiceImplTest,com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest,com.umdc.mercury.api.v1.to.VerificationCodeRequestTest,com.umdc.mercury.mapper.VerificationCodeMapperTest,com.umdc.mercury.mapper.TemplateMapperTest,com.umdc.mercury.mapper.MessageRecordMapperTest" surefire:test -DtrimStackTrace=false
 ```
 
 Run a single test class
 -----------------------
 ```pwsh
-mvn -Dtest=com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest surefire:test
 ```
 
 Run all tests (recommended on CI or using Java 25)
