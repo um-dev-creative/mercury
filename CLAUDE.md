@@ -12,10 +12,10 @@ mvn -U clean package -DskipTests
 mvn clean test
 
 # Run a single test class
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest surefire:test
 
 # Run a single test method
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
 
 # Full build with tests and JaCoCo coverage report
 mvn -B -V -e clean verify
