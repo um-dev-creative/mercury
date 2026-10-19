@@ -239,7 +239,8 @@ server:
     enabled: ${SSL_ENABLED:true}
     # The SSL bundle for the server
     bundle: mercury-security
-    enabled-protocols: TLSv1.3
+    # Protocols are NOT set here: with a named bundle Spring Boot ignores server.ssl.enabled-protocols.
+    # TLS 1.3 only is enforced by spring.ssl.bundle.jks.mercury-security.options.enabled-protocols below.
     compression:
       enabled: true
       mime-types: text/html,text/xml,text/plain,text/css,application/json
@@ -341,6 +342,9 @@ spring:
         # box, instead of depending on SSL_KEYSTORE_LOCATION/SSL_TRUSTSTORE_LOCATION being set
         # externally - the same undefaulted-env-var pattern that kept silently breaking there.
         mercury-security:
+          options:
+            # Only TLS 1.3 is accepted (a TLS 1.2 handshake is rejected).
+            enabled-protocols: TLSv1.3
           keystore:
             location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}
             password: ${SSL_KEYSTORE_PASSWORD:changeit}
