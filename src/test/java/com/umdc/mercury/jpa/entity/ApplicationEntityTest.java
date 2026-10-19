@@ -1,0 +1,23 @@
+package com.umdc.mercury.jpa.entity;
+
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class ApplicationEntityTest {
+
+    @Test
+    void getId() {
+        ApplicationEntity applicationEntity = new ApplicationEntity();
+        assertNull(applicationEntity.getId());
+    }
+
+    @Test
+    void setId() {
+        ApplicationEntity applicationEntity = new ApplicationEntity();
+        applicationEntity.setId(null);
+        assertNull(applicationEntity.getId());
+    }
+
+}

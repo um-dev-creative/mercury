@@ -987,7 +987,7 @@ components:
         description: "Standard email channel"
         icon: "mailto"
         enabled: true
-        implementationClass: "com.prx.mercury.channel.EmailChannel"
+        implementationClass: "com.umdc.mercury.channel.EmailChannel"
         createdAt: "2026-01-01T00:00:00Z"
         updatedAt: "2026-01-02T00:00:00Z"
         active: true

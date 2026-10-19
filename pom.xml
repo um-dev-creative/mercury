@@ -747,7 +747,7 @@
                                     <goal>java</goal>
                                 </goals>
                                 <configuration>
-                                    <mainClass>com.prx.mercury.benchmark.BenchmarkRunner</mainClass>
+                                    <mainClass>com.umdc.mercury.benchmark.BenchmarkRunner</mainClass>
                                     <classpathScope>test</classpathScope>
                                     <arguments>
                                         <argument>-wi</argument><argument>2</argument>

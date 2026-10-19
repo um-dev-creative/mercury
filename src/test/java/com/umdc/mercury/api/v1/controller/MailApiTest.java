@@ -1,0 +1,69 @@
+package com.umdc.mercury.api.v1.controller;
+
+import com.umdc.mercury.api.v1.controller.MailApi;
+import com.umdc.mercury.api.v1.service.EmailService;
+import com.umdc.mercury.api.v1.to.EmailContact;
+import com.umdc.mercury.api.v1.to.SendEmailRequest;
+import com.umdc.mercury.api.v1.to.SendEmailResponse;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class MailApiTest {
+
+    @Test
+    @DisplayName("Send email successfully")
+    void sendEmailSuccessfully() {
+        EmailService emailService = mock(EmailService.class);
+        SendEmailRequest request = new SendEmailRequest(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "from@example.com",
+                List.of(new EmailContact("to@example.com", "to", " To" )),
+                List.of(new EmailContact("cc@example.com", "cc", " Cc" )),
+                "body",
+                "templateId",
+                LocalDateTime.now(),
+                Map.of());
+        SendEmailResponse response = new SendEmailResponse(UUID.randomUUID(), "Delivered", "body");
+
+        when(emailService.sendMail(any(SendEmailRequest.class), any(), any())).thenReturn(ResponseEntity.ok(response));
+
+        MailApi mailApi = new MailApi() {
+            @Override
+            public EmailService getService() {
+                return emailService;
+            }
+        };
+
+        ResponseEntity<SendEmailResponse> result = mailApi.send(request, null, null);
+
+        assertEquals(200, result.getStatusCode().value());
+        assertEquals("Delivered", result.getBody().status());
+    }
+
+    @Test
+    @DisplayName("Send email with null request")
+    void sendEmailWithNullRequest() {
+        MailApi mailApi = new MailApi() {
+            @Override
+            public EmailService getService() {
+                return new EmailService() {
+                };
+            }
+        };
+
+        assertThrows(NullPointerException.class, () -> mailApi.send(null, null, null));
+    }
+}
