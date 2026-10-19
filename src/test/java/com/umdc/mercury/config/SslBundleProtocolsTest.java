@@ -1,4 +1,4 @@
-package com.prx.mercury.config;
+package com.umdc.mercury.config;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.YamlPropertiesFactoryBean;
