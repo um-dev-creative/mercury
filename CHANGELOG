@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-10-06
 
 ### Added
+- **SmartKin verification e-mail** (see `docs/smartkin-mail-templates.md`). SmartKin sends one kind of e-mail through Mercury, the verification code of a new account, with the params `vc` and `user_name` (and no expiry); it used the generic `ds_new_user_verification_code_es.ftl`. New FreeMarker templates `sk_verification_es.ftl` and `sk_verification_en.ftl`: branded, HTML-escaped, a safety note, and the validity shown only when `expiresInMinutes` arrives (so they never promise a duration Mercury does not enforce). `scripts/smartkin/seed-templates.sql` registers them in `mercury.templates` / `mercury.template_defined` as verification-code templates: idempotent, it checks every id before writing, says which variable is missing, corrects a row registered with another type and prints the `template_defined` ids smartkin-backend needs (validated on a throwaway PostgreSQL; not run against a real database). `SmartkinTemplatesTest` renders both templates with the params SmartKin sends. The doc warns that `umdc.verification.code.template.id` means the template TYPE id in Mercury and the template_defined id in smartkin-backend.
+
 - **T-71 — mail for zerobound-rest** (see `docs/zerobound-mail-templates.md`). `POST /api/v1/mail` is implemented (it answered 501):
   queues the mail, optional `Idempotency-Key` (same key + request = one mail, `Idempotent-Replayed: true`; same key + other request = 422)
   and `GET /api/v1/mail/{id}` with the delivery log (`mail_tracking`, TTL 30 days, no personal data). Login clients
