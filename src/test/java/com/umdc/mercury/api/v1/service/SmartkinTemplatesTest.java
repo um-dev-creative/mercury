@@ -90,4 +90,19 @@ class SmartkinTemplatesTest {
             assertThat(seed).as("seed registers " + file).contains("'" + file + "'");
         }
     }
+
+    @Test
+    @DisplayName("the bootstrap script prints exactly the ids the seed script takes, and creates every delivery status")
+    void bootstrapAndSeedAgree() throws IOException {
+        String bootstrap = Files.readString(Path.of("scripts/smartkin/bootstrap-reference-data.sql"));
+        String seed = Files.readString(Path.of("scripts/smartkin/seed-templates.sql"));
+
+        for (String variable : List.of("verification_type_id", "severity_id", "frequency_id")) {
+            assertThat(bootstrap).as("bootstrap prints " + variable).contains("'" + variable + "'");
+            assertThat(seed).as("seed takes " + variable).contains("-v " + variable + "=");
+        }
+        for (var status : com.umdc.mercury.constant.DeliveryStatusType.values()) {
+            assertThat(bootstrap).as("bootstrap registers the status " + status).contains("'" + status.name() + "'");
+        }
+    }
 }

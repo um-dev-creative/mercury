@@ -1,7 +1,9 @@
 -- SmartKin mail templates. Registers the two FreeMarker files sk_verification_{es,en}.ftl as mercury.templates + mercury.template_defined
 -- for the SmartKin application. Idempotent: a template whose location already exists for the application is skipped.
 --
--- Not run by the application (the schema is managed outside it). Run with psql, giving the ids that already exist in your environment:
+-- Not run by the application (the schema is managed outside it). Run with psql, giving the ids that already exist in your environment. If
+-- the template type, severity and frequency rows do not exist yet, scripts/smartkin/bootstrap-reference-data.sql creates them and prints those
+-- three ids; the application and the owner user come from backbone-rest.
 --   psql "$MERCURY_DB" -v ON_ERROR_STOP=1 \
 --        -v app_id=<general.application id of SmartKin: smartkin-backend's umdc.smartkin.application-id / Vault APPLICATION_ID> \
 --        -v owner_id=<user id that owns the definitions> \

@@ -53,6 +53,36 @@ They replace, for SmartKin, the generic `ds_new_user_verification_code_es.ftl` (
 
 ## 3. Registering them in an environment
 
+### 3.0 What has to exist first, and who creates it
+
+The seed script needs five ids. Nothing in mercury creates the first three: there is no API for them and no other script, the schema is managed outside the application.
+
+| id | what it is | who creates it |
+| --- | --- | --- |
+| `verification_type_id`, `severity_id`, `frequency_id` | rows of `mercury.template_types`, `severity_type` and `frequency_type` | `scripts/smartkin/bootstrap-reference-data.sql`, which only adds what is missing and prints the ids |
+| `app_id` | SmartKin's row in `general.application` | backbone-rest: `POST /api/v1/applications` with an administrator session, or Stratum (the procedure zerobound followed is `backbone-rest/docs/runbooks/zerobound-application-client.md`). It is the `APPLICATION_ID` of smartkin-backend |
+| `owner_id` | a user that owns the definitions | backbone-rest: an existing user of the SmartKin application |
+
+The same script also adds the nine rows of `mercury.message_status_type` (one per `DeliveryStatusType`) that `MessageProcessor` looks up by name for every message: without them no mail is processed. It never changes or deletes an existing row, finds rows by name ignoring case, ignores inactive rows and has a dry run (`-v dry_run=1`) that prints what exists and what it would create and writes nothing.
+
+```mermaid
+flowchart TD
+    A["backbone-rest: SmartKin application, a role and an owner user"] --> D
+    B["bootstrap-reference-data.sql: verification type, severity, frequency, message status types"] --> D
+    D["seed-templates.sql: sk_verification_es and sk_verification_en with their template_defined ids"]
+    B --> E["mercury configuration: PRX_VERIFICATION_CODE_TEMPLATE_ID = the verification type id"]
+    D --> F["smartkin-backend Vault: PRX_VERIFICATION_CODE_TEMPLATE_ID = template_defined id of sk_verification_es"]
+```
+
+**Mercury has one verification-code type.** If other applications already have verification templates (zerobound's `zb_verification_*`), reuse their type with `-v verification_type_id=<id>`: a second type would leave one of the applications without a stored code. The script lists the types of the existing verification templates and refuses to create another one unless you pass `-v create_new_type=1`.
+
+```bash
+psql "$MERCURY_DB" -v ON_ERROR_STOP=1 -v dry_run=1 -f scripts/smartkin/bootstrap-reference-data.sql   # what exists, what would be created
+psql "$MERCURY_DB" -v ON_ERROR_STOP=1 -f scripts/smartkin/bootstrap-reference-data.sql                  # writes; prints the three ids
+```
+
+### 3.1 The templates
+
 Templates are files (`TEMPLATE_PATH`, baked into the image from `src/main/resources/templates/`, so Mercury must be rebuilt and redeployed) **plus** rows in
 `mercury.templates` and `mercury.template_defined`. `scripts/smartkin/seed-templates.sql` creates the rows, is idempotent, checks that every id exists before
 writing and prints the `template_defined` ids:
@@ -67,7 +97,7 @@ psql "$MERCURY_DB" -v ON_ERROR_STOP=1 \
 ```
 
 The schema is managed outside the application. The script was validated on a throwaway PostgreSQL with tables equivalent to the JPA entities (first run, repeat,
-correction of a wrong type, unknown ids, missing variable); it was **not** run against a real Mercury database: review it on a copy first. The SmartKin
+correction of a wrong type, unknown ids, missing variable); it was **not** run against a real Mercury database: review it on a copy first. The bootstrap script was validated the same way (dry run, first run, repeat, case-insensitive names, inactive rows, existing verification templates of another type, a non-existent id, and chained with the seed). The SmartKin
 `general.application` row must already exist.
 
 ## 4. Two ids with the same name
