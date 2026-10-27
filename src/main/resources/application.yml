@@ -21,6 +21,13 @@ umdc:
         password: ${ZEROBOUND_LOGIN_PASSWORD:}
       - alias: ${ZEROBOUND_NEXT_LOGIN_ALIAS:}
         password: ${ZEROBOUND_NEXT_LOGIN_PASSWORD:}
+    # Telegram channel (T-111, zerobound decision D-11). Token and webhook secret are Vault-owned: empty
+    # = the channel stays off. Never put them in an env file.
+    telegram:
+      enabled: ${TELEGRAM_ENABLED:false}
+      bot-token: ${TELEGRAM_BOT_TOKEN:}
+      webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+      api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
   backbone:
     # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
     # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing
