@@ -726,6 +726,146 @@ paths:
         '500':
           description: Unexpected internal error.
 
+  /api/v1/telegram/links:
+    post:
+      tags:
+        - telegram
+      summary: Deep link to connect a user's Telegram chat
+      description: |
+        Backend callers only (mercury-minted M2M token). The caller's login alias is the application. Returns
+        `https://t.me/<bot>?start=<token>`: single use, valid 10 minutes; earlier tokens of the user stop working.
+      operationId: createTelegramLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLinkRequest'
+      responses:
+        '201':
+          description: The link and when it expires.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkResponse'
+        '400':
+          description: Invalid user or unsupported language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '503':
+          description: The Telegram channel is off or the bot is unreachable.
+
+  /api/v1/telegram/links/{userId}:
+    get:
+      tags:
+        - telegram
+      summary: State of a user's Telegram link
+      operationId: getTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state (never the chat id).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+    delete:
+      tags:
+        - telegram
+      summary: Remove a user's Telegram link and pending tokens (idempotent)
+      operationId: deleteTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Removed, or there was nothing to remove.
+        '401':
+          description: Not a Mercury-minted backend token.
+
+  /api/v1/telegram/messages:
+    post:
+      tags:
+        - telegram
+      summary: Queue a Telegram message for a linked user
+      description: |
+        The message is built by mercury from a template `kind` (`zb_<kind>_tg_<language>`) and the parameters.
+        With an `Idempotency-Key` (scoped to the caller) the same request is accepted once: a repeat answers the first
+        message with `Idempotent-Replayed: true`; the same key with another request is 422. A user who is not linked, or
+        who blocked the bot, is a 409 with `code` `TELEGRAM_NOT_LINKED` or `TELEGRAM_BLOCKED`.
+      operationId: sendTelegramMessage
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramMessageRequest'
+      responses:
+        '202':
+          description: Accepted, or the replay of an earlier request with the same key.
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageResponse'
+        '400':
+          description: Invalid request, unknown template or language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '409':
+          description: TELEGRAM_NOT_LINKED or TELEGRAM_BLOCKED (in `code`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConflict'
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/telegram/messages/{id}:
+    get:
+      tags:
+        - telegram
+      summary: Delivery state of a Telegram message this caller submitted
+      operationId: getTelegramMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: QUEUED, SENT, FAILED or BLOCKED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageStatusResponse'
+        '404':
+          description: Unknown id or another caller's message.
+
 components:
   schemas:
     AuthRequest:
@@ -1177,3 +1317,97 @@ components:
           type: integer
           format: int32
 
+    TelegramLinkRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+        language:
+          type: string
+          description: es or en (default es).
+
+    TelegramLinkResponse:
+      type: object
+      required:
+        - deepLink
+        - expiresAt
+      properties:
+        deepLink:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    TelegramLinkStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [NONE, PENDING, ACTIVE, BLOCKED]
+        linkedAt:
+          type: string
+          format: date-time
+        language:
+          type: string
+
+    TelegramMessageRequest:
+      type: object
+      required:
+        - userId
+        - kind
+      properties:
+        userId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: Template kind, e.g. debt_due (file zb_<kind>_tg_<language>).
+        language:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        disableNotification:
+          type: boolean
+
+    TelegramMessageResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+
+    TelegramMessageStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, SENT, FAILED, BLOCKED]
+        sentAt:
+          type: string
+          format: date-time
+
+    TelegramConflict:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          enum: [TELEGRAM_NOT_LINKED, TELEGRAM_BLOCKED]
