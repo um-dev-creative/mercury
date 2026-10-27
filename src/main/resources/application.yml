@@ -28,6 +28,11 @@ umdc:
       bot-token: ${TELEGRAM_BOT_TOKEN:}
       webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
       api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+      # Login-client alias of the application whose users link their chat (ZEROBOUND_LOGIN_ALIAS), and how updates arrive:
+      # poll = getUpdates with a lease (dev/QA), webhook = Telegram posts to webhook-url (production).
+      application: ${TELEGRAM_APPLICATION:}
+      mode: ${TELEGRAM_MODE:poll}
+      webhook-url: ${TELEGRAM_WEBHOOK_URL:}
   backbone:
     # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
     # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing

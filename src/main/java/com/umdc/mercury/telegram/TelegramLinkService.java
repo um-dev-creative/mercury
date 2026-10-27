@@ -144,6 +144,24 @@ public class TelegramLinkService {
         return link.filter(l -> TelegramLinkEntity.ACTIVE.equals(l.getStatus())).map(TelegramLinkEntity::getChatId);
     }
 
+    /** What the chat itself is linked to (for {@code /estado}): the link of this chat, if any. */
+    @Transactional(readOnly = true)
+    public Optional<LinkStatus> statusOfChat(String application, long chatId) {
+        return links.findByApplicationAndChatId(application, chatId)
+                .map(l -> new LinkStatus(Status.valueOf(l.getStatus()), l.getLinkedAt(), l.getLanguage()));
+    }
+
+    /** {@code /desvincular}: true when this chat had a link, which is removed. */
+    @Transactional
+    public boolean unlinkChat(String application, long chatId) {
+        final var link = links.findByApplicationAndChatId(application, chatId);
+        link.ifPresent(l -> {
+            tokens.deleteByApplicationAndUserId(application, l.getUserId());
+            links.delete(l);
+        });
+        return link.isPresent();
+    }
+
     /** The user blocked the bot (my_chat_member kicked, or a 403 on send): sends stop until a new link. */
     @Transactional
     public void markBlocked(String application, long chatId) {
