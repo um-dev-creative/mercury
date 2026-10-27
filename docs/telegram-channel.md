@@ -71,3 +71,35 @@ Bot API. Rates per instance: 1 message/s per chat and 30/s per bot (a message th
 `retry_after`; 403 blocks the link (the next send answers 409); other 4xx fail; 5xx and timeouts retry after 1 min, 5 min, 30 min, 2 h, 12 h
 (the 6th failure or 48 h is `FAILED`). Final rows lose their parameters. The existing Kafka path (`mercury-telegram-messages`, campaigns by
 `chatId`) is unchanged: it still only persists; ZeroBound's channel does not use it.
+
+## Exposing the webhook in production (T-117)
+
+Telegram only posts to **HTTPS on 443/8443 with a certificate from a public CA** (not the internal `umdc-local-ca`), so this needs the production
+host name; QA keeps `TELEGRAM_MODE=poll`. Nothing else of mercury may become public: expose exactly one path.
+
+nginx (a `server` block on the public name, separate from the internal one; adjust the upstream to the production mercury):
+
+```nginx
+location = /telegram-webhook/zerobound {           # alias = TELEGRAM_APPLICATION
+    limit_except POST { deny all; }
+    client_max_body_size 1m;                       # mercury also refuses > 1 MB with 413
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_pass https://mercury/api/v1/telegram/webhook/zerobound;
+}
+location / { return 404; }                         # no other mercury route on this name
+```
+
+Optional hardening: allow only Telegram's published ranges (`149.154.160.0/20`, `91.108.4.0/22`; check the current list in Telegram's docs)
+with `allow`/`deny`. The secret header is the real authentication: without a correct `X-Telegram-Bot-Api-Secret-Token` mercury answers 401.
+
+Procedure (once per environment, secrets only in Vault, never in the shell history or a chat):
+1. Set in Vault `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET` (32 random bytes, `A-Z a-z 0-9 _ -`, 1–256 chars); in the environment
+   `TELEGRAM_ENABLED=true`, `TELEGRAM_MODE=webhook`, `TELEGRAM_APPLICATION=<login alias>`,
+   `TELEGRAM_WEBHOOK_URL=https://<public host>/telegram-webhook/<alias>`.
+2. Restart mercury: it calls `setWebhook` and logs `Telegram webhook registered`.
+3. Check: `getWebhookInfo` (via the Bot API, token from Vault) shows the URL, `pending_update_count` near 0 and no `last_error_message`;
+   `/start` to the bot answers; `curl -i -X POST <url> -H 'Content-Type: application/json' -d '{}'` without the secret answers **401**;
+   any other path of the public host answers 404.
+4. Rotating the secret: change `TELEGRAM_WEBHOOK_SECRET` in Vault and restart (mercury re-registers with the new one). Rotating the token:
+   BotFather `/revoke`, update Vault, restart. To go back to polling: `TELEGRAM_MODE=poll` (the poller deletes the webhook).
