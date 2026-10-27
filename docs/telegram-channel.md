@@ -28,3 +28,17 @@ that never stops the service).
 ## Rotating the token
 
 `/revoke` in BotFather issues a new token and invalidates the old one at once: update Vault, restart mercury, check the `reachable` line.
+
+## Links (T-113)
+
+Run `src/main/resources/db/migration/V2028__telegram_links.sql` against the `mercury` schema (tables `telegram_links`, `telegram_link_tokens`).
+M2M routes (mercury-minted token; the caller's login alias is the application, so a caller never sees another's rows):
+
+| Route | Answer |
+|---|---|
+| `POST /api/v1/telegram/links` `{userId, language?}` | 201 `{deepLink, expiresAt}`; 400 unsupported language; 503 bot off/unreachable |
+| `GET /api/v1/telegram/links/{userId}` | `{status: NONE\|PENDING\|ACTIVE\|BLOCKED, linkedAt?, language?}`, never the chat id |
+| `DELETE /api/v1/telegram/links/{userId}` | 204, idempotent |
+
+Token: 32 random bytes, base64url (43 chars), stored as SHA-256, single use, 10 minutes; a new link invalidates the user's earlier tokens. One chat
+per user and one user per chat per application: linking again replaces. The `/start <token>` side (`TelegramLinkService.redeem`) is wired in T-114.

@@ -16,6 +16,6 @@ public class MachineTokenWebConfigurer implements WebMvcConfigurer {
 
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
-        registry.addInterceptor(interceptor).addPathPatterns("/api/v1/mail/**", "/api/v1/verification-code/**");
+        registry.addInterceptor(interceptor).addPathPatterns("/api/v1/mail/**", "/api/v1/verification-code/**", "/api/v1/telegram/links/**");
     }
 }

@@ -93,4 +93,13 @@ class TelegramBotIdentityTest {
         status = 500;
         identity(true, "t").logAtStartup();
     }
+
+    @Test
+    @DisplayName("username() is remembered after the first success")
+    void usernameCached() {
+        final var identity = identity(true, "123:abc");
+        assertEquals("zerobound_bot", identity.username().orElseThrow());
+        server.stop(0);
+        assertEquals("zerobound_bot", identity.username().orElseThrow());
+    }
 }
