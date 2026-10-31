@@ -1,6 +1,5 @@
 package com.umdc.mercury.api.v1.controller;
 
-import com.umdc.mercury.api.v1.controller.GlobalExceptionHandler;
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;

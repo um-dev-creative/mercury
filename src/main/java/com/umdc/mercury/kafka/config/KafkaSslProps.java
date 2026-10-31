@@ -12,12 +12,18 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @ConditionalOnProperty(name = "umdc.kafka.enabled", havingValue = "true", matchIfMissing = true)
@@ -140,11 +146,20 @@ public class KafkaSslProps {
         if (resource.isFile()) {
             return resource.getFile().getAbsolutePath();
         }
-        Path tempFile = Files.createTempFile("kafka-ssl-", "-" + resource.getFilename());
+        Path tempFile = Files.createTempFile("kafka-ssl-", "-" + resource.getFilename(), ownerOnlyPermissions());
         tempFile.toFile().deleteOnExit();
-        try (InputStream in = resource.getInputStream()) {
-            Files.copy(in, tempFile, StandardCopyOption.REPLACE_EXISTING);
+        // Files.copy with REPLACE_EXISTING would recreate the file and lose its owner-only permissions.
+        try (InputStream in = resource.getInputStream(); OutputStream out = Files.newOutputStream(tempFile)) {
+            in.transferTo(out);
         }
         return tempFile.toAbsolutePath().toString();
+    }
+
+    private static FileAttribute<?>[] ownerOnlyPermissions() {
+        if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            return new FileAttribute<?>[0];
+        }
+        Set<PosixFilePermission> ownerOnly = EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+        return new FileAttribute<?>[] {PosixFilePermissions.asFileAttribute(ownerOnly)};
     }
 }

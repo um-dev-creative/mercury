@@ -2,11 +2,6 @@ package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
-import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
-import com.umdc.mercury.api.v1.service.CampaignProgressService;
-import com.umdc.mercury.api.v1.service.CampaignService;
-import com.umdc.mercury.api.v1.service.CampaignServiceImpl;
-import com.umdc.mercury.api.v1.service.CampaignUpdateApplier;
 import com.umdc.mercury.api.v1.to.*;
 import com.umdc.mercury.jpa.sql.entity.CampaignEntity;
 import com.umdc.mercury.jpa.sql.entity.CampaignMetricsEntity;
@@ -347,8 +342,9 @@ class CampaignServiceImplTest {
             UUID unknown = UUID.randomUUID();
             when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
 
+            UUID caller = UUID.randomUUID();
             assertThrows(CampaignNotFoundException.class,
-                    () -> campaignServiceImpl.getProgress(unknown, UUID.randomUUID()));
+                    () -> campaignServiceImpl.getProgress(unknown, caller));
             verifyNoInteractions(campaignProgressService);
         }
 
@@ -358,8 +354,9 @@ class CampaignServiceImplTest {
             UUID id = UUID.randomUUID();
             when(campaignRepository.findById(id)).thenReturn(Optional.of(ownedBy(id, UUID.randomUUID())));
 
+            UUID caller = UUID.randomUUID();
             assertThrows(ForbiddenException.class,
-                    () -> campaignServiceImpl.getProgress(id, UUID.randomUUID()));
+                    () -> campaignServiceImpl.getProgress(id, caller));
             verifyNoInteractions(campaignProgressService);
         }
     }
@@ -415,8 +412,9 @@ class CampaignServiceImplTest {
             UUID unknown = UUID.randomUUID();
             when(campaignRepository.findById(unknown)).thenReturn(Optional.empty());
 
+            UUID caller = UUID.randomUUID();
             assertThrows(CampaignNotFoundException.class,
-                    () -> campaignServiceImpl.getById(unknown, UUID.randomUUID()));
+                    () -> campaignServiceImpl.getById(unknown, caller));
             verify(campaignRepository).findById(unknown);
         }
 
@@ -430,8 +428,9 @@ class CampaignServiceImplTest {
             entity.setCreatedBy(UUID.randomUUID());
             when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
 
+            UUID caller = UUID.randomUUID();
             assertThrows(ForbiddenException.class,
-                    () -> campaignServiceImpl.getById(id, UUID.randomUUID()));
+                    () -> campaignServiceImpl.getById(id, caller));
             verifyNoInteractions(campaignMapper);
         }
 
@@ -842,7 +841,8 @@ class CampaignServiceImplTest {
             entity.setStatus("DELETED");
             when(campaignRepository.findById(id)).thenReturn(Optional.of(entity));
 
-            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id, UUID.randomUUID()));
+            UUID caller = UUID.randomUUID();
+            assertThrows(CampaignNotFoundException.class, () -> campaignServiceImpl.getById(id, caller));
         }
 
         @Test
