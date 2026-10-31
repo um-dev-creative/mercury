@@ -42,3 +42,18 @@ M2M routes (mercury-minted token; the caller's login alias is the application, s
 
 Token: 32 random bytes, base64url (43 chars), stored as SHA-256, single use, 10 minutes; a new link invalidates the user's earlier tokens. One chat
 per user and one user per chat per application: linking again replaces. The `/start <token>` side (`TelegramLinkService.redeem`) is wired in T-114.
+
+## Receiving updates (T-114)
+
+Run `V2029__telegram_inbox_state.sql` (last handled update per application, and the poller's lease). Settings: `TELEGRAM_APPLICATION` (the
+login alias of the application, e.g. ZeroBound's `ZEROBOUND_LOGIN_ALIAS`: links are stored under it), `TELEGRAM_MODE` (`poll` | `webhook`),
+`TELEGRAM_WEBHOOK_URL` (public HTTPS URL of `/api/v1/telegram/webhook/<alias>`, T-117).
+
+| Mode | Where | How |
+|---|---|---|
+| `poll` | dev / QA (mercury is not reachable from the Internet) | `getUpdates` long polling; only the instance holding the lease polls; resumes after the last handled update |
+| `webhook` | production | `setWebhook` at start-up with `secret_token`; `POST /api/v1/telegram/webhook/{alias}` checks `X-Telegram-Bot-Api-Secret-Token` in constant time (401), body ≤ 1 MB (413), alias must be the application (404) |
+
+Every update is handled once (`update_id` only grows). Only private chats are read; the text is used to find the command and is never stored or
+logged. Commands: `/start <token>` (links; a new link replaces the old chat and tells it), `/start` (how to link), `/ayuda` `/help`, `/estado`
+`/status`, `/desvincular` `/unlink`. `my_chat_member` with `kicked`/`left`, or a 403 on a reply, marks the link `BLOCKED`.
