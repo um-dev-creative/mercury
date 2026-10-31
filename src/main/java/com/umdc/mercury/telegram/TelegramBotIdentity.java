@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Asks the Bot API {@code getMe} once at start-up (T-111) so a wrong token shows in the log, not on the
@@ -21,6 +22,7 @@ public class TelegramBotIdentity {
 
     private final TelegramBotProperties properties;
     private final TelegramBotApi api;
+    private final AtomicReference<String> cached = new AtomicReference<>();
 
     public TelegramBotIdentity(TelegramBotProperties properties, TelegramBotApi api) {
         this.properties = properties;
@@ -38,6 +40,14 @@ public class TelegramBotIdentity {
         } else {
             LOG.info("Telegram channel disabled");
         }
+    }
+
+    /** The username, remembered after the first success (it never changes for a token). */
+    public Optional<String> username() {
+        if (cached.get() == null) {
+            fetchUsername().ifPresent(cached::set);
+        }
+        return Optional.ofNullable(cached.get());
     }
 
     /** The bot's {@code username} from {@code getMe}, or empty when the call fails (never throws). */
