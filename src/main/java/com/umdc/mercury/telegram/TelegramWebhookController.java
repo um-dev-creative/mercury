@@ -14,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
 
+// The mappings, with their path variables, are on the *Api interface, which java:S6856 does not follow.
+@SuppressWarnings("java:S6856")
 @RestController
 @RequestMapping("api/v1/telegram/webhook")
 public class TelegramWebhookController implements TelegramWebhookApi {
