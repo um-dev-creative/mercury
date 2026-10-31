@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-10-06
 
 ### Added
+- **Iris verification e-mail:** `iris_verification_{es,en}` templates and `scripts/iris/seed-templates.sql`, used by the sign-up in Iris.
+
 - **Telegram campaigns are delivered for real, and non-email channels render their template.** `MultiChannelScheduler` sends queued messages through the bot in `TELEGRAM_BOT_TOKEN` and updates the campaign metrics. Without a token they stay `OPENED`.
 
 - **Telegram channel for ZeroBound.** Bot client, user-to-chat links, update input by polling or webhook, and delivery through `POST /api/v1/telegram/messages` with an `Idempotency-Key`, retries and rate limits. Off by default (`TELEGRAM_ENABLED=false`); needs `V2028` to `V2030`, applied by hand. See `docs/telegram-channel.md` and `docs/user-guide/`.
