@@ -70,3 +70,10 @@ Templates are files (`TEMPLATE_PATH`, baked into the images from `src/main/resou
 `mercury.templates` / `mercury.template_defined`. `scripts/zerobound/seed-templates.sql` creates the rows (idempotent) and prints
 the `template_defined` ids zerobound-rest needs. The schema is managed outside the application, so it was **not run** here: review it
 against the target database first. The `application` row of ZeroBound in `general.application` must already exist.
+
+## Telegram (T-116)
+
+The same kinds (all but `verification`) exist for Telegram as `zb_<kind>_tg_<es|en>.ftl`, with the same parameters (amounts arrive already
+masked). Telegram's HTML subset only (`<b>`, `<i>`, `<code>`, links): every value is escaped with `?html` (a raw `<` makes Telegram reject the
+message) and each message fits the 4096-character limit. No id is registered: `POST /api/v1/telegram/messages` names the `kind` and mercury picks
+the file by language. `ZeroboundTelegramTemplatesTest` renders all 12 with the documented parameters.
