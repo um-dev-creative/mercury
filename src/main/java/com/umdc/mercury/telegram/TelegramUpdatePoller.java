@@ -2,6 +2,7 @@ package com.umdc.mercury.telegram;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +33,7 @@ public class TelegramUpdatePoller {
     private Instant pausedUntil = Instant.MIN;
     private boolean webhookCleared;
 
+    @Autowired
     public TelegramUpdatePoller(TelegramBotProperties properties, TelegramBotApi api, TelegramInbox inbox, TelegramUpdateHandler handler) {
         this(properties, api, inbox, handler, Clock.systemUTC());
     }

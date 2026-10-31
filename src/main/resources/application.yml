@@ -275,6 +275,11 @@ management:
       application: ${app.name}
 
 spring:
+  task:
+    scheduling:
+      pool:
+        # Telegram long polling holds its thread up to 25 s; with one thread it would hold back email and every other job.
+        size: 4
   # Modern Spring Cloud config-fetch mechanism (replaces the legacy spring.cloud.bootstrap.enabled
   # bootstrap-context approach — see docs/architecture/graalvm-native-image.md for why: the legacy
   # mechanism runs its own separate, nested SpringApplication for the bootstrap-only context before
