@@ -2,6 +2,8 @@ package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
 import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
+import com.umdc.mercury.api.v1.exception.LoginClientAlreadyExistsException;
+import com.umdc.mercury.api.v1.exception.LoginClientNotFoundException;
 import com.umdc.mercury.api.v1.exception.MailNotFoundException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
@@ -174,6 +176,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(LoginClientNotFoundException.class)
+    public ResponseEntity<ApiError> handleLoginClientNotFound(LoginClientNotFoundException ex, HttpServletRequest request) {
+        logger.warn("Login client not found for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /// Handles registering an alias that already exists, returning `409 Conflict`.
+    @ExceptionHandler(LoginClientAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handleLoginClientAlreadyExists(LoginClientAlreadyExistsException ex, HttpServletRequest request) {
+        logger.warn("Login client clash for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(ForbiddenException.class)
