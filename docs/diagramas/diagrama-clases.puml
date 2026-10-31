@@ -1,0 +1,526 @@
+@startuml diagrama-clases
+
+!define class(x) class x
+!define interface(x) interface x
+
+title Diagrama de Clases - Sistema de Gestión de Plantillas Dinámicas
+
+' ============================================
+' DOMAIN ENTITIES
+' ============================================
+
+package "com.prx.mercury.domain.entity" {
+    
+    class Template {
+        - id: UUID
+        - code: String
+        - name: String
+        - description: String
+        - category: TemplateCategory
+        - type: TemplateType
+        - format: TemplateFormat
+        - active: Boolean
+        - deleted: Boolean
+        - versions: List<TemplateVersion>
+        - variables: List<TemplateVariable>
+        - createdAt: LocalDateTime
+        - updatedAt: LocalDateTime
+        - createdBy: String
+        - updatedBy: String
+        --
+        + getCurrentVersion(): TemplateVersion
+        + addVersion(content: String): void
+        + isActive(): Boolean
+    }
+    
+    class TemplateVersion {
+        - id: UUID
+        - template: Template
+        - version: Integer
+        - content: String
+        - changeDescription: String
+        - current: Boolean
+        - createdAt: LocalDateTime
+        - createdBy: String
+        --
+        + isCurrent(): Boolean
+    }
+    
+    class TemplateCategory {
+        - id: UUID
+        - code: String
+        - name: String
+        - description: String
+        - parent: TemplateCategory
+        - children: List<TemplateCategory>
+        - active: Boolean
+        --
+        + isRoot(): Boolean
+        + hasChildren(): Boolean
+    }
+    
+    class TemplateVariable {
+        - id: UUID
+        - template: Template
+        - name: String
+        - description: String
+        - type: VariableType
+        - required: Boolean
+        - defaultValue: String
+        - validationRegex: String
+        --
+        + isRequired(): Boolean
+        + hasDefaultValue(): Boolean
+    }
+    
+    class Message {
+        - id: UUID
+        - template: Template
+        - templateVersion: Integer
+        - type: MessageType
+        - status: MessageStatus
+        - subject: String
+        - body: String
+        - fromAddress: String
+        - scheduledAt: LocalDateTime
+        - sentAt: LocalDateTime
+        - deliveredAt: LocalDateTime
+        - failedAt: LocalDateTime
+        - errorMessage: String
+        - retryCount: Integer
+        - maxRetries: Integer
+        - recipients: List<MessageRecipient>
+        - deliveryLogs: List<DeliveryLog>
+        - createdAt: LocalDateTime
+        - updatedAt: LocalDateTime
+        --
+        + isPending(): Boolean
+        + canRetry(): Boolean
+        + markAsSent(): void
+        + markAsFailed(error: String): void
+    }
+    
+    class MessageRecipient {
+        - id: UUID
+        - message: Message
+        - type: RecipientType
+        - address: String
+        - name: String
+        - status: DeliveryStatus
+        - deliveredAt: LocalDateTime
+        - bouncedAt: LocalDateTime
+        - errorMessage: String
+        --
+        + isDelivered(): Boolean
+        + hasBounced(): Boolean
+    }
+    
+    class DeliveryLog {
+        - id: UUID
+        - message: Message
+        - level: LogLevel
+        - event: String
+        - details: String
+        - createdAt: LocalDateTime
+    }
+    
+    class NotificationChannel {
+        - id: UUID
+        - code: String
+        - name: String
+        - type: ChannelType
+        - description: String
+        - active: Boolean
+        - configuration: Map<String, Object>
+        - createdAt: LocalDateTime
+        - updatedAt: LocalDateTime
+        --
+        + isActive(): Boolean
+    }
+    
+    class Webhook {
+        - id: UUID
+        - code: String
+        - name: String
+        - url: String
+        - method: HttpMethod
+        - eventTypes: List<String>
+        - active: Boolean
+        - secretKey: String
+        - headers: Map<String, String>
+        - retryPolicy: RetryPolicy
+        --
+        + isActive(): Boolean
+        + supportsEvent(event: String): Boolean
+    }
+}
+
+' ============================================
+' ENUMS
+' ============================================
+
+package "com.prx.mercury.domain.enums" {
+    
+    enum TemplateType {
+        EMAIL
+        TELEGRAM
+        SMS
+        WEBHOOK
+    }
+    
+    enum TemplateFormat {
+        HTML
+        PLAIN_TEXT
+        MARKDOWN
+    }
+    
+    enum VariableType {
+        STRING
+        NUMBER
+        DATE
+        BOOLEAN
+        OBJECT
+        LIST
+    }
+    
+    enum MessageType {
+        EMAIL
+        TELEGRAM
+        SMS
+        WEBHOOK
+    }
+    
+    enum MessageStatus {
+        PENDING
+        PROCESSING
+        SENT
+        DELIVERED
+        FAILED
+        CANCELLED
+    }
+    
+    enum RecipientType {
+        TO
+        CC
+        BCC
+    }
+    
+    enum DeliveryStatus {
+        PENDING
+        SENT
+        DELIVERED
+        BOUNCED
+        FAILED
+    }
+    
+    enum LogLevel {
+        INFO
+        WARNING
+        ERROR
+    }
+    
+    enum ChannelType {
+        EMAIL
+        TELEGRAM
+        SMS
+        WEBHOOK
+        PUSH
+    }
+}
+
+' ============================================
+' DTOs
+' ============================================
+
+package "com.prx.mercury.api.v1.to" {
+    
+    class TemplateRequestDTO {
+        + code: String
+        + name: String
+        + description: String
+        + categoryId: UUID
+        + type: TemplateType
+        + format: TemplateFormat
+        + content: String
+        + variables: List<TemplateVariableDTO>
+        + active: Boolean
+    }
+    
+    class TemplateResponseDTO {
+        + id: UUID
+        + code: String
+        + name: String
+        + description: String
+        + category: TemplateCategoryDTO
+        + type: TemplateType
+        + format: TemplateFormat
+        + active: Boolean
+        + currentVersion: Integer
+        + currentContent: String
+        + variables: List<TemplateVariableDTO>
+        + createdAt: LocalDateTime
+        + updatedAt: LocalDateTime
+    }
+    
+    class TemplatePreviewRequest {
+        + templateIdentifier: String
+        + parameters: Map<String, Object>
+        + mode: PreviewMode
+        + format: PreviewFormat
+        + validateOnly: Boolean
+    }
+    
+    class TemplatePreviewResponse {
+        + templateId: UUID
+        + valid: Boolean
+        + renderedContent: String
+        + sourceContent: String
+        + missingVariables: List<String>
+        + validationMessages: List<ValidationMessage>
+        + previewedAt: LocalDateTime
+    }
+    
+    class SendEmailRequest {
+        + templateId: String
+        + from: String
+        + to: List<EmailContact>
+        + cc: List<EmailContact>
+        + subject: String
+        + body: String
+        + sendDate: LocalDateTime
+        + params: Map<String, Object>
+    }
+    
+    class SendEmailResponse {
+        + messageId: UUID
+        + status: String
+        + body: String
+    }
+}
+
+' ============================================
+' SERVICES
+' ============================================
+
+package "com.prx.mercury.api.v1.service" {
+    
+    interface TemplateService {
+        + createTemplate(dto: TemplateRequestDTO): TemplateResponseDTO
+        + updateTemplate(id: UUID, dto: TemplateRequestDTO): TemplateResponseDTO
+        + getTemplateById(id: UUID): TemplateResponseDTO
+        + getTemplateByCode(code: String): TemplateResponseDTO
+        + listTemplates(pageable: Pageable): Page<TemplateResponseDTO>
+        + deleteTemplate(id: UUID): void
+        + toggleTemplateStatus(id: UUID): TemplateResponseDTO
+    }
+    
+    class TemplateServiceImpl {
+        - templateRepository: TemplateRepository
+        - versionRepository: TemplateVersionRepository
+        - categoryRepository: TemplateCategoryRepository
+        - templateMapper: TemplateMapper
+        --
+        + createTemplate(dto: TemplateRequestDTO): TemplateResponseDTO
+        + updateTemplate(id: UUID, dto: TemplateRequestDTO): TemplateResponseDTO
+        - createNewVersion(template: Template, content: String): void
+    }
+    
+    class TemplateProcessorService {
+        - templateRepository: TemplateRepository
+        - versionRepository: TemplateVersionRepository
+        - freemarkerConfig: Configuration
+        --
+        + processTemplate(templateId: UUID, params: Map): String
+        + processTemplateByCode(code: String, params: Map): String
+        + validateTemplate(content: String): ValidationResult
+        - validateRequiredVariables(template: Template, params: Map): void
+        - processTemplateContent(content: String, params: Map): String
+    }
+    
+    class TemplatePreviewService {
+        - templateRepository: TemplateRepository
+        - templateProcessor: TemplateProcessorService
+        --
+        + previewTemplate(request: TemplatePreviewRequest): TemplatePreviewResponse
+        + previewDirectTemplate(content: String, params: Map): TemplatePreviewResponse
+        - prepareParameters(template: Template, params: Map, mode: PreviewMode): Map
+        - generateExampleValue(variable: TemplateVariable): Object
+    }
+    
+    interface EmailService {
+        + sendMail(request: SendEmailRequest): ResponseEntity<SendEmailResponse>
+    }
+    
+    class EmailServiceImpl {
+        - javaMailSender: JavaMailSender
+        - templateProcessor: TemplateProcessorService
+        - messageRepository: MessageRepository
+        --
+        + sendMail(request: SendEmailRequest): ResponseEntity<SendEmailResponse>
+        - createMessage(request: SendEmailRequest): Message
+        - createMimeMessage(request: SendEmailRequest, body: String): MimeMessage
+        - handleMessageFailure(message: Message, error: String): void
+    }
+    
+    class MessageTrackingService {
+        - messageRepository: MessageRepository
+        - deliveryLogRepository: DeliveryLogRepository
+        --
+        + getMessageStatus(messageId: UUID): MessageStatusDTO
+        + listMessages(filter: MessageFilter, pageable: Pageable): Page<MessageDTO>
+        + getDeliveryStatistics(filter: StatisticsFilter): StatisticsDTO
+        + retryFailedMessage(messageId: UUID): void
+    }
+    
+    class NotificationService {
+        - channelRepository: NotificationChannelRepository
+        - webhookRepository: WebhookRepository
+        --
+        + sendNotification(message: Message, channel: NotificationChannel): void
+        + triggerWebhook(event: String, payload: Object): void
+        + configureChannel(config: ChannelConfigDTO): void
+    }
+}
+
+' ============================================
+' REPOSITORIES
+' ============================================
+
+package "com.prx.mercury.repository" {
+    
+    interface TemplateRepository {
+        + findByCode(code: String): Optional<Template>
+        + findByActiveTrue(): List<Template>
+        + findByActiveTrueAndDeletedFalse(pageable: Pageable): Page<Template>
+    }
+    
+    interface TemplateVersionRepository {
+        + findByTemplateOrderByVersionDesc(template: Template): List<TemplateVersion>
+        + findByTemplateAndCurrentTrue(template: Template): Optional<TemplateVersion>
+    }
+    
+    interface MessageRepository {
+        + findByStatus(status: MessageStatus): List<Message>
+        + findByTemplateAndCreatedAtBetween(template: Template, start: LocalDateTime, end: LocalDateTime): List<Message>
+    }
+    
+    interface DeliveryLogRepository {
+        + findByMessage(message: Message): List<DeliveryLog>
+        + findByLevelAndCreatedAtAfter(level: LogLevel, date: LocalDateTime): List<DeliveryLog>
+    }
+}
+
+' ============================================
+' CONTROLLERS
+' ============================================
+
+package "com.prx.mercury.api.v1.controller" {
+    
+    class TemplateController {
+        - templateService: TemplateService
+        --
+        + createTemplate(dto: TemplateRequestDTO): ResponseEntity
+        + getTemplateById(id: UUID): ResponseEntity
+        + listTemplates(pageable: Pageable): ResponseEntity
+        + updateTemplate(id: UUID, dto: TemplateRequestDTO): ResponseEntity
+        + deleteTemplate(id: UUID): ResponseEntity
+    }
+    
+    class TemplatePreviewController {
+        - previewService: TemplatePreviewService
+        --
+        + previewTemplate(request: TemplatePreviewRequest): ResponseEntity
+        + previewDirectTemplate(content: String, params: Map): ResponseEntity
+        + validateTemplate(id: UUID, params: Map): ResponseEntity
+    }
+    
+    class MailController {
+        - emailService: EmailServiceImpl
+        --
+        + send(request: SendEmailRequest): ResponseEntity
+    }
+    
+    class MessageTrackingController {
+        - trackingService: MessageTrackingService
+        --
+        + getMessageStatus(id: UUID): ResponseEntity
+        + listMessages(filter: MessageFilter): ResponseEntity
+        + getStatistics(filter: StatisticsFilter): ResponseEntity
+        + retryMessage(id: UUID): ResponseEntity
+    }
+}
+
+' ============================================
+' MAPPERS
+' ============================================
+
+package "com.prx.mercury.mapper" {
+    
+    interface TemplateMapper {
+        + toEntity(dto: TemplateRequestDTO): Template
+        + toDTO(entity: Template): TemplateResponseDTO
+        + versionToDTO(version: TemplateVersion): TemplateVersionDTO
+    }
+    
+    interface MessageMapper {
+        + toEntity(dto: SendEmailRequest): Message
+        + toDTO(entity: Message): MessageDTO
+    }
+}
+
+' ============================================
+' RELATIONSHIPS
+' ============================================
+
+' Entity relationships
+Template "1" *-- "many" TemplateVersion
+Template "1" *-- "many" TemplateVariable
+Template "many" o-- "1" TemplateCategory
+TemplateCategory "many" o-- "1" TemplateCategory : parent
+Template --> TemplateType
+Template --> TemplateFormat
+TemplateVariable --> VariableType
+
+Message "many" o-- "1" Template
+Message "1" *-- "many" MessageRecipient
+Message "1" *-- "many" DeliveryLog
+Message --> MessageType
+Message --> MessageStatus
+MessageRecipient --> RecipientType
+MessageRecipient --> DeliveryStatus
+DeliveryLog --> LogLevel
+
+NotificationChannel --> ChannelType
+Webhook --> MessageType : eventTypes
+
+' Service dependencies
+TemplateServiceImpl ..|> TemplateService
+TemplateServiceImpl --> TemplateRepository
+TemplateServiceImpl --> TemplateVersionRepository
+TemplateServiceImpl --> TemplateMapper
+
+EmailServiceImpl ..|> EmailService
+EmailServiceImpl --> TemplateProcessorService
+EmailServiceImpl --> MessageRepository
+
+TemplateProcessorService --> TemplateRepository
+TemplateProcessorService --> TemplateVersionRepository
+
+TemplatePreviewService --> TemplateRepository
+TemplatePreviewService --> TemplateProcessorService
+
+MessageTrackingService --> MessageRepository
+MessageTrackingService --> DeliveryLogRepository
+
+' Controller dependencies
+TemplateController --> TemplateService
+TemplatePreviewController --> TemplatePreviewService
+MailController --> EmailServiceImpl
+MessageTrackingController --> MessageTrackingService
+
+' DTO relationships
+TemplateRequestDTO ..> TemplateType
+TemplateRequestDTO ..> TemplateFormat
+TemplateResponseDTO ..> TemplateCategoryDTO
+
+@enduml

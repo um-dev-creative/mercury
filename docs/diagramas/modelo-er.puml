@@ -1,0 +1,308 @@
+@startuml diagrama-er
+
+!define table(x) entity x << (T, #FFAAAA) >>
+!define view(x) entity x << (V, #AAFFAA) >>
+!define enum(x) entity x << (E, #AAAAFF) >>
+
+title Diagrama Entidad-Relación - Sistema de Gestión de Plantillas Dinámicas
+
+' ============================================
+' ENTIDADES PRINCIPALES
+' ============================================
+
+entity "template_categories" as cat {
+    * **id**: UUID <<PK>>
+    --
+    * code: VARCHAR(50) <<UK>>
+    * name: VARCHAR(100)
+    description: VARCHAR(300)
+    parent_id: UUID <<FK>>
+    * active: BOOLEAN
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+entity "templates" as tmpl {
+    * **id**: UUID <<PK>>
+    --
+    * code: VARCHAR(100) <<UK>>
+    * name: VARCHAR(200)
+    description: VARCHAR(500)
+    category_id: UUID <<FK>>
+    * type: VARCHAR(20)
+    * format: VARCHAR(20)
+    * active: BOOLEAN
+    * deleted: BOOLEAN
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    created_by: VARCHAR(100)
+    updated_by: VARCHAR(100)
+}
+
+entity "template_versions" as ver {
+    * **id**: UUID <<PK>>
+    --
+    * template_id: UUID <<FK>>
+    * version: INTEGER
+    * content: TEXT
+    change_description: VARCHAR(500)
+    * current: BOOLEAN
+    created_at: TIMESTAMP
+    created_by: VARCHAR(100)
+    --
+    <<UK>> (template_id, version)
+}
+
+entity "template_variables" as var {
+    * **id**: UUID <<PK>>
+    --
+    * template_id: UUID <<FK>>
+    * name: VARCHAR(100)
+    description: VARCHAR(300)
+    type: VARCHAR(20)
+    * required: BOOLEAN
+    default_value: VARCHAR(500)
+    validation_regex: VARCHAR(200)
+    --
+    <<UK>> (template_id, name)
+}
+
+entity "messages" as msg {
+    * **id**: UUID <<PK>>
+    --
+    * template_id: UUID <<FK>>
+    * template_version: INTEGER
+    * type: VARCHAR(20)
+    * status: VARCHAR(20)
+    * subject: VARCHAR(500)
+    body: TEXT
+    from_address: VARCHAR(200)
+    scheduled_at: TIMESTAMP
+    sent_at: TIMESTAMP
+    delivered_at: TIMESTAMP
+    failed_at: TIMESTAMP
+    error_message: VARCHAR(1000)
+    * retry_count: INTEGER
+    max_retries: INTEGER
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    created_by: VARCHAR(100)
+}
+
+entity "message_recipients" as rcpt {
+    * **id**: UUID <<PK>>
+    --
+    * message_id: UUID <<FK>>
+    * type: VARCHAR(10)
+    * address: VARCHAR(200)
+    name: VARCHAR(200)
+    * status: VARCHAR(20)
+    delivered_at: TIMESTAMP
+    bounced_at: TIMESTAMP
+    error_message: VARCHAR(500)
+}
+
+entity "delivery_logs" as dlog {
+    * **id**: UUID <<PK>>
+    --
+    * message_id: UUID <<FK>>
+    * level: VARCHAR(20)
+    * event: VARCHAR(200)
+    details: TEXT
+    created_at: TIMESTAMP
+}
+
+entity "notification_channels" as nchan {
+    * **id**: UUID <<PK>>
+    --
+    * code: VARCHAR(50) <<UK>>
+    * name: VARCHAR(100)
+    * type: VARCHAR(20)
+    description: VARCHAR(300)
+    * active: BOOLEAN
+    configuration: JSONB
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+entity "notification_configs" as nconf {
+    * **id**: UUID <<PK>>
+    --
+    * template_id: UUID <<FK>>
+    * channel_id: UUID <<FK>>
+    * enabled: BOOLEAN
+    priority: INTEGER
+    configuration: JSONB
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+    --
+    <<UK>> (template_id, channel_id)
+}
+
+entity "error_logs" as elog {
+    * **id**: UUID <<PK>>
+    --
+    message_id: UUID <<FK>>
+    * severity: VARCHAR(20)
+    * error_type: VARCHAR(100)
+    * error_message: TEXT
+    stack_trace: TEXT
+    context: JSONB
+    * resolved: BOOLEAN
+    resolved_at: TIMESTAMP
+    resolved_by: VARCHAR(100)
+    created_at: TIMESTAMP
+}
+
+entity "webhooks" as whook {
+    * **id**: UUID <<PK>>
+    --
+    * code: VARCHAR(50) <<UK>>
+    * name: VARCHAR(100)
+    * url: VARCHAR(500)
+    * method: VARCHAR(10)
+    * event_types: VARCHAR(500)
+    * active: BOOLEAN
+    secret_key: VARCHAR(200)
+    headers: JSONB
+    retry_policy: JSONB
+    created_at: TIMESTAMP
+    updated_at: TIMESTAMP
+}
+
+entity "webhook_deliveries" as wdel {
+    * **id**: UUID <<PK>>
+    --
+    * webhook_id: UUID <<FK>>
+    message_id: UUID <<FK>>
+    * event_type: VARCHAR(50)
+    * payload: JSONB
+    * status: VARCHAR(20)
+    * attempts: INTEGER
+    last_attempt_at: TIMESTAMP
+    next_attempt_at: TIMESTAMP
+    response_code: INTEGER
+    response_body: TEXT
+    created_at: TIMESTAMP
+}
+
+' ============================================
+' RELACIONES
+' ============================================
+
+' Template Categories (auto-relación)
+cat ||--o{ cat : "parent_id"
+
+' Templates
+cat ||--o{ tmpl : "category_id"
+tmpl ||--o{ ver : "template_id"
+tmpl ||--o{ var : "template_id"
+tmpl ||--o{ msg : "template_id"
+tmpl ||--o{ nconf : "template_id"
+
+' Messages
+msg ||--o{ rcpt : "message_id"
+msg ||--o{ dlog : "message_id"
+msg ||--o{ elog : "message_id"
+msg ||--o{ wdel : "message_id"
+
+' Notification Channels
+nchan ||--o{ nconf : "channel_id"
+
+' Webhooks
+whook ||--o{ wdel : "webhook_id"
+
+' ============================================
+' NOTAS
+' ============================================
+
+note right of tmpl
+    **Tipos de Plantilla:**
+    - EMAIL
+    - TELEGRAM
+    - SMS
+    - WEBHOOK
+    
+    **Formatos:**
+    - HTML
+    - PLAIN_TEXT
+    - MARKDOWN
+end note
+
+note right of var
+    **Tipos de Variable:**
+    - STRING
+    - NUMBER
+    - DATE
+    - BOOLEAN
+    - OBJECT
+    - LIST
+end note
+
+note right of msg
+    **Estados de Mensaje:**
+    - PENDING
+    - PROCESSING
+    - SENT
+    - DELIVERED
+    - FAILED
+    - CANCELLED
+end note
+
+note right of rcpt
+    **Tipos de Destinatario:**
+    - TO
+    - CC
+    - BCC
+    
+    **Estados de Entrega:**
+    - PENDING
+    - SENT
+    - DELIVERED
+    - BOUNCED
+    - FAILED
+end note
+
+note right of dlog
+    **Niveles de Log:**
+    - INFO
+    - WARNING
+    - ERROR
+end note
+
+note right of elog
+    **Severidades:**
+    - LOW
+    - MEDIUM
+    - HIGH
+    - CRITICAL
+end note
+
+note right of whook
+    **Métodos HTTP:**
+    - POST
+    - PUT
+    - PATCH
+    
+    **Eventos:**
+    - message.sent
+    - message.delivered
+    - message.failed
+    - message.bounced
+end note
+
+note bottom of ver
+    El campo "current" indica
+    la versión activa de la plantilla.
+    Solo una versión puede estar
+    marcada como current = true.
+end note
+
+note bottom of tmpl
+    El campo "deleted" permite
+    soft delete. Las plantillas
+    eliminadas no se muestran
+    pero se mantienen en BD.
+end note
+
+@enduml
