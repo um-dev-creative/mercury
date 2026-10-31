@@ -229,7 +229,7 @@ Message schema: [topic-general-message.md](../../topic-general-message.md). End-
 
 **Operational notes**
 
-- `header.messageId` is the MongoDB `_id`, so a Kafka redelivery overwrites the document and resets it to `OPENED`.
+- `header.messageId` is the MongoDB `_id`, and an id already stored is ignored, so a Kafka redelivery never sends a message twice.
 - Records that can never be delivered are logged and discarded: unknown channel, `EMAIL`, blank `messageId`, invalid target.
 - Processing failures are retried 4 times, every 2 seconds, then skipped with an `ERROR`. There is no dead-letter topic, because the plan limits the number of topics.
 - The application reads the Kafka client certificate at startup, so replacing it requires a new image and a restart.
@@ -432,7 +432,7 @@ not a template with placeholders; a working copy has live values. Only variable 
 | `MERCURY_DB_NAME`, `MERCURY_DB_PASSWORD`, `MERCURY_DB_PORT`, `MERCURY_DB_URI`, `MERCURY_DB_USERNAME` (commented out) | Real Postgres (Supabase pooler) credentials, for local runs that bypass Vault for the datasource specifically. |
 | `MONGO_*` (commented out, ~15 variables) | Real MongoDB Atlas connection parameters and credentials. |
 | `PRX_CONSUMER_GROUP_ID` (commented out) | Kafka consumer group id override. |
-| `TELEGRAM_TOKEN`, `TELEGRAM_NAME`, `TELEGRAM_USERNAME` (commented out) | Real Telegram Bot API credentials for local Telegram channel testing. |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_NAME`, `TELEGRAM_USERNAME` (commented out) | Real Telegram Bot API credentials for local Telegram channel testing. |
 
 ---
 

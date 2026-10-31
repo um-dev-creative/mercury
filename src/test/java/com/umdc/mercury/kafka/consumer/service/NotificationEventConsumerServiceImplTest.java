@@ -9,6 +9,7 @@ import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.WhatsAppMessageDocument;
+import com.umdc.mercury.jpa.nosql.repository.MessageNSRepository;
 import com.umdc.mercury.kafka.router.MessageChannelRouter;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -76,8 +78,11 @@ class NotificationEventConsumerServiceImplTest {
     @Mock
     private MessageChannelRouter router;
 
+    @Mock
+    private MessageNSRepository messageRepository;
+
     private NotificationEventConsumerServiceImpl service() {
-        return new NotificationEventConsumerServiceImpl(router);
+        return new NotificationEventConsumerServiceImpl(router, messageRepository);
     }
 
     private static NotificationEventTO eventFor(String channel, String target, Map<String, Object> instructions) {
@@ -104,6 +109,16 @@ class NotificationEventConsumerServiceImplTest {
         try (JacksonJsonSerializer<Object> serializer = new JacksonJsonSerializer<>()) {
             return deserialize(serializer.serialize(TOPIC, message));
         }
+    }
+
+    @Test
+    @DisplayName("a redelivered message is ignored, so a delivered one is never sent twice")
+    void process_redelivery() {
+        when(messageRepository.existsById(MESSAGE_ID)).thenReturn(true);
+
+        service().process(eventFor("TELEGRAM", "123456789", Map.of()));
+
+        verifyNoInteractions(router);
     }
 
     @Test

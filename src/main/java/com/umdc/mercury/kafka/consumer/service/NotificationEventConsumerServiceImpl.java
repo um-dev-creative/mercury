@@ -7,6 +7,7 @@ import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.WhatsAppMessageDocument;
+import com.umdc.mercury.jpa.nosql.repository.MessageNSRepository;
 import com.umdc.mercury.kafka.router.MessageChannelRouter;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
 import org.slf4j.Logger;
@@ -27,8 +28,9 @@ import java.util.regex.Pattern;
  * {@link MessageChannelRouter}. Records that can never be delivered (unknown channel, missing
  * messageId, invalid target) are logged and discarded; retrying them would not help.
  *
- * <p>{@code messageId} becomes the document id, so a Kafka redelivery overwrites the same document
- * instead of creating a second message. Target identifiers are personal data and are not logged.</p>
+ * <p>{@code messageId} becomes the document id, and a messageId already stored is ignored, so a Kafka
+ * redelivery neither duplicates a message nor sends it twice. Target identifiers are personal data and
+ * are not logged.</p>
  */
 @Service
 public class NotificationEventConsumerServiceImpl implements NotificationEventConsumerService {
@@ -38,9 +40,12 @@ public class NotificationEventConsumerServiceImpl implements NotificationEventCo
     private static final Pattern TELEGRAM_CHAT_ID = Pattern.compile("^-?\\d{1,18}$");
 
     private final MessageChannelRouter messageChannelRouter;
+    private final MessageNSRepository messageRepository;
 
-    public NotificationEventConsumerServiceImpl(MessageChannelRouter messageChannelRouter) {
+    public NotificationEventConsumerServiceImpl(MessageChannelRouter messageChannelRouter,
+                                                MessageNSRepository messageRepository) {
         this.messageChannelRouter = messageChannelRouter;
+        this.messageRepository = messageRepository;
     }
 
     @Override
@@ -64,6 +69,11 @@ public class NotificationEventConsumerServiceImpl implements NotificationEventCo
         }
         if (Objects.isNull(messageId) || messageId.isBlank()) {
             logger.warn("Message without messageId on channel {}, discarding", channelType);
+            return;
+        }
+        if (messageRepository.existsById(messageId)) {
+            // A Kafka redelivery must not reset a delivered message to OPENED, or it would be sent again.
+            logger.debug("Message {} was already received, ignoring the redelivery", messageId);
             return;
         }
         if (!isValidTarget(channelType, event.routing().target_identifier())) {

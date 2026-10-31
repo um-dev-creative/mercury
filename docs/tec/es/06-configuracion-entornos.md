@@ -229,7 +229,7 @@ Esquema del mensaje: [topic-general-message.md](../../topic-general-message.md).
 
 **Notas de operación**
 
-- `header.messageId` es el `_id` en MongoDB, así que una reentrega de Kafka sobrescribe el documento y lo devuelve a `OPENED`.
+- `header.messageId` es el `_id` en MongoDB, y un id ya guardado se ignora, así que una reentrega de Kafka nunca envía un mensaje dos veces.
 - Los registros que nunca podrán entregarse se registran en el log y se descartan: canal desconocido, `EMAIL`, `messageId` vacío o destino inválido.
 - Los fallos de procesamiento se reintentan 4 veces, cada 2 segundos, y luego se omiten con un `ERROR`. No hay topic de mensajes fallidos, porque el plan limita el número de topics.
 - La aplicación lee el certificado de cliente de Kafka al arrancar, así que reemplazarlo exige una imagen nueva y un reinicio.

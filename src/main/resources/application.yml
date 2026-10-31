@@ -102,11 +102,16 @@ umdc:
   logging:
     trace:
       enabled: ${LOGGING_TRACE_ENABLED}
+  # Campaign delivery uses the same bot as umdc.mercury.telegram. Empty leaves queued messages in OPENED.
+  telegram:
+    bot-token: ${TELEGRAM_BOT_TOKEN:}
   verification:
     code:
       template:
         id: ${PRX_VERIFICATION_CODE_TEMPLATE_ID}  # Verification code template ID
   scheduler:
+    dispatch-telegram:
+      fixed-rate: ${UMDC_SCHEDULER_DISPATCH_TELEGRAM_RATE:60000} # Rate for dispatching queued Telegram campaign messages (ms)
     send-email:
       fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
     save-message-processed:
