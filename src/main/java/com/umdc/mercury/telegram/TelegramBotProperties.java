@@ -1,6 +1,7 @@
 package com.umdc.mercury.telegram;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.time.Duration;
 import java.util.List;
@@ -37,6 +38,7 @@ public record TelegramBotProperties(
         this(enabled, botToken, webhookSecret, apiBaseUrl, languages, connectTimeout, readTimeout, null, null, null);
     }
 
+    @ConstructorBinding
     public TelegramBotProperties {
         botToken = botToken == null ? "" : botToken.strip();
         webhookSecret = webhookSecret == null ? "" : webhookSecret.strip();
