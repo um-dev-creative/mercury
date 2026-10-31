@@ -1,5 +1,6 @@
 package com.umdc.mercury.telegram;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +30,7 @@ public class TelegramOutbox {
     public record Claimed(UUID id, String application, UUID userId, String kind, String language, Map<String, Object> params,
                           boolean disableNotification, int attempts, int partsSent, LocalDateTime createdAt) { }
 
+    @Autowired
     public TelegramOutbox(TelegramMessageRepository messages) {
         this(messages, Clock.systemUTC());
     }

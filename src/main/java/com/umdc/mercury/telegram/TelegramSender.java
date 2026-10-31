@@ -2,6 +2,7 @@ package com.umdc.mercury.telegram;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +30,7 @@ public class TelegramSender {
     private final TelegramRateLimiter limiter;
     private final Clock clock;
 
+    @Autowired
     public TelegramSender(TelegramBotProperties properties, TelegramOutbox outbox, TelegramLinkService links,
                           TelegramTemplateRenderer templates, TelegramBotApi api, TelegramRateLimiter limiter) {
         this(properties, outbox, links, templates, api, limiter, Clock.systemUTC());
