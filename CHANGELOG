@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 - User guide for the SMS, Telegram, WhatsApp and Push channels (`docs/user-guide/`, English and Spanish), and a Kafka on Aiven section with troubleshooting in the environment configuration guide.
 
+### Tests
+- Project method coverage raised from 80.1% to 86.3%: controllers, default API and service behavior, mail, Kafka producer, FreeMarker and MongoDB health configuration, native hints and the email scheduler.
+
 ### Security
 - `/api/v1/mail` and `/api/v1/verification-code` accept only tokens Mercury minted for a login client (own `iss`/`aud`, no `uid`):
   a backbone-rest user session is now `401` there (`MachineTokenInterceptor`). Login clients with an empty alias or password never match.
