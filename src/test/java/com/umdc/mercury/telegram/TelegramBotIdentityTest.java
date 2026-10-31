@@ -43,8 +43,9 @@ class TelegramBotIdentityTest {
     }
 
     private TelegramBotIdentity identity(boolean enabled, String token) {
-        return new TelegramBotIdentity(new TelegramBotProperties(enabled, token, "", "http://127.0.0.1:" + server.getAddress().getPort(),
-                List.of("es"), null, null));
+        final var props = new TelegramBotProperties(enabled, token, "", "http://127.0.0.1:" + server.getAddress().getPort(),
+                List.of("es"), null, null);
+        return new TelegramBotIdentity(props, new TelegramBotApi(props));
     }
 
     @Test

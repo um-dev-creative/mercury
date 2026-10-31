@@ -3,13 +3,9 @@ package com.umdc.mercury.telegram;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.event.EventListener;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
-import java.net.http.HttpClient;
 import java.util.Map;
 import java.util.Optional;
 
@@ -19,15 +15,16 @@ import java.util.Optional;
  * carries the token (it is in the URL, so the exception is reduced to its class and status).
  */
 @Component
-@EnableConfigurationProperties(TelegramBotProperties.class)
 public class TelegramBotIdentity {
 
     private static final Logger LOG = LoggerFactory.getLogger(TelegramBotIdentity.class);
 
     private final TelegramBotProperties properties;
+    private final TelegramBotApi api;
 
-    public TelegramBotIdentity(TelegramBotProperties properties) {
+    public TelegramBotIdentity(TelegramBotProperties properties, TelegramBotApi api) {
         this.properties = properties;
+        this.api = api;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -45,23 +42,10 @@ public class TelegramBotIdentity {
 
     /** The bot's {@code username} from {@code getMe}, or empty when the call fails (never throws). */
     public Optional<String> fetchUsername() {
-        if (!properties.active()) {
-            return Optional.empty();
+        if (api.getMe() instanceof BotResult.Ok ok && ok.result() instanceof Map<?, ?> bot
+                && bot.get("username") instanceof String username) {
+            return Optional.of(username);
         }
-        try (HttpClient http = HttpClient.newBuilder().connectTimeout(properties.connectTimeout()).build()) {
-            final var factory = new JdkClientHttpRequestFactory(http);
-            factory.setReadTimeout(properties.readTimeout());
-            final Map<?, ?> body = RestClient.builder().requestFactory(factory).build().get()
-                    .uri(properties.apiBaseUrl() + "/bot" + properties.botToken() + "/getMe")
-                    .retrieve().body(Map.class);
-            if (body != null && Boolean.TRUE.equals(body.get("ok")) && body.get("result") instanceof Map<?, ?> bot
-                    && bot.get("username") instanceof String username) {
-                return Optional.of(username);
-            }
-            return Optional.empty();
-        } catch (RuntimeException e) {
-            LOG.debug("Telegram getMe error: {}", e.getClass().getSimpleName());
-            return Optional.empty();
-        }
+        return Optional.empty();
     }
 }
