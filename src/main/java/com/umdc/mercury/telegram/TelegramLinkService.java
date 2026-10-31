@@ -1,5 +1,6 @@
 package com.umdc.mercury.telegram;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,7 @@ public class TelegramLinkService {
         record Invalid() implements Redemption { }
     }
 
+    @Autowired
     public TelegramLinkService(TelegramLinkRepository links, TelegramLinkTokenRepository tokens,
                                TelegramBotProperties properties, TelegramBotIdentity bot) {
         this(links, tokens, properties, bot, Clock.systemUTC());
