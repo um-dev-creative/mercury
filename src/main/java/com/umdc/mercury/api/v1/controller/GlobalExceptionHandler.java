@@ -17,12 +17,14 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * Global exception handler that maps exceptions thrown by controllers to structured
@@ -206,6 +208,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .unprocessableContent()
                 .body(buildError(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Keeps the status a controller or service chose; without this the catch-all answers 500.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = Objects.nonNull(ex.getReason()) ? ex.getReason() : status.getReasonPhrase();
+        return ResponseEntity.status(status).body(buildError(status, message, request.getRequestURI()));
     }
 
     /**
