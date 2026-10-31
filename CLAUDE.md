@@ -72,6 +72,7 @@ SendEmailScheduler (fixed-rate)
 | `kafka/listener` | `@KafkaListener` entry points — `NotificationEventListener` (unified topic: SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email) |
 | `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract); email is handled separately by `EmailMessageConsumerService`, not by a `ChannelService` |
 | `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp/Push) |
+| `telegram` | Telegram channel for ZeroBound (links, updates, delivery through the Bot API), separate from the Kafka campaign path; see `docs/telegram-channel.md` |
 | `scheduler` | `SendEmailScheduler` drives `MessageProcessor` on configurable fixed rates |
 | `processor` | `MessageProcessor` — orchestrates the email send-and-persist lifecycle |
 | `client` | `BackboneClient` — Feign client for auth/session validation against the Backbone service |
