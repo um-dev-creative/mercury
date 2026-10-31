@@ -1,17 +1,42 @@
-Apache License
-Version 2.0, January 2004
-http://www.apache.org/licenses/
+Copyright (c) 2024-2026 UM Dev Creative. All Rights Reserved.
 
-Copyright 2026 PRX Dev Innova
+PROPRIETARY AND CONFIDENTIAL SOFTWARE
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+This software, its source code, documentation, and all associated files
+("Software") are the exclusive intellectual property of UM Dev Creative ("Owner").
 
-    http://www.apache.org/licenses/LICENSE-2.0
+RESTRICTIONS
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+1. No Permission Granted. No license, express or implied, by estoppel or
+   otherwise, is granted to any person or entity to use, copy, modify, merge,
+   publish, distribute, sublicense, sell, or otherwise exploit this Software
+   or any portion thereof without the prior written consent of the Owner.
+
+2. No Redistribution. Redistribution of this Software, in whole or in part,
+   in source or binary form, is strictly prohibited without the explicit
+   written authorization of the Owner.
+
+3. No Derivative Works. The creation of derivative works based on this
+   Software is prohibited without the prior written consent of the Owner.
+
+4. No Reverse Engineering. Decompilation, disassembly, or any attempt to
+   derive the source code of compiled components is prohibited.
+
+5. Confidentiality. Recipients of this Software who have been granted limited
+   access must treat it as confidential and must not disclose it to any third
+   party.
+
+DISCLAIMER OF WARRANTIES
+
+THIS SOFTWARE IS PROVIDED BY THE OWNER "AS IS" WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+IN NO EVENT SHALL THE OWNER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+CONTACT
+
+For licensing inquiries or written authorization requests, contact the Owner
+through the official project repository.

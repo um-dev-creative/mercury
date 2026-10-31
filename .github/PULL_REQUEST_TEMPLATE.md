@@ -14,7 +14,7 @@
 ## Mercury Layer Checklist
 
 - [ ] `*Api` interface updated with `@Operation` + `@ApiResponses` (not on controller)
-- [ ] Request/response records are Java `record`s in `com.prx.mercury.api.v1.to`
+- [ ] Request/response records are Java `record`s in `com.umdc.mercury.api.v1.to`
 - [ ] Service returns `CompletableFuture<T>` for write operations
 - [ ] Exception types used: `CampaignNotFoundException` (404), `ForbiddenException` (403), `IllegalStateException` (422)
 - [ ] SLF4J `LoggerFactory.getLogger()` only — no other logging

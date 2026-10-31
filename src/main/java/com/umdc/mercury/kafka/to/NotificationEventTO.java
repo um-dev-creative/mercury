@@ -1,8 +1,14 @@
 package com.umdc.mercury.kafka.to;
 
+import java.util.Map;
+
 /**
  * Unified message representation for various communication channels (WhatsApp, Telegram, Email, Push, SMS).
- * This record corresponds to the NotificationEvent Avro schema.
+ * This record corresponds to the NotificationEvent Avro schema; see docs/topic-general-message.md.
+ *
+ * <p>SMS, Telegram, WhatsApp and Push share one Kafka topic and are told apart by
+ * {@link Routing#channel()}. {@link Payload#context()} holds the template parameters and
+ * {@link Payload#delivery_instructions()} the channel-specific options.</p>
  */
 public record NotificationEventTO(
     Header header,
@@ -33,11 +39,7 @@ public record NotificationEventTO(
     ) {}
 
     public record Payload(
-        Context context,
-        DeliveryInstructions delivery_instructions
+        Map<String, Object> context,
+        Map<String, Object> delivery_instructions
     ) {}
-
-    public record Context() {}
-
-    public record DeliveryInstructions() {}
 }

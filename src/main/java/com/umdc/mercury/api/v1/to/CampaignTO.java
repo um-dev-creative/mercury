@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -74,6 +76,6 @@ public record CampaignTO(
     }
 
     public boolean isScheduled() {
-        return scheduledAt != null && scheduledAt.isAfter(LocalDateTime.now());
+        return scheduledAt != null && scheduledAt.isAfter(LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
     }
 }

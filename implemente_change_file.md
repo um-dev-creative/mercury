@@ -22,7 +22,7 @@ The JSON document stored in `campaigns.metadata` uses the following root keys:
   "channel": {
     "code": "email",
     "name": "Email",
-    "implementationClass": "com.prx.mercury.channel.EmailChannel",
+    "implementationClass": "com.umdc.mercury.channel.EmailChannel",
     "enabled": true
   },
   "template": {

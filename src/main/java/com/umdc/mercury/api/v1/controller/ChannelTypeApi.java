@@ -1,6 +1,7 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.to.ChannelTypeTO;
+import com.umdc.security.annotation.SkipSessionValidation;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Tag(name = "channel-types", description = "Channel Type Management API")
+@SkipSessionValidation("M2M-only endpoint — gated by ManagedClientSecurityConfig's backbone opaque-token chain instead")
 public interface ChannelTypeApi {
     @Operation(description = "Get all channel types", operationId = "getAllChannelTypes")
     @GetMapping()

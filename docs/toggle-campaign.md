@@ -19,7 +19,7 @@ Enable or disable (pause/resume) a campaign by id. Use this endpoint to temporar
 ### Implementation Notes
 * Path parameter `id` is required and must be a UUID.
 * Query parameter `enabled` is required and is a boolean — `true` to enable/resume, `false` to disable/pause.
-* Header `session-token` is required; the controller extracts the user id via `JwtUtil.getUidFromToken` and performs a basic ownership permission check: only the campaign owner (`createdBy`) may toggle. A `ForbiddenException` (403) is thrown otherwise.
+* Header `session-token` is required; the controller resolves the user id via `SessionJwtServiceImpl.getVerifiedUid` (verifies the HS256 signature and expiration before trusting the `uid` claim — a token that fails verification returns `401` via `InvalidSessionTokenException`; see `docs/architecture/session-token-authorization.md`) and performs a basic ownership permission check: only the campaign owner (`createdBy`) may toggle. A `ForbiddenException` (403) is thrown otherwise.
 * This implementation persists the `enabled` flag and will not attempt to cancel already dispatched/in-flight messages. Downstream dispatch/scheduler components should check `campaign.enabled` before publishing messages — toggling to `false` prevents future dispatches but does not interrupt messages already sent.
 * Enabling a campaign performs a basic business validation: campaigns must have an associated template to be enabled. Violations return 422 Unprocessable Entity.
 * The action is logged at INFO with campaign id, requester id, previous state and new state. An audit event TODO is present (implement audit emission as required by your compliance needs).

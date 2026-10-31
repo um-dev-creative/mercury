@@ -13,14 +13,21 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.service.EmailService;
+import com.umdc.mercury.security.MachineTokenInterceptor;
+import jakarta.validation.Valid;
+import com.umdc.mercury.api.v1.to.MailStatusResponse;
 import com.umdc.mercury.api.v1.to.SendEmailRequest;
 import com.umdc.mercury.api.v1.to.SendEmailResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Mail controller that handles HTTP requests related to sending emails.
@@ -46,17 +53,17 @@ public class MailController implements MailApi {
         this.emailService = emailService;
     }
 
-    /**
-     * Send an email.
-     * This method handles POST requests to send an email. It consumes and produces JSON.
-     * The request body is expected to be a {@link SendEmailRequest} containing email details.
-     *
-     * @param requestMail the request document containing the email details
-     * @return a {@link ResponseEntity} with the result of the email sending operation
-     */
     @Override
-    public ResponseEntity<SendEmailResponse> send(@RequestBody SendEmailRequest requestMail) {
-        return emailService.sendMail(Objects.requireNonNull(requestMail));
+    public ResponseEntity<SendEmailResponse> send(@Valid @RequestBody SendEmailRequest requestMail,
+                                                  @RequestHeader(name = "Idempotency-Key", required = false) String idempotencyKey,
+                                                  @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
+        return emailService.sendMail(Objects.requireNonNull(requestMail), caller, idempotencyKey);
+    }
+
+    @Override
+    public ResponseEntity<MailStatusResponse> status(@PathVariable("id") UUID id,
+                                                     @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
+        return emailService.mailStatus(id, caller);
     }
 
 }

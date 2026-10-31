@@ -15,7 +15,7 @@ mvn -Pbenchmark clean test          # runs JMH benchmarks
 ```
 
 ### Kafka local dev
-`PRX_KAFKA_AUTO_STARTUP=false` is the default in `bootstrap.yml`. This prevents listener containers from crashing when no Kafka broker is available locally. Set `PRX_KAFKA_AUTO_STARTUP=true` in deployed environments.
+`UMDC_KAFKA_AUTO_STARTUP=false` is the default in `bootstrap.yml`. This prevents listener containers from crashing when no Kafka broker is available locally. Set `UMDC_KAFKA_AUTO_STARTUP=true` in deployed environments.
 
 Topics defined in `bootstrap.yml`:
 - `email-topic` → `EmailChannelService`
@@ -30,8 +30,8 @@ DDL strategy is `none`. Schema changes require SQL scripts in `src/main/resource
 
 ## 2. Naming Conventions
 
-- Environment variables: `UPPER_SNAKE_CASE` (e.g., `PRX_KAFKA_AUTO_STARTUP`, `APP_TOKEN_SECRET`)
-- Scheduler properties: `prx.scheduler.<task>.fixed-rate` in `bootstrap.yml`
+- Environment variables: `UPPER_SNAKE_CASE` (e.g., `UMDC_KAFKA_AUTO_STARTUP`, `APP_TOKEN_SECRET`)
+- Scheduler properties: `umdc.scheduler.<task>.fixed-rate` in `bootstrap.yml`
 - SQL migration files: `src/main/resources/db/<version>__<description>.sql`
 
 ## 3. Error Handling
@@ -39,7 +39,7 @@ DDL strategy is `none`. Schema changes require SQL scripts in `src/main/resource
 - Build failures from missing `~/.m2/settings.xml` credentials → add `https://repo.repsy.io/mvn/lmata/prx` repo credentials
 - PMD failure at test phase → fix violations in `ruleset.xml` active rules
 - JaCoCo failure at verify → add tests to reach 70% line / 50% branch
-- Kafka listener startup failure → set `PRX_KAFKA_AUTO_STARTUP=false` for local dev
+- Kafka listener startup failure → set `UMDC_KAFKA_AUTO_STARTUP=false` for local dev
 
 ## 4. Key Files
 
@@ -55,7 +55,7 @@ DDL strategy is `none`. Schema changes require SQL scripts in `src/main/resource
 ## 5. Constraints
 
 - Private PRX dependencies (`prx-commons`, `commons-services`, `security-oauth`) require `~/.m2/settings.xml` with `https://repo.repsy.io/mvn/lmata/prx` credentials
-- `PRX_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
+- `UMDC_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
 - Version bumps in `pom.xml` require `CHANGELOG` update
 - New env vars must be added to both `environment_variables.md` and `default.env`
 
@@ -65,7 +65,7 @@ DDL strategy is `none`. Schema changes require SQL scripts in `src/main/resource
 - [ ] `mvn clean verify` passes (PMD + JaCoCo)
 - [ ] New env vars in `environment_variables.md` and `default.env`
 - [ ] Kafka topics referenced in `bootstrap.yml`, not hardcoded
-- [ ] `PRX_KAFKA_AUTO_STARTUP=false` default preserved in `bootstrap.yml`
+- [ ] `UMDC_KAFKA_AUTO_STARTUP=false` default preserved in `bootstrap.yml`
 - [ ] SQL migration script created for schema changes
 - [ ] `CHANGELOG` updated for release
 - [ ] Docker image builds: `docker build -t mercury:latest .`

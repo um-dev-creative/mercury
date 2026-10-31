@@ -5,13 +5,13 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.1.0</version>
+        <version>4.1.1</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
     <groupId>com.umdc</groupId>
     <artifactId>mercury</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.3</version>
     <name>Mercury</name>
     <description>Messaging tool</description>
     <developers>
@@ -20,59 +20,65 @@
             <name>Luis Antonio Mata</name>
             <email>luis.antonio.mata@gmail.com</email>
             <url>www.umdc.com</url>
-            <organization>PRX Dev Innova</organization>
+            <organization>UM Dev Creative</organization>
             <organizationUrl>www.umdc.com</organizationUrl>
         </developer>
     </developers>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <java.version>21</java.version>
+        <java.version>25</java.version>
         <!--        UMDC Commons-->
-        <com.umdc.commons.version>0.0.1</com.umdc.commons.version>
-        <com.umdc.commons-services.version>0.0.1</com.umdc.commons-services.version>
-        <com.umdc.security-oauth.version>0.0.1</com.umdc.security-oauth.version>
-        <com.umdc.persistence.version>0.0.1</com.umdc.persistence.version>
+        <com.umdc.commons.version>0.0.3</com.umdc.commons.version>
+        <com.umdc.commons-services.version>0.0.3</com.umdc.commons-services.version>
+        <com.umdc.security-oauth.version>0.0.3</com.umdc.security-oauth.version>
+        <com.umdc.persistence.version>0.0.3</com.umdc.persistence.version>
         <!--        MAVEN-->
         <!--        Messaging tool-->
-        <telegrambots.version>9.3.0</telegrambots.version>
+        <telegrambots.version>10.3.0</telegrambots.version>
         <!--        MAVEN-->
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
         <maven.resource.plugin.version>3.3.1</maven.resource.plugin.version>
-        <maven.plugin.javadoc.version>3.6.3</maven.plugin.javadoc.version>
-        <maven.plugin.jacoco.version>0.8.14</maven.plugin.jacoco.version>
+        <maven.plugin.javadoc.version>3.12.0</maven.plugin.javadoc.version>
+        <maven.plugin.jacoco.version>0.8.15</maven.plugin.jacoco.version>
         <maven.plugin.pmd.version>3.28.0</maven.plugin.pmd.version>
         <maven.plugin.jxr.version>3.0.0</maven.plugin.jxr.version>
-        <maven.surefire.version>3.5.2</maven.surefire.version>
+        <maven.surefire.version>3.5.6</maven.surefire.version>
 
         <!--        OPEN API -->
-        <springdoc.version>2.6.0</springdoc.version>
+        <springdoc.version>3.1.0</springdoc.version>
         <!--        SPRING -->
-        <spring-boot.version>4.1.0</spring-boot.version>
-        <spring-cloud.version>2025.1.2</spring-cloud.version>
+        <spring-boot.version>4.1.1</spring-boot.version>
+        <spring-cloud.version>2025.1.3</spring-cloud.version>
 
         <!-- Centralized versions for previously hardcoded dependency/plugin versions -->
-        <postgresql.version>42.7.7</postgresql.version>
-        <google.gson.version>2.10.1</google.gson.version>
-        <org.json.version>20250517</org.json.version>
+        <postgresql.version>42.7.14</postgresql.version>
+        <google.gson.version>2.14.0</google.gson.version>
+        <org.json.version>20260814</org.json.version>
         <mapstruct.version>1.6.3</mapstruct.version>
-        <jwt.version>0.12.6</jwt.version>
-        <rewrite.plugin.version>5.42.0</rewrite.plugin.version>
-        <rewrite.recipe.version>5.21.0</rewrite.recipe.version>
-        <asm.version>9.7</asm.version>
+        <jwt.version>0.13.0</jwt.version>
+        <commons-lang3.version>3.21.0</commons-lang3.version>
+        <plexus.utils.version>4.1.0</plexus.utils.version>
+        <rewrite.plugin.version>6.46.1</rewrite.plugin.version>
+        <rewrite.recipe.version>6.37.1</rewrite.recipe.version>
+        <!-- 9.7 does not parse Java 25 (class file 69) bytecode; 9.10.1 adds official Java 25 support -->
+        <asm.version>9.10.1</asm.version>
         <poi.version>5.5.1</poi.version>
         <!-- Transitive versions pinned above what telegrambots-webhook (via javalin/ssl-plugin) resolves,
              to close known CVEs: CVE-2025-5115 (Jetty HTTP/2 MadeYouReset) and CVE-2026-5588 (BouncyCastle) -->
         <jetty-http2.version>11.0.26</jetty-http2.version>
         <bouncycastle.version>1.86</bouncycastle.version>
+        <!-- CVE-2020-13956: force the httpclient pulled in transitively by
+             spring-cloud-starter-netflix-eureka-client -> eureka-client above the fixed 4.5.13 -->
+        <httpclient.version>4.5.14</httpclient.version>
 
         <!--        Test Dependencies-->
         <!--        JUnit 5.x-->
-        <junit.jupiter.version>5.14.1</junit.jupiter.version>
+        <junit.jupiter.version>6.1.3</junit.jupiter.version>
         <!--        Mockito-->
-        <mockito.version>5.21.0</mockito.version>
+        <mockito.version>5.24.0</mockito.version>
 
         <!-- JMH Benchmarks -->
         <jmh.version>1.37</jmh.version>
@@ -122,16 +128,20 @@
             <artifactId>spring-boot-starter-jersey</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-bootstrap</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-freemarker</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
@@ -144,6 +154,21 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <!-- Hibernate 7's bytecode provider (needed to generate HibernateProxy instances for
+             FetchType.LAZY @ManyToOne/@OneToOne associations, e.g. CampaignEntity.channelType,
+             TemplateEntity.application) is no longer pulled in transitively by hibernate-core.
+             Without it explicitly present at compile/runtime scope, the only byte-buddy on the
+             classpath is mockito-core's test-scope copy, which spring-boot:repackage strips from
+             the packaged jar — Hibernate then falls back to bytecode.provider=none and throws
+             "Generation of HibernateProxy instances at runtime is not allowed" the first time any
+             lazy association needs a proxy (e.g. GET /api/v1/campaigns/{id}). Version is managed
+             by spring-boot-dependencies (same version mockito-core already resolves to).
+             See docs/architecture/graalvm-native-image.md for related but distinct native-image
+             bytecode-provider considerations. -->
+        <dependency>
+            <groupId>net.bytebuddy</groupId>
+            <artifactId>byte-buddy</artifactId>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -162,22 +187,7 @@
         </dependency>
         <dependency>
             <groupId>org.telegram</groupId>
-            <artifactId>telegrambots-longpolling</artifactId>
-            <version>${telegrambots.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.telegram</groupId>
-            <artifactId>telegrambots-webhook</artifactId>
-            <version>${telegrambots.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.telegram</groupId>
             <artifactId>telegrambots-client</artifactId>
-            <version>${telegrambots.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.telegram</groupId>
-            <artifactId>telegrambots-extensions</artifactId>
             <version>${telegrambots.version}</version>
         </dependency>
         <!--        PRX Dependencies-->
@@ -242,6 +252,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- @WebMvcTest slice + spring-security-test: exercise the real SecurityFilterChain beans -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -383,11 +404,40 @@
                 <artifactId>bcpkix-jdk18on</artifactId>
                 <version>${bouncycastle.version}</version>
             </dependency>
+            <!-- CVE-2020-13956: force httpclient pulled in transitively by
+                 spring-cloud-starter-netflix-eureka-client -> eureka-client above the fixed 4.5.13 -->
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${httpclient.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
     <build>
         <finalName>${project.artifactId}</finalName>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <!-- com.umdc.security's KeystoreUtil (closed-source security-oauth dependency) loads
+                 the umdc.security.keystore/truststore "location" properties via a raw
+                 ClassLoader.getResourceAsStream(location) call - it has no notion of the "file:"
+                 prefix Spring Resources use, so a location like "file:certs/mercury/x.jks" always
+                 resolves to null there, which KeyStore.load(null, pwd) silently turns into an
+                 EMPTY keystore (no exception) rather than failing loudly. That surfaced as
+                 "InvalidAlgorithmParameterException: the trustAnchors parameter must be non-empty"
+                 on the OAuth2 resource server's JWK fetch, several layers away from the real cause.
+                 Copying certs/mercury/ onto the classpath - alongside removing the "file:" prefix
+                 from those specific location values in application.yml - lets that raw
+                 classloader lookup actually find the files. Silently a no-op (Maven skips a
+                 missing <directory>, no failure) on any checkout/build stage where certs/mercury/
+                 isn't populated yet. -->
+            <resource>
+                <directory>certs/mercury</directory>
+                <targetPath>certs/mercury</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <plugin>
                 <groupId>org.openrewrite.maven</groupId>
@@ -554,6 +604,21 @@
                         <arg>-Xlint:deprecation</arg>
                     </compilerArgs>
                     <release>${java.version}</release>
+                    <!-- javac stopped auto-discovering annotation processors on the compile
+                         classpath (JDK-8321319); MapStruct/Spring Boot's config-metadata
+                         processor must be declared explicitly or they silently stop running. -->
+                    <annotationProcessorPathsUseDepMgmt>true</annotationProcessorPathsUseDepMgmt>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${mapstruct.version}</version>
+                        </path>
+                        <path>
+                            <groupId>org.springframework.boot</groupId>
+                            <artifactId>spring-boot-configuration-processor</artifactId>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
         </plugins>
@@ -590,6 +655,50 @@
 
     <profiles>
         <profile>
+            <!-- GraalVM native-image build (MER-5). Activates the native/native-build-tools
+                 wiring already pluginManagement'd by spring-boot-starter-parent (process-aot
+                 plus native-maven-plugin, native-build-tools 1.1.1) and adds the no-fallback
+                 build arg so the build fails loudly instead of silently producing a
+                 JVM-fallback "native" jar. -->
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <configuration>
+                            <buildArgs>
+                                <buildArg>--no-fallback</buildArg>
+                            </buildArgs>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <!-- Mockito's default inline mock maker does not work under native-image test
+                 execution (mockito/mockito#2435) and this project's entire unit-test suite
+                 uses it — so nativeTest is wired for completeness (per Spring Boot convention)
+                 but is not the correctness gate; see docs/architecture/graalvm-native-image.md. -->
+            <id>nativeTest</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>benchmark</id>
             <build>
                 <plugins>
@@ -625,7 +734,7 @@
                                     <goal>java</goal>
                                 </goals>
                                 <configuration>
-                                    <mainClass>com.prx.mercury.benchmark.BenchmarkRunner</mainClass>
+                                    <mainClass>com.umdc.mercury.benchmark.BenchmarkRunner</mainClass>
                                     <classpathScope>test</classpathScope>
                                     <arguments>
                                         <argument>-wi</argument><argument>2</argument>

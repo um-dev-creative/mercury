@@ -12,7 +12,7 @@ import java.util.UUID;
 public class TemplateDefinedEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
@@ -26,7 +26,7 @@ public class TemplateDefinedEntity {
     private UUID userId;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "application_id", nullable = false)
     private ApplicationEntity application;
 
@@ -47,7 +47,7 @@ public class TemplateDefinedEntity {
     private Boolean isActive;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "frequency_type", nullable = false)
     private FrequencyTypeEntity frequencyType;
 

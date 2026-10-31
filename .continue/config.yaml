@@ -47,10 +47,10 @@ tabAutocomplete:
 
 rules:
   - "Use SLF4J LoggerFactory.getLogger() for all logging. Never use System.out.println, java.util.logging, or Log4j directly."
-  - "All DTOs are Java records in com.prx.mercury.api.v1.to. Use *Request, *Response, *TO suffixes with Bean Validation annotations (@NotNull, @NotBlank, @Valid, @NotEmpty)."
+  - "All DTOs are Java records in com.umdc.mercury.api.v1.to. Use *Request, *Response, *TO suffixes with Bean Validation annotations (@NotNull, @NotBlank, @Valid, @NotEmpty)."
   - "OpenAPI annotations (@Operation, @ApiResponse, @Tag) belong on *Api interfaces only — never on *Controller classes."
   - "Scheduler fixedRateString must use ${prx.scheduler.*} property placeholders. Never hardcode millisecond values."
-  - "MapStruct mappers (in com.prx.mercury.mapper) are Spring beans. Never instantiate with new. Always inject."
+  - "MapStruct mappers (in com.umdc.mercury.mapper) are Spring beans. Never instantiate with new. Always inject."
   - "Every class must have at least one explicit constructor (PMD AtLeastOneConstructor rule)."
   - "New ChannelService implementations must implement all three methods: send, updateStatus, and findByDeliveryStatus."
   - "DDL strategy is none. Schema changes require SQL migration scripts placed in src/main/resources/db/."
@@ -83,7 +83,7 @@ slashCommands:
       Follow these steps in order:
       1. Read CampaignApi.java and CampaignServiceImpl.java as reference
       2. Create/update the *Api interface with full @Operation + @ApiResponses (on interface only)
-      3. Create the request record in com.prx.mercury.api.v1.to with Bean Validation
+      3. Create the request record in com.umdc.mercury.api.v1.to with Bean Validation
       4. Create/update the *Service interface (CompletableFuture for writes)
       5. Implement *ServiceImpl with constructor injection, SLF4J logger, correct exception types
       6. Update *Controller to delegate to service (no business logic in controller)
@@ -121,7 +121,7 @@ slashCommands:
     prompt: |
       Review the current code changes for:
       1. OpenAPI annotations on *Api interfaces only (not controllers)
-      2. DTOs as records in com.prx.mercury.api.v1.to
+      2. DTOs as records in com.umdc.mercury.api.v1.to
       3. PMD compliance: constructor, no unused imports, no empty catches
       4. Exception types: CampaignNotFoundException→404, ForbiddenException→403, IllegalStateException→422
       5. No hardcoded Kafka topics, scheduler rates, or secrets

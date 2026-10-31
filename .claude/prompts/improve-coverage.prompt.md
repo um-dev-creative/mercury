@@ -8,7 +8,7 @@ tools: [Read, Write, Bash]
 
 ## Input Variables
 
-- `${coverageTarget}` — package or class to improve (e.g., `com.prx.mercury.processor` or `ALL`)
+- `${coverageTarget}` — package or class to improve (e.g., `com.umdc.mercury.processor` or `ALL`)
 - `${currentLineCoverage}` — current line coverage percentage (e.g., `62%`)
 - `${currentBranchCoverage}` — current branch coverage percentage (e.g., `44%`)
 
@@ -21,7 +21,7 @@ tools: [Read, Write, Bash]
    Open `target/site/jacoco/index.html` and identify packages/classes below threshold.
 
 2. **Find the lowest-coverage classes** in the target package:
-   - Focus on: `com.prx.mercury.api.v1.service`, `com.prx.mercury.processor`, `com.prx.mercury.kafka`, `com.prx.mercury.mapper`
+   - Focus on: `com.umdc.mercury.api.v1.service`, `com.umdc.mercury.processor`, `com.umdc.mercury.kafka`, `com.umdc.mercury.mapper`
    - Priority: classes with 0% coverage first, then classes below 50%
 
 3. **Read each low-coverage class** to identify untested branches:
@@ -32,7 +32,7 @@ tools: [Read, Write, Bash]
    - Early return conditions
 
 4. **Find or create the test class**:
-   - Existing: `src/test/java/com/prx/mercury/<package>/<Class>Test.java`
+   - Existing: `src/test/java/com/umdc/mercury/<package>/<Class>Test.java`
    - New: create following the pattern from `CampaignServiceImplTest.java`
 
 5. **Add targeted tests** for each uncovered branch. Focus on:
@@ -58,7 +58,7 @@ tools: [Read, Write, Bash]
 - Do not add trivial tests (testing getters/setters on records) to inflate coverage — focus on real branch logic
 - Tests must assert meaningful results, not just call methods
 - Do not modify production code to remove branches just to make coverage easier
-- JMH benchmark classes in `src/test/java/com/prx/mercury/benchmark/` do NOT count toward coverage
+- JMH benchmark classes in `src/test/java/com/umdc/mercury/benchmark/` do NOT count toward coverage
 
 ## Output Format
 

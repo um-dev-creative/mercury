@@ -3,22 +3,21 @@ package com.umdc.mercury.api.v1.service;
 import com.umdc.mercury.api.v1.to.EmailContact;
 import com.umdc.mercury.api.v1.to.RecipientTO;
 import com.umdc.mercury.constant.ChannelType;
-import com.umdc.mercury.constant.DeliveryStatusType;
-import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
-import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
-import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
-import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
+import com.umdc.mercury.kafka.to.NotificationEventTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -34,29 +33,27 @@ public class CampaignMessageFactory {
     private static final Logger logger = LoggerFactory.getLogger(CampaignMessageFactory.class);
     private static final String USER_ID_KEY = "userId";
 
-    /** Pre-computed Kafka topic names keyed by channel type – zero allocation per call. */
-    private static final Map<ChannelType, String> TOPIC_CACHE;
+    private static final String EMAIL_TOPIC = "mercury-email-messages";
+    private static final String DEFAULT_MEDIA_TYPE = "NONE";
+    private static final List<String> PUSH_INSTRUCTIONS =
+            List.of("title", "icon", "click_action", "priority", "badge", "sound");
 
-    static {
-        TOPIC_CACHE = new EnumMap<>(ChannelType.class);
-        for (ChannelType type : ChannelType.values()) {
-            TOPIC_CACHE.put(type, "mercury-" + type.getCode() + "-messages");
-        }
-    }
+    /** Topic shared by SMS, Telegram, WhatsApp and Push; consumers split them by routing.channel. */
+    private final String unifiedTopic;
 
-    public CampaignMessageFactory() {
-        //default constructor
+    public CampaignMessageFactory(@Value("${umdc.consumer.topics.notification}") String unifiedTopic) {
+        this.unifiedTopic = unifiedTopic;
     }
 
     /**
      * Returns the Kafka topic name for the given channel code.
-     * Topic names are pre-computed at class-load time (zero allocation per call).
+     * Email keeps its own topic; every other channel publishes to the unified one.
      *
      * @param channelCode the channel code (e.g. "email", "sms")
      * @return fully-qualified topic name
      */
     public String topicFor(String channelCode) {
-        return TOPIC_CACHE.get(ChannelType.fromCode(channelCode));
+        return ChannelType.fromCode(channelCode) == ChannelType.EMAIL ? EMAIL_TOPIC : unifiedTopic;
     }
 
     /**
@@ -78,15 +75,11 @@ public class CampaignMessageFactory {
             UUID templateId) {
 
         ChannelType type = ChannelType.fromCode(channelCode);
-        DeliveryStatusType initialStatus = DeliveryStatusType.OPENED;
-        LocalDateTime now = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId()));
 
         return switch (type) {
-            case EMAIL    -> createEmailMessage(recipient, params, templateId, now);
-            case SMS      -> createSmsMessage(campaignId, recipient, params, templateId, initialStatus, now);
-            case TELEGRAM -> createTelegramMessage(campaignId, recipient, params, templateId, initialStatus, now);
-            case WHATSAPP -> createWhatsAppMessage(campaignId, recipient, params, templateId, now);
-            case PUSH     -> createPushNotificationMessage(campaignId, recipient, params, templateId, now);
+            case EMAIL -> createEmailMessage(recipient, params, templateId,
+                    LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
+            case SMS, TELEGRAM, WHATSAPP, PUSH -> createNotificationEvent(type, campaignId, recipient, params, templateId);
         };
     }
 
@@ -120,110 +113,50 @@ public class CampaignMessageFactory {
         );
     }
 
-    private SmsMessageDocument createSmsMessage(
+    private NotificationEventTO createNotificationEvent(
+            ChannelType type,
             UUID campaignId,
             RecipientTO recipient,
             Map<String, Object> params,
-            UUID templateId,
-            DeliveryStatusType initialStatus,
-            LocalDateTime now) {
+            UUID templateId) {
 
-        SmsMessageDocument sms = new SmsMessageDocument();
-        sms.setCampaignId(campaignId);
-        sms.setChannelType(ChannelType.SMS);
-        sms.setDeliveryStatus(initialStatus);
-        sms.setSendDate(now);
-        sms.setParams(params);
-        sms.setTemplateDefinedId(templateId);
-        sms.setUserId(null);
-        sms.setPhoneNumber(recipient.identifier());
-        sms.setMessage(stringParam(params, CampaignService.MESSAGE_KEY));
-        sms.setSenderId(stringParam(params, CampaignService.SENDER_ID_KEY));
-        return sms;
+        String messageId = UUID.randomUUID().toString();
+        UUID userId = resolveUserId(recipient);
+
+        return new NotificationEventTO(
+                new NotificationEventTO.Header(
+                        campaignId.toString(), messageId, Instant.now().toString(), messageId),
+                new NotificationEventTO.Routing(
+                        type.name(), userId != null ? userId.toString() : null, recipient.identifier()),
+                new NotificationEventTO.Content(
+                        templateId.toString(),
+                        stringParam(params, "template_name"),
+                        stringParam(params, "template_language"),
+                        stringParam(params, CampaignService.MESSAGE_KEY),
+                        stringParam(params, "media_url"),
+                        stringParam(params, "media_type", DEFAULT_MEDIA_TYPE)),
+                new NotificationEventTO.Payload(
+                        params != null ? params : Map.of(),
+                        deliveryInstructions(type, params)));
     }
 
-    private TelegramMessageDocument createTelegramMessage(
-            UUID campaignId,
-            RecipientTO recipient,
-            Map<String, Object> params,
-            UUID templateId,
-            DeliveryStatusType initialStatus,
-            LocalDateTime now) {
-
-        TelegramMessageDocument tg = new TelegramMessageDocument();
-        tg.setCampaignId(campaignId);
-        tg.setChannelType(ChannelType.TELEGRAM);
-        tg.setDeliveryStatus(initialStatus);
-        tg.setSendDate(now);
-        tg.setParams(params);
-        tg.setTemplateDefinedId(templateId);
-
-        try {
-            tg.setChatId(Long.parseLong(recipient.identifier()));
-        } catch (NumberFormatException ex) {
-            logger.debug("Invalid chat id '{}' for recipient, setting null", recipient.identifier(), ex);
-            tg.setChatId(null);
+    /** The options {@code NotificationEventConsumerServiceImpl} reads back for each channel. */
+    private static Map<String, Object> deliveryInstructions(ChannelType type, Map<String, Object> params) {
+        var instructions = new HashMap<String, Object>();
+        switch (type) {
+            case SMS -> instructions.put("sender_id", stringParam(params, CampaignService.SENDER_ID_KEY));
+            case TELEGRAM -> instructions.put("parse_mode", stringParam(params, CampaignService.PARSE_MODE_KEY));
+            case WHATSAPP -> instructions.put("message_type", stringParam(params, "message_type", "text"));
+            case PUSH -> {
+                instructions.put("platform", stringParam(params, "platform", "web"));
+                for (String key : PUSH_INSTRUCTIONS) {
+                    instructions.put(key, params != null ? params.get(key) : null);
+                }
+            }
+            case EMAIL -> throw new IllegalArgumentException("Email has its own message type");
         }
-
-        tg.setMessage(stringParam(params, CampaignService.MESSAGE_KEY));
-        tg.setParseMode(stringParam(params, CampaignService.PARSE_MODE_KEY));
-        return tg;
-    }
-
-    private WhatsAppMessageTO createWhatsAppMessage(
-            UUID campaignId,
-            RecipientTO recipient,
-            Map<String, Object> params,
-            UUID templateId,
-            LocalDateTime now) {
-
-        String phoneNumber      = recipient.identifier();
-        String messageType      = stringParam(params, "message_type", "text");
-        String content          = stringParam(params, CampaignService.MESSAGE_KEY);
-        String templateName     = stringParam(params, "template_name");
-        String templateLanguage = stringParam(params, "template_language");
-
-        return new WhatsAppMessageTO(
-                templateId,
-                resolveUserId(recipient),
-                phoneNumber,
-                messageType,
-                content,
-                templateName,
-                templateLanguage,
-                null,   // template_components
-                null,   // media_url
-                null,   // media_type
-                now,
-                params,
-                campaignId
-        );
-    }
-
-    private PushNotificationMessageTO createPushNotificationMessage(
-            UUID campaignId,
-            RecipientTO recipient,
-            Map<String, Object> params,
-            UUID templateId,
-            LocalDateTime now) {
-
-        String deviceToken = recipient.identifier();
-        String platform    = stringParam(params, "platform", "web");
-        String title       = stringParam(params, "title");
-        String body        = stringParam(params, CampaignService.MESSAGE_KEY);
-
-        return new PushNotificationMessageTO(
-                templateId,
-                resolveUserId(recipient),
-                deviceToken,
-                platform,
-                title,
-                body,
-                null, null, null, null, null, null,
-                now,
-                params,
-                campaignId
-        );
+        instructions.values().removeIf(Objects::isNull);
+        return instructions;
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

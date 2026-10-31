@@ -12,7 +12,7 @@ import java.util.UUID;
 @Table(name = "channel_type", schema = "mercury")
 public class ChannelTypeEntity {
     @Id
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", nullable = false)
     private UUID id;

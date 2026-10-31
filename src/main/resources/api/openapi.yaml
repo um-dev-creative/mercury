@@ -6,6 +6,67 @@ info:
 servers:
   - url: /
 paths:
+  /api/v1/auth/token:
+    post:
+      tags:
+        - auth
+      summary: Generate a session token (M2M-only, no uid)
+      description: >-
+        Implemented by AuthTokenController. Checks the request body's alias/password
+        against Mercury's registered login-client registry (umdc.mercury.login-clients)
+        and mints a Mercury-signed session-token. The resulting token carries no uid
+        claim — it only authenticates the calling backend service, not an end user — so
+        it's only useful against pure M2M endpoints (/api/v1/mail,
+        /api/v1/verification-code). User-scoped endpoints (Template Management,
+        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign) do NOT
+        use this token: the caller sends the end user's backbone-rest session token
+        directly in the session-token header.
+      operationId: accessToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Successfully generated session token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Blank alias.
+        '401':
+          description: Alias/password not in the registered login-client registry.
+        '429':
+          description: Too many failed attempts for this alias and address; see the Retry-After header.
+        '406':
+          description: Token generation unexpectedly produced a blank token.
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Revoke the presented session token
+      description: >-
+        Implemented by AuthLogoutController. Adds the token's jti to Mercury's denylist until
+        the token's own expiry, so every Mercury endpoint rejects it from now on. It does not
+        log the user out of backbone-rest: do that there as well to invalidate it everywhere.
+      operationId: logout
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          description: The session token to revoke.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Token revoked.
+        '401':
+          description: Missing, expired, tampered, already revoked or jti-less token.
+
   /api/v1/campaigns:
     post:
       tags:
@@ -13,6 +74,13 @@ paths:
       summary: Create a new campaign
       description: Creates a new messaging campaign and publishes messages to recipients via the specified channel.
       operationId: createCampaign
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -28,6 +96,10 @@ paths:
                 $ref: '#/components/schemas/CreateCampaignResponse'
         '400':
           description: Invalid request payload.
+        '401':
+          description: Missing, expired, tampered or revoked session-token.
+        '403':
+          description: The request userId does not match the session-token user.
         '422':
           description: Channel type not found or disabled.
 
@@ -71,7 +143,7 @@ paths:
       tags:
         - campaigns
       summary: Get campaign by ID
-      description: Retrieves the full details of a campaign identified by its UUID.
+      description: Retrieves the full details of a campaign identified by its UUID. Only the campaign's owner (the session-token user) may read it.
       operationId: getCampaignById
       parameters:
         - name: id
@@ -80,6 +152,12 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
       responses:
         '200':
           description: Campaign found and returned.
@@ -205,9 +283,21 @@ paths:
     post:
       tags:
         - mail
-      summary: Send an email
-      description: Send an email.
+      summary: Accept an email for delivery
+      description: |
+        Backend callers only: the `session-token` must be one Mercury minted for a registered login client
+        (`POST /api/v1/auth/token`); a user session issued by backbone-rest is refused with 401.
+        The mail is queued (`OPENED`) and sent by the scheduler. With an `Idempotency-Key` (scoped to the caller)
+        the same key and request is accepted once: a repeat answers the first message with the
+        `Idempotent-Replayed: true` header, and the same key with a different request is 422.
       operationId: sendEmail
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Chosen by the caller; makes retries safe.
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -216,11 +306,47 @@ paths:
               $ref: '#/components/schemas/SendEmailRequest'
       responses:
         '200':
-          description: Email sent successfully.
+          description: Accepted (or the replay of an earlier request with the same Idempotency-Key).
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SendEmailResponse'
+        '400':
+          description: Invalid request or unknown template.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/mail/{id}:
+    get:
+      tags:
+        - mail
+      summary: Delivery state of a mail this caller submitted
+      operationId: getMailStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+        '404':
+          description: Unknown id, another caller's mail, or past retention.
 
   /api/v1/verification-code:
     post:
@@ -444,8 +570,388 @@ paths:
         '422':
           description: Business rule violation.
 
+  /api/v1/templates:
+    post:
+      tags:
+        - templates
+      summary: Create a new template
+      description: Creates a new reusable base template, always persisted as active.
+      operationId: createTemplate
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive application, template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+    get:
+      tags:
+        - templates
+      summary: Search templates
+      description: Searches templates within an application the caller may access. Always scoped by applicationId; defaults to active-only results; bounded and stably paginated/sorted.
+      operationId: searchTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: templateTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: severityTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            maximum: 100
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            example: createdAt,desc
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated search results returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateSearchResponse'
+        '400':
+          description: Missing applicationId, invalid filter/UUID value, or out-of-bounds paging/sort parameter.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+
+  /api/v1/templates/{id}:
+    get:
+      tags:
+        - templates
+      summary: Get template by ID
+      description: Retrieves the full details of an active template identified by its UUID. Unknown and inactive ids are both reported as not found.
+      operationId: getTemplateById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid UUID format supplied for id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    put:
+      tags:
+        - templates
+      summary: Update template by ID
+      description: Updates mutable metadata of an active template identified by UUID. Fields omitted from the request remain unchanged; the owning application is immutable.
+      operationId: updateTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    delete:
+      tags:
+        - templates
+      summary: Deactivate template by ID
+      description: Soft-deletes a template (sets active=false); the row and all dependent references are retained. Idempotent for an already-inactive template.
+      operationId: deleteTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Template deactivated successfully (or was already inactive).
+        '400':
+          description: Malformed id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template with the given id does not exist.
+        '500':
+          description: Unexpected internal error.
+
+  /api/v1/telegram/links:
+    post:
+      tags:
+        - telegram
+      summary: Deep link to connect a user's Telegram chat
+      description: |
+        Backend callers only (mercury-minted M2M token). The caller's login alias is the application. Returns
+        `https://t.me/<bot>?start=<token>`: single use, valid 10 minutes; earlier tokens of the user stop working.
+      operationId: createTelegramLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLinkRequest'
+      responses:
+        '201':
+          description: The link and when it expires.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkResponse'
+        '400':
+          description: Invalid user or unsupported language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '503':
+          description: The Telegram channel is off or the bot is unreachable.
+
+  /api/v1/telegram/links/{userId}:
+    get:
+      tags:
+        - telegram
+      summary: State of a user's Telegram link
+      operationId: getTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state (never the chat id).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+    delete:
+      tags:
+        - telegram
+      summary: Remove a user's Telegram link and pending tokens (idempotent)
+      operationId: deleteTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Removed, or there was nothing to remove.
+        '401':
+          description: Not a Mercury-minted backend token.
+
+  /api/v1/telegram/messages:
+    post:
+      tags:
+        - telegram
+      summary: Queue a Telegram message for a linked user
+      description: |
+        The message is built by mercury from a template `kind` (`zb_<kind>_tg_<language>`) and the parameters.
+        With an `Idempotency-Key` (scoped to the caller) the same request is accepted once: a repeat answers the first
+        message with `Idempotent-Replayed: true`; the same key with another request is 422. A user who is not linked, or
+        who blocked the bot, is a 409 with `code` `TELEGRAM_NOT_LINKED` or `TELEGRAM_BLOCKED`.
+      operationId: sendTelegramMessage
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramMessageRequest'
+      responses:
+        '202':
+          description: Accepted, or the replay of an earlier request with the same key.
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageResponse'
+        '400':
+          description: Invalid request, unknown template or language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '409':
+          description: TELEGRAM_NOT_LINKED or TELEGRAM_BLOCKED (in `code`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConflict'
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/telegram/messages/{id}:
+    get:
+      tags:
+        - telegram
+      summary: Delivery state of a Telegram message this caller submitted
+      operationId: getTelegramMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: QUEUED, SENT, FAILED or BLOCKED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageStatusResponse'
+        '404':
+          description: Unknown id or another caller's message.
+
 components:
   schemas:
+    AuthRequest:
+      type: object
+      description: >-
+        Credentials of a registered Mercury login client (umdc.mercury.login-clients)
+        — not an end user's credentials.
+      required:
+        - alias
+        - password
+      properties:
+        alias:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The newly minted Mercury-signed session-token.
     CreateCampaignRequest:
       type: object
       required:
@@ -583,6 +1089,25 @@ components:
         params:
           firstName: "John"
 
+    MailStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [OPENED, PENDING, IN_PROGRESS, SENT, DELIVERED, REJECTED, CANCELED, ABORTED, FAILED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
     SendEmailResponse:
       type: object
       required:
@@ -666,7 +1191,7 @@ components:
         description: "Standard email channel"
         icon: "mailto"
         enabled: true
-        implementationClass: "com.prx.mercury.channel.EmailChannel"
+        implementationClass: "com.umdc.mercury.channel.EmailChannel"
         createdAt: "2026-01-01T00:00:00Z"
         updatedAt: "2026-01-02T00:00:00Z"
         active: true
@@ -779,3 +1304,222 @@ components:
         scheduledAt: "2026-03-20T13:00:00Z"
         status: "SCHEDULED"
 
+    CreateTemplateRequest:
+      type: object
+      required:
+        - description
+        - location
+        - fileFormat
+        - templateTypeId
+        - applicationId
+        - severityTypeId
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+          description: Metadata-only pointer to where the template content lives; upload/download of content is out of scope.
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+          description: Owning application; immutable once the template is created.
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Updated welcome email"
+        fileFormat: "HTML"
+
+    TemplateDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        location:
+          type: string
+        fileFormat:
+          type: string
+        templateTypeId:
+          type: string
+          format: uuid
+        templateTypeName:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+        severityTypeName:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: "88888888-8888-8888-8888-888888888888"
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        templateTypeName: "Marketing"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+        severityTypeName: "High"
+        active: true
+        createdAt: "2026-03-14T12:00:00Z"
+        updatedAt: "2026-03-14T12:00:00Z"
+
+    TemplateSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateDetailResponse'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+
+    TelegramLinkRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+        language:
+          type: string
+          description: es or en (default es).
+
+    TelegramLinkResponse:
+      type: object
+      required:
+        - deepLink
+        - expiresAt
+      properties:
+        deepLink:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    TelegramLinkStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [NONE, PENDING, ACTIVE, BLOCKED]
+        linkedAt:
+          type: string
+          format: date-time
+        language:
+          type: string
+
+    TelegramMessageRequest:
+      type: object
+      required:
+        - userId
+        - kind
+      properties:
+        userId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: Template kind, e.g. debt_due (file zb_<kind>_tg_<language>).
+        language:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        disableNotification:
+          type: boolean
+
+    TelegramMessageResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+
+    TelegramMessageStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, SENT, FAILED, BLOCKED]
+        sentAt:
+          type: string
+          format: date-time
+
+    TelegramConflict:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          enum: [TELEGRAM_NOT_LINKED, TELEGRAM_BLOCKED]

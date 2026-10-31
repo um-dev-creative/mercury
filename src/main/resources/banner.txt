@@ -3,4 +3,5 @@ ${Ansi.YELLOW} //___/ /   ___      ___     / ___     / __      ___       __     
 ${Ansi.BLUE}  / __  (   //   ) ) //   ) ) //\ \     //   ) ) //   ) ) //   ) ) //___) ) ____  / ___ (   //___) ) ((   ) )  / /    
 ${Ansi.BLUE} //    ) ) //   / / //       //  \ \   //   / / //   / / //   / / //             //   | |  //         \ \     / /     
 ${Ansi.RED} //____/ / ((___( ( ((____   //    \ \ ((___/ / ((___/ / //   / / ((____         //    | | ((____   //   ) )  / /  
-${Ansi.RED} :: From PRX Innovation with Spring Boot${spring-boot.formatted-version} :: ${Ansi.DEFAULT}
+${Ansi.RED}${umdc.app.title}::${umdc.app.version}
+${Ansi.GREEN}Powered by Spring Boot ${spring-boot.version}

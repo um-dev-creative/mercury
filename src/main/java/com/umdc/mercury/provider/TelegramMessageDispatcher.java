@@ -63,11 +63,11 @@ public class TelegramMessageDispatcher {
 
         try {
             telegramClient.execute(sendMessage);
-            logger.info("Telegram message sent. chatId={}, campaignId={}", message.getChatId(), message.getCampaignId());
+            logger.info("Telegram message sent. id={}, campaignId={}", message.getId(), message.getCampaignId());
             return DeliveryStatusType.SENT;
         } catch (TelegramApiException e) {
-            logger.error("Telegram rejected the message. chatId={}, campaignId={}",
-                    message.getChatId(), message.getCampaignId(), e);
+            logger.error("Telegram rejected the message. id={}, campaignId={}, reason={}",
+                    message.getId(), message.getCampaignId(), e.getClass().getSimpleName());
             return DeliveryStatusType.FAILED;
         }
     }

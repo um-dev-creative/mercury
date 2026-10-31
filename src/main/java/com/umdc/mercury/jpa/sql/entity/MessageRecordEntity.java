@@ -13,7 +13,7 @@ import java.util.UUID;
 public class MessageRecordEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
@@ -45,12 +45,12 @@ public class MessageRecordEntity {
     private LocalDateTime updatedAt;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "message_status_type_id", nullable = false)
     private MessageStatusTypeEntity messageStatusType;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "template_defined_id", nullable = false)
     private TemplateDefinedEntity templateDefined;
 

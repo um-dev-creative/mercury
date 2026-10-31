@@ -25,7 +25,7 @@ tools: [Read, Bash]
 
 3. **Check layering conventions**:
    - Scan for `@Operation` or `@ApiResponse` on `*Controller` classes (not allowed)
-   - Scan for `fixedRate = ` numeric literals in `@Scheduled` (must use `fixedRateString = "${prx.scheduler.*}"`)
+   - Scan for `fixedRate = ` numeric literals in `@Scheduled` (must use `fixedRateString = "${umdc.scheduler.*}"`)
    - Scan for `new CampaignMapper()` or `new <Any>Mapper()` (must be Spring beans)
    - Scan for `System.out` or `System.err` (must use SLF4J)
 

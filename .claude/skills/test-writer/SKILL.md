@@ -47,7 +47,7 @@ class CampaignMapperTest {
 
 ### Benchmark pattern
 ```java
-// src/test/java/com/prx/mercury/benchmark/
+// src/test/java/com/umdc/mercury/benchmark/
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
 public class ConfirmCodeStreamBenchmark { ... }
@@ -55,7 +55,7 @@ public class ConfirmCodeStreamBenchmark { ... }
 
 ## 2. Naming Conventions
 
-- Test class: `<ProductionClass>Test` in same sub-package under `src/test/java/com/prx/mercury/`
+- Test class: `<ProductionClass>Test` in same sub-package under `src/test/java/com/umdc/mercury/`
 - Test methods: `<methodName>_should<Expected>_when<Condition>()` pattern
 - Existing tests: `CampaignServiceImplTest`, `CampaignControllerTest`, `MessageProcessorTest`, `CampaignMapperTest`, `VerificationCodeServiceTest`
 
@@ -68,10 +68,10 @@ public class ConfirmCodeStreamBenchmark { ... }
 
 ## 4. Key Files
 
-- `src/test/java/com/prx/mercury/api/v1/service/CampaignServiceImplTest.java` — service test reference
-- `src/test/java/com/prx/mercury/api/v1/controller/CampaignControllerTest.java` — controller test reference
-- `src/test/java/com/prx/mercury/mapper/CampaignMapperTest.java` — mapper test reference
-- `src/test/java/com/prx/mercury/processor/MessageProcessorTest.java` — processor test reference
+- `src/test/java/com/umdc/mercury/api/v1/service/CampaignServiceImplTest.java` — service test reference
+- `src/test/java/com/umdc/mercury/api/v1/controller/CampaignControllerTest.java` — controller test reference
+- `src/test/java/com/umdc/mercury/mapper/CampaignMapperTest.java` — mapper test reference
+- `src/test/java/com/umdc/mercury/processor/MessageProcessorTest.java` — processor test reference
 - `target/site/jacoco/index.html` — coverage report after `mvn verify`
 - `target/site/jacoco/jacoco.xml` — machine-readable for SonarCloud via `-Pcoverage`
 
@@ -79,12 +79,12 @@ public class ConfirmCodeStreamBenchmark { ... }
 
 - JaCoCo thresholds: 70% line (BUNDLE), 50% branch (PACKAGE) — enforced at `mvn verify`
 - Do not use `@SpringBootTest` for pure unit tests — it loads the full context unnecessarily
-- Benchmark tests must be in `src/test/java/com/prx/mercury/benchmark/` and run via `mvn -Pbenchmark clean test`
+- Benchmark tests must be in `src/test/java/com/umdc/mercury/benchmark/` and run via `mvn -Pbenchmark clean test`
 - Do not mock `LoggerFactory` — SLF4J loggers are not part of test assertions
 
 ## 6. Checklist
 
-- [ ] Test class in correct package under `src/test/java/com/prx/mercury/`
+- [ ] Test class in correct package under `src/test/java/com/umdc/mercury/`
 - [ ] Both happy-path and exception branches covered
 - [ ] Async `CompletableFuture` tests call `.join()` or `.get()`
 - [ ] `mvn -Dtest=<ClassName> surefire:test` passes in isolation

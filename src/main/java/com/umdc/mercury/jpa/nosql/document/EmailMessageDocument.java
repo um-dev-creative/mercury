@@ -28,21 +28,11 @@ public record EmailMessageDocument(
         Map<String, Object> params,
         DeliveryStatusType deliveryStatus) {
 
+    /** No recipients, subject, body or parameters: the processor logs the document and they are personal data. */
     @Override
     public String toString() {
-        return "MessageValueDTO{" +
-                "id=" + id +
-                ", templateDefinedId=" + templateDefinedId +
-                ", userId=" + userId +
-                ", from='" + from + '\'' +
-                ", to='" + to + '\'' +
-                ", cc='" + cc + '\'' +
-                ", subject='" + subject + '\'' +
-                ", body='" + body + '\'' +
-                ", sendDate='" + sendDate + '\'' +
-                ", params='" + params + '\'' +
-                ", deliveryStatus='" + deliveryStatus + '\'' +
-                '}';
+        return "EmailMessage{id=" + id + ", messageId=" + messageId + ", templateDefinedId=" + templateDefinedId
+                + ", userId=" + userId + ", recipients=" + (to == null ? 0 : to.size())
+                + ", sendDate=" + sendDate + ", deliveryStatus=" + deliveryStatus + '}';
     }
 }
-

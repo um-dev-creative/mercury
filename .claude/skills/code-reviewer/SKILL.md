@@ -38,14 +38,14 @@ Review that:
 ## 4. Key Files
 
 - `ruleset.xml` — full PMD ruleset
-- `../../../src/main/java/com/umdc/api/v1/controller/GlobalExceptionHandler.java` — exception mapping
-- `../../../src/main/java/com/umdc/api/v1/controller/CampaignApi.java` — reference for correct OpenAPI placement
-- `../../../src/main/java/com/umdc/api/v1/service/CampaignServiceImpl.java` — reference service implementation
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/GlobalExceptionHandler.java` — exception mapping
+- `../../../src/main/java/com/umdc/mercury/api/v1/controller/CampaignApi.java` — reference for correct OpenAPI placement
+- `../../../src/main/java/com/umdc/mercury/api/v1/service/CampaignServiceImpl.java` — reference service implementation
 
 ## 5. Constraints
 
 - Zero tolerance for OpenAPI annotations on `*Controller` classes — they belong on `*Api` interfaces
-- Zero tolerance for hardcoded `fixedRate` in `@Scheduled` — must use `fixedRateString = "${prx.scheduler.*}"`
+- Zero tolerance for hardcoded `fixedRate` in `@Scheduled` — must use `fixedRateString = "${umdc.scheduler.*}"`
 - `MapStruct` mappers must not be instantiated with `new` — they are Spring-managed beans
 - All loggers: `private static final Logger logger = LoggerFactory.getLogger(ClassName.class)`
 

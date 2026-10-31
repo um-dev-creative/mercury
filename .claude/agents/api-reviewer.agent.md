@@ -14,8 +14,8 @@ Reviews new and modified Mercury REST API contracts for correctness: proper REST
 
 ## Tech Stack Expertise
 
-- API interfaces: `CampaignApi`, `MailApi`, `ChannelTypeApi`, `VerificationCodeApi` in `com.prx.mercury.api.v1.controller`
-- Request/response records: `CreateCampaignRequest`, `CreateCampaignResponse`, `CampaignDetailResponse`, `SendEmailRequest`, `SendEmailResponse`, `UpdateCampaignRequest` in `com.prx.mercury.api.v1.to`
+- API interfaces: `CampaignApi`, `MailApi`, `ChannelTypeApi`, `VerificationCodeApi` in `com.umdc.mercury.api.v1.controller`
+- Request/response records: `CreateCampaignRequest`, `CreateCampaignResponse`, `CampaignDetailResponse`, `SendEmailRequest`, `SendEmailResponse`, `UpdateCampaignRequest` in `com.umdc.mercury.api.v1.to`
 - Status code mapping: 201 Create, 200 Get, 400 validation, 401 missing token, 403 ForbiddenException, 404 CampaignNotFoundException, 422 IllegalStateException (disabled channel), 500 unhandled
 - OpenAPI: `@Tag`, `@Operation(summary, description, operationId)`, `@ApiResponse(responseCode, description)` — always on interface, never on controller
 - Session token header: `@RequestHeader("session-token")` for user-scoped endpoints
