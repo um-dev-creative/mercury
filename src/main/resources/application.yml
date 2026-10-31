@@ -8,10 +8,16 @@ umdc:
     version: 0.0.3
   mercury:
     # Backend callers allowed to obtain a Mercury session-token via
-    # POST /api/v1/auth/token (LoginClientProperties) — e.g. directory-backend,
-    # before it calls /api/v1/mail or /api/v1/verification-code. Not the same
-    # registry as umdc.security.auth.clients below (that one is OUTBOUND —
-    # who Mercury authenticates AS when calling other services).
+    # POST /api/v1/auth/token — e.g. smartkin-backend, zerobound-rest — before they call
+    # /api/v1/mail or /api/v1/verification-code. Not the same registry as
+    # umdc.security.auth.clients below (that one is OUTBOUND — who Mercury
+    # authenticates AS when calling other services).
+    #
+    # They are looked up first in the mercury.login_clients table (bcrypt hash, see
+    # scripts/login-clients/add-login-client.sh); an alias that is NOT in the table falls back
+    # to the static list below. Set properties-enabled=false once every caller is in the table.
+    login-registry:
+      properties-enabled: ${LOGIN_REGISTRY_PROPERTIES_ENABLED:true}
     login-clients:
       - alias: ${DIRECTORY_BACKEND_LOGIN_ALIAS:}
         password: ${DIRECTORY_BACKEND_LOGIN_PASSWORD:}
@@ -146,6 +152,12 @@ umdc:
       # TemplateServiceImpl's ApplicationAuthorizationService check to pass. Must match a
       # seeded role or feature name in backbone-rest for the relevant application(s).
       template-manage: ${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}
+      # Permission a user needs to administer the login clients (/api/v1/login-clients); checked in the application below.
+      login-client-manage: ${LOGIN_CLIENT_MANAGE_PERMISSION:LOGIN_CLIENT_MANAGE}
+    login-clients:
+      # Id of the backbone-rest application (normally Iris') in which login-client-manage is checked. EMPTY = nobody can administer the
+      # login clients (the endpoints answer 403): grant the permission to a role of that application first, then set this.
+      admin-application-id: ${LOGIN_CLIENTS_ADMIN_APPLICATION_ID:}
     # AuthProperties/JwtConverterProperties (security-oauth jar) bind to umdc.security.auth.* -
     # this block was previously (wrongly) at umdc.auth.*, one level too shallow, so
     # AuthProperties.getClients() always returned null and BackendFeignClientInterceptor's

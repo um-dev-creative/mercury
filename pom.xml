@@ -20,7 +20,7 @@
             <name>Luis Antonio Mata</name>
             <email>luis.antonio.mata@gmail.com</email>
             <url>www.umdc.com</url>
-            <organization>PRX Dev Innova</organization>
+            <organization>UM Dev Creative</organization>
             <organizationUrl>www.umdc.com</organizationUrl>
         </developer>
     </developers>
@@ -29,13 +29,13 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>25</java.version>
         <!--        UMDC Commons-->
-        <com.umdc.commons.version>0.0.2</com.umdc.commons.version>
-        <com.umdc.commons-services.version>0.0.2</com.umdc.commons-services.version>
-        <com.umdc.security-oauth.version>0.0.2</com.umdc.security-oauth.version>
-        <com.umdc.persistence.version>0.0.2</com.umdc.persistence.version>
+        <com.umdc.commons.version>0.0.3</com.umdc.commons.version>
+        <com.umdc.commons-services.version>0.0.3</com.umdc.commons-services.version>
+        <com.umdc.security-oauth.version>0.0.3</com.umdc.security-oauth.version>
+        <com.umdc.persistence.version>0.0.3</com.umdc.persistence.version>
         <!--        MAVEN-->
         <!--        Messaging tool-->
-        <telegrambots.version>9.3.0</telegrambots.version>
+        <telegrambots.version>10.3.0</telegrambots.version>
         <!--        MAVEN-->
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
@@ -54,11 +54,13 @@
         <spring-cloud.version>2025.1.3</spring-cloud.version>
 
         <!-- Centralized versions for previously hardcoded dependency/plugin versions -->
-        <postgresql.version>42.7.13</postgresql.version>
+        <postgresql.version>42.7.14</postgresql.version>
         <google.gson.version>2.14.0</google.gson.version>
         <org.json.version>20260814</org.json.version>
         <mapstruct.version>1.6.3</mapstruct.version>
         <jwt.version>0.13.0</jwt.version>
+        <commons-lang3.version>3.21.0</commons-lang3.version>
+        <plexus.utils.version>4.1.0</plexus.utils.version>
         <rewrite.plugin.version>6.46.1</rewrite.plugin.version>
         <rewrite.recipe.version>6.37.1</rewrite.recipe.version>
         <!-- 9.7 does not parse Java 25 (class file 69) bytecode; 9.10.1 adds official Java 25 support -->
@@ -76,7 +78,7 @@
         <!--        JUnit 5.x-->
         <junit.jupiter.version>6.1.3</junit.jupiter.version>
         <!--        Mockito-->
-        <mockito.version>5.23.0</mockito.version>
+        <mockito.version>5.24.0</mockito.version>
 
         <!-- JMH Benchmarks -->
         <jmh.version>1.37</jmh.version>

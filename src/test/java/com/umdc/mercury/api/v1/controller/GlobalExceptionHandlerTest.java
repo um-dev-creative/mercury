@@ -1,6 +1,8 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.LoginClientAlreadyExistsException;
+import com.umdc.mercury.api.v1.exception.LoginClientNotFoundException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import jakarta.servlet.http.HttpServletRequest;
@@ -368,5 +370,16 @@ class GlobalExceptionHandlerTest {
                     () -> assertThat(response.getBody().message()).contains("id")
             );
         }
+    }
+
+    @Test
+    @DisplayName("a missing login client is a 404 and a repeated alias a 409")
+    void loginClientErrors() {
+        ResponseEntity<ApiError> notFound = handler.handleLoginClientNotFound(new LoginClientNotFoundException("Login client not found"), request);
+        ResponseEntity<ApiError> conflict = handler.handleLoginClientAlreadyExists(new LoginClientAlreadyExistsException("clash"), request);
+
+        assertThat(notFound.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(notFound.getBody().message()).isEqualTo("Login client not found");
+        assertThat(conflict.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
     }
 }

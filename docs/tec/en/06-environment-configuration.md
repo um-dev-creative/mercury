@@ -288,6 +288,9 @@ it the context fails with `Could not resolve placeholder 'APP_TOKEN_SECRET'`.
 | `APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL` | `30s` | Positive answers are cached this long. It is the **worst-case delay** before a logout at backbone-rest is reflected here. |
 | `LOGIN_THROTTLE_MAX_ATTEMPTS` / `LOGIN_THROTTLE_WINDOW` | `5` / `15m` | Failed `POST /api/v1/auth/token` attempts per alias + caller address before `429` + `Retry-After`. Per instance. |
 | `DIRECTORY_BACKEND_LOGIN_ALIAS` / `_PASSWORD` | *(empty)* | A registered backend caller (`umdc.mercury.login-clients`) allowed to obtain an M2M token. Must match what that caller sends. |
+| `LOGIN_REGISTRY_PROPERTIES_ENABLED` | `true` | Whether an alias that is **not** in the `mercury.login_clients` table may still log in through the static `umdc.mercury.login-clients` list. Set `false` once every caller is in the table (see `docs/login-clients.md`). |
+| `LOGIN_CLIENTS_ADMIN_APPLICATION_ID` | *(empty)* | Id of the backbone-rest application (normally Iris') in which `LOGIN_CLIENT_MANAGE` is checked for `/api/v1/login-clients`. Empty = the endpoints answer `403` to everyone. |
+| `LOGIN_CLIENT_MANAGE_PERMISSION` | `LOGIN_CLIENT_MANAGE` | Role/feature name backbone-rest must grant a user in that application to administer the login clients. |
 
 ### What must match across projects
 

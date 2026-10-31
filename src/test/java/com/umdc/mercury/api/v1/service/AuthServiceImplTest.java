@@ -1,7 +1,6 @@
 package com.umdc.mercury.api.v1.service;
 
-import com.umdc.mercury.api.v1.service.AuthServiceImpl;
-import com.umdc.mercury.security.LoginClientProperties;
+import com.umdc.mercury.security.LoginClientVerifier;
 import com.umdc.mercury.security.SessionJwtServiceImpl;
 import com.umdc.security.to.AuthRequest;
 import com.umdc.security.to.AuthResponse;
@@ -10,36 +9,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
-import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
+/// The service only decides the HTTP outcome; who is a registered login client is [LoginClientVerifier]'s job and has its own tests.
 class AuthServiceImplTest {
 
     private final SessionJwtServiceImpl sessionJwtService = mock(SessionJwtServiceImpl.class);
-    private static final String TEST_ALIAS = System.getenv().getOrDefault("TEST_ALIAS", "validAlias");
-    private static final String TEST_PASSWORD = System.getenv().getOrDefault("TEST_PASSWORD", "validPassword");
-    private final LoginClientProperties loginClientProperties = registeredClient(TEST_ALIAS, TEST_PASSWORD);
-    private final AuthServiceImpl authService =
-            new AuthServiceImpl(sessionJwtService, loginClientProperties);
-
-    private static LoginClientProperties registeredClient(String alias, String password) {
-        var client = new LoginClientProperties.LoginClient();
-        client.setAlias(alias);
-        client.setPassword(password);
-        var properties = new LoginClientProperties();
-        properties.setLoginClients(List.of(client));
-        return properties;
-    }
+    private final LoginClientVerifier verifier = mock(LoginClientVerifier.class);
+    private final AuthServiceImpl authService = new AuthServiceImpl(sessionJwtService, verifier);
 
     @Test
     @DisplayName("token should return OK status with a registered alias/password")
     void tokenShouldReturnOkStatusWithValidAlias() {
-        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
+        when(verifier.isRegistered("validAlias", "validPassword")).thenReturn(true);
         when(sessionJwtService.generateSessionToken(anyString(), anyMap())).thenReturn("validToken");
 
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
+        ResponseEntity<AuthResponse> response = authService.token(new AuthRequest("validAlias", "validPassword"));
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
@@ -47,85 +38,37 @@ class AuthServiceImplTest {
     }
 
     @Test
-    @DisplayName("token should return BAD_REQUEST status with null alias")
-    void tokenShouldReturnBadRequestStatusWithNullAlias() {
-        AuthRequest authRequest = new AuthRequest("", null);
-
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    @DisplayName("token should return BAD_REQUEST status with an empty alias")
+    void tokenShouldReturnBadRequestStatusWithEmptyAlias() {
+        assertEquals(HttpStatus.BAD_REQUEST, authService.token(new AuthRequest("", null)).getStatusCode());
+        verifyNoInteractions(verifier, sessionJwtService);
     }
 
     @Test
-    @DisplayName("token should return BAD_REQUEST status with blank alias")
+    @DisplayName("token should return BAD_REQUEST status with a blank alias")
     void tokenShouldReturnBadRequestStatusWithBlankAlias() {
-        AuthRequest authRequest = new AuthRequest("", "");
-
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
-
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, authService.token(new AuthRequest("  ", "")).getStatusCode());
+        verifyNoInteractions(verifier, sessionJwtService);
     }
 
     @Test
-    @DisplayName("token should return UNAUTHORIZED status for an alias not in the registry")
-    void tokenShouldReturnUnauthorizedForUnknownAlias() {
-        AuthRequest authRequest = new AuthRequest("someoneElse", "validPassword");
+    @DisplayName("token should return UNAUTHORIZED status when the verifier refuses the pair")
+    void tokenShouldReturnUnauthorizedWhenNotRegistered() {
+        when(verifier.isRegistered("someoneElse", "validPassword")).thenReturn(false);
 
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
+        ResponseEntity<AuthResponse> response = authService.token(new AuthRequest("someoneElse", "validPassword"));
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         verifyNoInteractions(sessionJwtService);
-    }
-
-    @Test
-    @DisplayName("token should return UNAUTHORIZED status for a registered alias with the wrong password")
-    void tokenShouldReturnUnauthorizedForWrongPassword() {
-        AuthRequest authRequest = new AuthRequest("validAlias", "wrongPassword");
-
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
-
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-        verifyNoInteractions(sessionJwtService);
-    }
-
-    @Test
-    @DisplayName("token should return UNAUTHORIZED status when no login clients are registered")
-    void tokenShouldReturnUnauthorizedWhenRegistryEmpty() {
-        var emptyProperties = new LoginClientProperties();
-        var service = new AuthServiceImpl(sessionJwtService, emptyProperties);
-        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
-
-        ResponseEntity<AuthResponse> response = service.token(authRequest);
-
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
-    }
-
-    @Test
-    @DisplayName("a client declared with empty credentials (unset env placeholders) never logs in")
-    void tokenShouldReturnUnauthorizedForClientsWithEmptyCredentials() {
-        var properties = new LoginClientProperties();
-        var noPassword = new LoginClientProperties.LoginClient();
-        noPassword.setAlias("zerobound");
-        noPassword.setPassword("");
-        var noAlias = new LoginClientProperties.LoginClient();
-        noAlias.setAlias("");
-        noAlias.setPassword("");
-        var nulls = new LoginClientProperties.LoginClient();
-        properties.setLoginClients(List.of(noPassword, noAlias, nulls));
-        var service = new AuthServiceImpl(sessionJwtService, properties);
-
-        assertEquals(HttpStatus.UNAUTHORIZED, service.token(new AuthRequest("zerobound", "")).getStatusCode());
-        assertEquals(HttpStatus.UNAUTHORIZED, service.token(new AuthRequest("zerobound", "x")).getStatusCode());
-        assertEquals(HttpStatus.BAD_REQUEST, service.token(new AuthRequest(" ", "")).getStatusCode());
     }
 
     @Test
     @DisplayName("token should return NOT_ACCEPTABLE status with blank token")
     void tokenShouldReturnNotAcceptableStatusWithBlankToken() {
-        AuthRequest authRequest = new AuthRequest("validAlias", "validPassword");
+        when(verifier.isRegistered("validAlias", "validPassword")).thenReturn(true);
         when(sessionJwtService.generateSessionToken(anyString(), anyMap())).thenReturn("");
 
-        ResponseEntity<AuthResponse> response = authService.token(authRequest);
+        ResponseEntity<AuthResponse> response = authService.token(new AuthRequest("validAlias", "validPassword"));
 
         assertEquals(HttpStatus.NOT_ACCEPTABLE, response.getStatusCode());
     }
