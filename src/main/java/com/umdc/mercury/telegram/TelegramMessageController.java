@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 import java.util.UUID;
 
+// The mappings, with their path variables, are on the *Api interface, which java:S6856 does not follow.
+@SuppressWarnings("java:S6856")
 @RestController
 @RequestMapping("api/v1/telegram/messages")
 public class TelegramMessageController implements TelegramMessageApi {
