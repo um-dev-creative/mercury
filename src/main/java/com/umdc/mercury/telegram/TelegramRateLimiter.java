@@ -1,5 +1,6 @@
 package com.umdc.mercury.telegram;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -25,6 +26,7 @@ public class TelegramRateLimiter {
     private final Deque<Long> recent = new ArrayDeque<>();
     private final ReentrantLock lock = new ReentrantLock();
 
+    @Autowired
     public TelegramRateLimiter() {
         this(Clock.systemUTC());
     }
