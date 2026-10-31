@@ -1,5 +1,6 @@
 package com.umdc.mercury.kafka.consumer.service;
 
+import com.umdc.mercury.api.v1.service.ChannelTemplateRenderer;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
@@ -16,20 +17,23 @@ public class TelegramChannelService implements ChannelService<TelegramMessageDoc
     private static final Logger logger = LoggerFactory.getLogger(TelegramChannelService.class);
 
     private final MessageNSRepository messageRepository;
+    private final ChannelTemplateRenderer templateRenderer;
 
-    public TelegramChannelService(MessageNSRepository messageRepository) {
+    public TelegramChannelService(MessageNSRepository messageRepository, ChannelTemplateRenderer templateRenderer) {
         this.messageRepository = messageRepository;
+        this.templateRenderer = templateRenderer;
     }
 
     /**
-     * Persists the Telegram message. Actual delivery through the Telegram Bot API
-     * is not yet integrated; this stores the message so it can be picked up once a
-     * provider is wired in.
+     * Renders the campaign template into the message body and persists it. Actual delivery
+     * through the Telegram Bot API is not yet integrated; this stores the message so it can
+     * be picked up once a provider is wired in.
      */
     @Override
     public TelegramMessageDocument send(TelegramMessageDocument message, TemplateDefinedTO template) {
         logger.info("Persisting Telegram message. chatId={}, templateId={}, campaignId={}",
                 message.getChatId(), template != null ? template.id() : null, message.getCampaignId());
+        message.setMessage(templateRenderer.render(template, message.getParams(), message.getMessage()));
         return messageRepository.save(message);
     }
 

@@ -102,6 +102,8 @@ paths:
           description: The request userId does not match the session-token user.
         '422':
           description: Channel type not found or disabled.
+
+  /api/v1/campaigns/application/{applicationId}:
     get:
       tags:
         - campaigns
@@ -110,7 +112,7 @@ paths:
       operationId: getCampaignsByApplication
       parameters:
         - name: applicationId
-          in: query
+          in: path
           required: true
           schema:
             type: string
@@ -214,6 +216,68 @@ paths:
           description: Campaign not found.
         '422':
           description: Business rule violation.
+    delete:
+      tags:
+        - campaigns
+      summary: Soft-delete campaign by ID
+      description: Soft deletes a campaign (marks it as deleted; data is retained for audits).
+      operationId: deleteCampaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Campaign soft-deleted successfully.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission.
+        '404':
+          description: Campaign not found or already soft-deleted.
+
+  /api/v1/campaigns/{id}/progress:
+    get:
+      tags:
+        - campaigns
+      summary: Get campaign progress
+      description: >-
+        Retrieves progress metrics for a campaign (sent, delivered, failed, pending, etc.),
+        computed from the stored campaign metrics.
+      operationId: getCampaignProgress
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Progress projection returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignProgressTO'
+        '400':
+          description: Invalid UUID format supplied for id.
+        '401':
+          description: Invalid or missing authentication token.
+        '404':
+          description: Campaign not found.
 
   /api/v1/mail:
     post:
@@ -1163,6 +1227,54 @@ components:
         metadata:
           type: object
           additionalProperties: true
+
+    CampaignProgressTO:
+      type: object
+      properties:
+        campaignId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        channelType:
+          $ref: '#/components/schemas/ChannelTypeTO'
+        totalRecipients:
+          type: integer
+          format: int32
+        totalSent:
+          type: integer
+          format: int32
+        delivered:
+          type: integer
+          format: int32
+        failed:
+          type: integer
+          format: int32
+        pending:
+          type: integer
+          format: int32
+        opened:
+          type: integer
+          format: int32
+        clicked:
+          type: integer
+          format: int32
+        deliveryRate:
+          type: number
+          format: double
+          description: Percentage of delivered messages over total sent, rounded to two decimals.
+        openRate:
+          type: number
+          format: double
+          description: Percentage of opened messages over delivered, rounded to two decimals.
+        createdAt:
+          type: string
+          format: date-time
+        lastUpdated:
+          type: string
+          format: date-time
+        status:
+          type: string
 
     UpdateCampaignRequest:
       type: object

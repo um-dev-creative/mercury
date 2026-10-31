@@ -4,7 +4,7 @@
 
 Esta guía explica cómo pedirle a Mercury que envíe una campaña por SMS, Telegram, WhatsApp o Push, y qué esperar después. El detalle técnico está en la [guía de configuración](../../tec/es/06-configuracion-entornos.md).
 
-> **Estado actual:** Mercury valida y guarda estos mensajes, pero todavía no los entrega. Ningún canal de campañas llama aún a un proveedor real (Twilio, Telegram Bot API, WhatsApp Cloud API, FCM/APNs). Los avisos directos de Telegram sí se entregan: consulta [Avisos por Telegram](telegram.md).
+> **Estado actual:** Mercury valida y guarda estos mensajes, pero todavía no los entrega. Las campañas de Telegram se entregan si `TELEGRAM_BOT_TOKEN` está definido. SMS, WhatsApp y Push aún no llaman a un proveedor real. Los avisos directos de Telegram sí se entregan: consulta [Avisos por Telegram](telegram.md).
 
 ## Crear una campaña
 
