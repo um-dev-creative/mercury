@@ -57,3 +57,17 @@ login alias of the application, e.g. ZeroBound's `ZEROBOUND_LOGIN_ALIAS`: links 
 Every update is handled once (`update_id` only grows). Only private chats are read; the text is used to find the command and is never stored or
 logged. Commands: `/start <token>` (links; a new link replaces the old chat and tells it), `/start` (how to link), `/ayuda` `/help`, `/estado`
 `/status`, `/desvincular` `/unlink`. `my_chat_member` with `kicked`/`left`, or a 403 on a reply, marks the link `BLOCKED`.
+
+## Sending (T-115)
+
+Run `V2030__telegram_messages.sql`. `POST /api/v1/telegram/messages` `{userId, kind, language?, params?, disableNotification?}` with an
+`Idempotency-Key` (scoped to the caller) answers 202 `{id, status}` (a replay adds `Idempotent-Replayed: true`); 400 unknown template/language,
+409 `{code: TELEGRAM_NOT_LINKED | TELEGRAM_BLOCKED}`, 422 key reused with another request. `GET /api/v1/telegram/messages/{id}` →
+`QUEUED | SENT | FAILED | BLOCKED` (404 for another caller's).
+
+`TelegramSender` (every second, `umdc.mercury.telegram.send-delay`) claims due rows with `FOR UPDATE SKIP LOCKED` and a 2-minute lease, renders
+`zb_<kind>_tg_<lang>.ftl` (T-116), splits texts over 4096 characters at line breaks (it resumes after the parts already sent), and sends with the
+Bot API. Rates per instance: 1 message/s per chat and 30/s per bot (a message that does not fit waits a second, no attempt spent); 429 waits
+`retry_after`; 403 blocks the link (the next send answers 409); other 4xx fail; 5xx and timeouts retry after 1 min, 5 min, 30 min, 2 h, 12 h
+(the 6th failure or 48 h is `FAILED`). Final rows lose their parameters. The existing Kafka path (`mercury-telegram-messages`, campaigns by
+`chatId`) is unchanged: it still only persists; ZeroBound's channel does not use it.

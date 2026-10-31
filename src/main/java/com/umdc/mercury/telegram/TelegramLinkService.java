@@ -41,6 +41,9 @@ public class TelegramLinkService {
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
+    /** The chat to deliver to and whether it may be used; the chat id stays inside mercury. */
+    public record Target(long chatId, boolean active) { }
+
     public enum Status { NONE, PENDING, ACTIVE, BLOCKED }
 
     public record Created(String deepLink, LocalDateTime expiresAt) { }
@@ -144,6 +147,13 @@ public class TelegramLinkService {
         final var link = links.findByApplicationAndUserId(application, userId);
         link.ifPresent(links::delete);
         return link.filter(l -> TelegramLinkEntity.ACTIVE.equals(l.getStatus())).map(TelegramLinkEntity::getChatId);
+    }
+
+    /** Where to deliver to this user, if linked (T-115). */
+    @Transactional(readOnly = true)
+    public Optional<Target> targetOf(String application, UUID userId) {
+        return links.findByApplicationAndUserId(application, userId)
+                .map(l -> new Target(l.getChatId(), TelegramLinkEntity.ACTIVE.equals(l.getStatus())));
     }
 
     /** What the chat itself is linked to (for {@code /estado}): the link of this chat, if any. */
