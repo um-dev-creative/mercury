@@ -2,7 +2,6 @@ package com.umdc.mercury.kafka.router;
 
 import com.umdc.mercury.api.v1.service.TemplateDefinedService;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
-import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
@@ -11,22 +10,14 @@ import com.umdc.mercury.kafka.consumer.service.PushChannelService;
 import com.umdc.mercury.kafka.consumer.service.SmsChannelService;
 import com.umdc.mercury.kafka.consumer.service.TelegramChannelService;
 import com.umdc.mercury.kafka.consumer.service.WhatsAppChannelService;
-import com.umdc.mercury.kafka.router.MessageChannelRouter;
-import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
-import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -82,64 +73,33 @@ class MessageChannelRouterTest {
     }
 
     @Test
-    @DisplayName("routeWhatsApp converts the TO to a document and delegates to WhatsAppChannelService")
-    void routeWhatsApp_convertsAndDelegates() {
+    @DisplayName("routeWhatsApp resolves the template and delegates to WhatsAppChannelService")
+    void routeWhatsApp_delegatesWithResolvedTemplate() {
         router = new MessageChannelRouter(smsService, telegramService, whatsAppChannelService, pushChannelService, templateDefinedService);
         UUID templateId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        UUID campaignId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
-        WhatsAppMessageTO message = new WhatsAppMessageTO(
-                templateId, userId, "+15550001111", "text", "hello",
-                "welcome", "en", null, null, null, now, Map.of("k", "v"), campaignId);
+        WhatsAppMessageDocument message = new WhatsAppMessageDocument();
+        message.setTemplateDefinedId(templateId);
         TemplateDefinedTO template = new TemplateDefinedTO(templateId, null, null, null, null, null, null, null, null);
         when(templateDefinedService.find(templateId)).thenReturn(template);
 
         router.routeWhatsApp(message);
 
-        ArgumentCaptor<WhatsAppMessageDocument> captor = ArgumentCaptor.forClass(WhatsAppMessageDocument.class);
-        verify(whatsAppChannelService).send(captor.capture(), eq(template));
-        WhatsAppMessageDocument document = captor.getValue();
-        assertEquals(campaignId, document.getCampaignId());
-        assertEquals(userId, document.getUserId());
-        assertEquals(templateId, document.getTemplateDefinedId());
-        assertEquals("+15550001111", document.getPhoneNumber());
-        assertEquals("text", document.getMessageType());
-        assertEquals("hello", document.getContent());
-        assertEquals("welcome", document.getTemplateName());
-        assertEquals("en", document.getTemplateLanguage());
-        assertEquals(DeliveryStatusType.OPENED, document.getDeliveryStatus());
+        verify(whatsAppChannelService).send(message, template);
     }
 
     @Test
-    @DisplayName("routePush converts the TO to a document and delegates to PushChannelService")
-    void routePush_convertsAndDelegates() {
+    @DisplayName("routePush resolves the template and delegates to PushChannelService")
+    void routePush_delegatesWithResolvedTemplate() {
         router = new MessageChannelRouter(smsService, telegramService, whatsAppChannelService, pushChannelService, templateDefinedService);
         UUID templateId = UUID.randomUUID();
-        UUID userId = UUID.randomUUID();
-        UUID campaignId = UUID.randomUUID();
-        LocalDateTime now = LocalDateTime.now();
-        PushNotificationMessageTO message = new PushNotificationMessageTO(
-                templateId, userId, "device-token-1", "android", "Welcome", "Hello there",
-                "icon.png", "image.png", "OPEN_APP", "high", 3, "default", now, Map.of("k", "v"), campaignId);
+        PushNotificationMessageDocument message = new PushNotificationMessageDocument();
+        message.setTemplateDefinedId(templateId);
         TemplateDefinedTO template = new TemplateDefinedTO(templateId, null, null, null, null, null, null, null, null);
         when(templateDefinedService.find(templateId)).thenReturn(template);
 
         router.routePush(message);
 
-        ArgumentCaptor<PushNotificationMessageDocument> captor = ArgumentCaptor.forClass(PushNotificationMessageDocument.class);
-        verify(pushChannelService).send(captor.capture(), eq(template));
-        PushNotificationMessageDocument document = captor.getValue();
-        assertEquals(campaignId, document.getCampaignId());
-        assertEquals(userId, document.getUserId());
-        assertEquals(templateId, document.getTemplateDefinedId());
-        assertEquals("device-token-1", document.getDeviceToken());
-        assertEquals("android", document.getPlatform());
-        assertEquals("Welcome", document.getTitle());
-        assertEquals("Hello there", document.getBody());
-        assertEquals("high", document.getPriority());
-        assertEquals(3, document.getBadge());
-        assertEquals(DeliveryStatusType.OPENED, document.getDeliveryStatus());
+        verify(pushChannelService).send(message, template);
     }
 
     @Test

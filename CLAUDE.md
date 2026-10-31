@@ -44,7 +44,8 @@ REST Controller (*Controller + *Api interface)
         ├─> NoSQL Repositories (MongoDB)
         └─> KafkaTemplate (publish per-recipient messages to channel topics)
 
-Kafka Listeners (MultiChannelListener: SMS / Telegram / WhatsApp / Push)
+NotificationEventListener (unified topic `mercury-unified-message`: SMS / Telegram / WhatsApp / Push, split by routing.channel)
+  └─> NotificationEventConsumerServiceImpl (validates, maps the event to the channel's document)
   └─> MessageChannelRouter (resolves the template, then dispatches)
         └─> ChannelService implementations (Sms / Telegram / WhatsApp / Push)
               └─> MessageNSRepository (MongoDB, polymorphic "messages" collection)
@@ -56,7 +57,6 @@ SendEmailScheduler (fixed-rate)
 ```
 
 > **Known gaps (as of the Spring Boot 4 upgrade branch):**
-> - A second, unfinished messaging design ("Nexus") exists in parallel: `NotificationEventListener` actively consumes a unified `${umdc.consumer.topics.notification}` topic via `NotificationEventConsumerServiceImpl`, but nothing in the campaign-creation flow publishes to it yet, and its per-channel handlers only log (no persistence or send logic). Treat it as experimental/unwired until a decision is made to migrate the producer side to it.
 > - None of the `ChannelService` implementations (Email/SMS/Telegram/WhatsApp/Push) call a real provider yet — they persist the message so it's ready once an SMTP/Twilio/Telegram Bot API/WhatsApp Cloud API/FCM-APNs integration is added.
 
 ### Key Package Map
@@ -69,7 +69,7 @@ SendEmailScheduler (fixed-rate)
 | `jpa/sql/entity` + `jpa/sql/repository` | JPA entities and Spring Data repositories (PostgreSQL) |
 | `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents for in-flight messages (`MessageDocument` is the polymorphic base for Sms/Telegram/WhatsApp/Push; `EmailMessageDocument` is separate) |
 | `mapper` | MapStruct mappers bridging entities ↔ TOs |
-| `kafka/listener` | `@KafkaListener` entry points — `MultiChannelListener` (SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email), `NotificationEventListener` (experimental unified "Nexus" topic, see Known gaps above) |
+| `kafka/listener` | `@KafkaListener` entry points — `NotificationEventListener` (unified topic: SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email) |
 | `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract); email is handled separately by `EmailMessageConsumerService`, not by a `ChannelService` |
 | `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp/Push) |
 | `scheduler` | `SendEmailScheduler` drives `MessageProcessor` on configurable fixed rates |
@@ -89,8 +89,8 @@ SendEmailScheduler (fixed-rate)
 
 1. `POST /api/v1/campaigns` → `CampaignServiceImpl.createCampaign()` (async)
 2. Validates channel type (enabled), resolves template, persists `CampaignEntity` + initial `CampaignMetricsEntity`
-3. Publishes one Kafka message per recipient to the channel topic (e.g., `email-topic`)
-4. Kafka consumer picks up messages; `SendEmailScheduler` drives `MessageProcessor` to send and reconcile
+3. Publishes one Kafka message per recipient: email to `mercury-email-messages`; SMS/Telegram/WhatsApp/Push as a `NotificationEventTO` to `mercury-unified-message` (schema: `docs/topic-general-message.md`). The Aiven plan limits the number of topics, so don't add per-channel topics.
+4. Kafka consumer picks up messages; `SendEmailScheduler` drives `MessageProcessor` to send and reconcile email
 
 ## Key Conventions
 

@@ -49,12 +49,9 @@ umdc:
   consumer:
     group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
     topics:
-      telegram: mercury-telegram-messages
-      sms: mercury-sms-messages
       email: mercury-email-messages
-      whatsapp: mercury-whatsapp-messages
-      push: mercury-push-messages
-      notification: ${UMDC_NOTIFICATION_TOPIC:unified-message-notification}
+      # SMS, Telegram, WhatsApp and Push share this topic (split by routing.channel)
+      notification: ${UMDC_NOTIFICATION_TOPIC:mercury-unified-message}
     mercury:
       topic: ${MERCURY_EMAIL_TOPIC}
   # Kafka related toggles (allow disabling consumers or preventing auto-start)
@@ -64,8 +61,10 @@ umdc:
     # Controls whether listener containers auto-start on context refresh. Set to false for local dev when Kafka is unavailable
     auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
     client-id: ${KAFKA_CLIENT_ID:u5c06022c8c6@application-user.avns.net}
-    # Aiven Kafka with SASL_SSL: set KAFKA_SECURITY_PROTOCOL=SASL_SSL, KAFKA_SASL_MECHANISM=SCRAM-SHA-256,
-    # and KAFKA_SASL_JAAS_CONFIG via Vault. Leave PLAINTEXT for local dev without a broker.
+    # Aiven Kafka with client certificates (mTLS, what the Aiven service uses): KAFKA_SECURITY_PROTOCOL=SSL
+    # plus the PEM files below. PLAINTEXT against a TLS port disconnects in a loop and the broker logs
+    # "SSL handshake failed". With SASL_SSL: KAFKA_SASL_MECHANISM=SCRAM-SHA-256 and KAFKA_SASL_JAAS_CONFIG
+    # via Vault. Leave PLAINTEXT for local dev without a broker.
     security:
       protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
     sasl:

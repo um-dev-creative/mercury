@@ -25,7 +25,8 @@ public class NotificationEventListener {
             groupId = "${umdc.consumer.group-id:mercury-multi-channel}",
             containerFactory = "notificationEventKafkaListenerContainerFactory")
     public void listen(NotificationEventTO event) {
-        if (Objects.isNull(event) || Objects.isNull(event.header()) || Objects.isNull(event.routing())) {
+        if (Objects.isNull(event) || Objects.isNull(event.header()) || Objects.isNull(event.routing())
+                || Objects.isNull(event.content())) {
             logger.warn("Received null or incomplete NotificationEvent, discarding");
             return;
         }

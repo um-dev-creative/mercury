@@ -1,26 +1,19 @@
 package com.umdc.mercury.api.v1.service;
 
-import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
-import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.RecipientTO;
-import com.umdc.mercury.constant.ChannelType;
-import com.umdc.mercury.constant.DeliveryStatusType;
-import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
-import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
-import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
-import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
+import com.umdc.mercury.kafka.to.NotificationEventTO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
+import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,23 +22,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DisplayName("CampaignMessageFactory unit tests")
 class CampaignMessageFactoryTest {
 
-    private final CampaignMessageFactory factory = new CampaignMessageFactory();
+    private static final String UNIFIED_TOPIC = "mercury-unified-message";
+
+    private static final UUID CAMPAIGN_ID = UUID.randomUUID();
+    private static final UUID TEMPLATE_ID = UUID.randomUUID();
+
+    private final CampaignMessageFactory factory = new CampaignMessageFactory(UNIFIED_TOPIC);
 
     @Test
     @DisplayName("topicFor returns expected topic for each channel")
     void topicForReturnsExpectedTopic() {
         assertEquals("mercury-email-messages", factory.topicFor("email"));
-        assertEquals("mercury-sms-messages", factory.topicFor("sms"));
-        assertEquals("mercury-telegram-messages", factory.topicFor("telegram"));
-        assertEquals("mercury-whatsapp-messages", factory.topicFor("whatsapp"));
-        assertEquals("mercury-push-messages", factory.topicFor("push"));
+        assertEquals(UNIFIED_TOPIC, factory.topicFor("sms"));
+        assertEquals(UNIFIED_TOPIC, factory.topicFor("telegram"));
+        assertEquals(UNIFIED_TOPIC, factory.topicFor("whatsapp"));
+        assertEquals(UNIFIED_TOPIC, factory.topicFor("push"));
     }
 
     @Test
     @DisplayName("topicFor is case-insensitive")
     void topicForIsCaseInsensitive() {
         assertEquals("mercury-email-messages", factory.topicFor("EMAIL"));
-        assertEquals("mercury-whatsapp-messages", factory.topicFor("WhAtSaPp"));
+        assertEquals(UNIFIED_TOPIC, factory.topicFor("WhAtSaPp"));
     }
 
     @Test
@@ -87,131 +85,84 @@ class CampaignMessageFactoryTest {
         assertTrue(email.cc().isEmpty());
     }
 
-    @Test
-    @DisplayName("createMessage builds SMS with expected defaults and mappings")
-    void createSmsMessageMapsFields() {
-        UUID campaignId = UUID.randomUUID();
-        UUID templateId = UUID.randomUUID();
-
-        RecipientTO recipient = new RecipientTO("+15550001111", "Phone User", Map.of());
-        Map<String, Object> params = Map.of(
-                CampaignService.MESSAGE_KEY, "SMS body",
-                CampaignService.SENDER_ID_KEY, "Mercury"
-        );
-
-        Object message = factory.createMessage("sms", campaignId, recipient, params, templateId);
-
-        SmsMessageDocument sms = assertInstanceOf(SmsMessageDocument.class, message);
-        assertEquals(campaignId, sms.getCampaignId());
-        assertEquals(ChannelType.SMS, sms.getChannelType());
-        assertEquals(DeliveryStatusType.OPENED, sms.getDeliveryStatus());
-        assertEquals(templateId, sms.getTemplateDefinedId());
-        assertEquals("+15550001111", sms.getPhoneNumber());
-        assertEquals("SMS body", sms.getMessage());
-        assertEquals("Mercury", sms.getSenderId());
-        assertNotNull(sms.getSendDate());
-        assertNull(sms.getUserId());
-    }
-
-    @Test
-    @DisplayName("createMessage builds Telegram and parses numeric chatId")
-    void createTelegramMessageWithNumericChatId() {
-        UUID campaignId = UUID.randomUUID();
-        UUID templateId = UUID.randomUUID();
-
-        RecipientTO recipient = new RecipientTO("123456789", "TG User", Map.of());
-        Map<String, Object> params = Map.of(
-                CampaignService.MESSAGE_KEY, "TG body",
-                CampaignService.PARSE_MODE_KEY, "HTML"
-        );
-
-        Object message = factory.createMessage("telegram", campaignId, recipient, params, templateId);
-
-        TelegramMessageDocument tg = assertInstanceOf(TelegramMessageDocument.class, message);
-        assertEquals(campaignId, tg.getCampaignId());
-        assertEquals(ChannelType.TELEGRAM, tg.getChannelType());
-        assertEquals(DeliveryStatusType.OPENED, tg.getDeliveryStatus());
-        assertEquals(templateId, tg.getTemplateDefinedId());
-        assertEquals(123456789L, tg.getChatId());
-        assertEquals("TG body", tg.getMessage());
-        assertEquals("HTML", tg.getParseMode());
-        assertNotNull(tg.getSendDate());
-    }
-
-    @Test
-    @DisplayName("createMessage builds Telegram and sets null chatId for invalid identifier")
-    void createTelegramMessageWithInvalidChatId() {
-        RecipientTO recipient = new RecipientTO("invalid-chat-id", "TG User", Map.of());
-
+    private NotificationEventTO event(String channel, String identifier, Map<String, Object> customParams, Map<String, Object> params) {
         Object message = factory.createMessage(
-                "telegram",
-                UUID.randomUUID(),
-                recipient,
-                Map.of(CampaignService.MESSAGE_KEY, "TG body"),
-                UUID.randomUUID()
-        );
-
-        TelegramMessageDocument tg = assertInstanceOf(TelegramMessageDocument.class, message);
-        assertNull(tg.getChatId());
+                channel, CAMPAIGN_ID, new RecipientTO(identifier, "User", customParams), params, TEMPLATE_ID);
+        return assertInstanceOf(NotificationEventTO.class, message);
     }
 
     @Test
-    @DisplayName("createMessage builds WhatsApp with defaults and recipient userId from String")
-    void createWhatsAppMessageWithDefaultsAndStringUserId() {
-        UUID campaignId = UUID.randomUUID();
-        UUID templateId = UUID.randomUUID();
+    @DisplayName("createMessage fills the unified header, routing and content")
+    void createMessageFillsUnifiedStructure() {
         UUID userId = UUID.randomUUID();
 
-        RecipientTO recipient = new RecipientTO(
-                "+15550002222",
-                "WA User",
-                Map.of("userId", userId.toString())
-        );
+        NotificationEventTO sms = event("sms", "+15550001111", Map.of("userId", userId),
+                Map.of(CampaignService.MESSAGE_KEY, "SMS body", CampaignService.SENDER_ID_KEY, "Mercury"));
 
-        Object message = factory.createMessage(
-                "whatsapp",
-                campaignId,
-                recipient,
-                Map.of(CampaignService.MESSAGE_KEY, "WA body"),
-                templateId
-        );
-
-        WhatsAppMessageTO wa = assertInstanceOf(WhatsAppMessageTO.class, message);
-        assertEquals(templateId, wa.templateDefinedId());
-        assertEquals(userId, wa.userId());
-        assertEquals("+15550002222", wa.phoneNumber());
-        assertEquals("text", wa.messageType());
-        assertEquals("WA body", wa.content());
-        assertNull(wa.templateName());
-        assertNull(wa.templateLanguage());
-        assertEquals(campaignId, wa.campaignId());
-        assertNotNull(wa.sendDate());
+        assertEquals(CAMPAIGN_ID.toString(), sms.header().campaignId());
+        assertNotNull(UUID.fromString(sms.header().messageId()));
+        assertNotNull(Instant.parse(sms.header().timestamp()));
+        assertEquals("SMS", sms.routing().channel());
+        assertEquals(userId.toString(), sms.routing().recipient_id());
+        assertEquals("+15550001111", sms.routing().target_identifier());
+        assertEquals(TEMPLATE_ID.toString(), sms.content().templateId());
+        assertEquals("SMS body", sms.content().body());
+        assertEquals("NONE", sms.content().mediatype());
+        assertEquals("SMS body", sms.payload().context().get(CampaignService.MESSAGE_KEY));
+        assertEquals("Mercury", sms.payload().delivery_instructions().get("sender_id"));
     }
 
     @Test
-    @DisplayName("createMessage builds Push notification and applies defaults")
-    void createPushMessageWithDefaults() {
-        UUID campaignId = UUID.randomUUID();
-        UUID templateId = UUID.randomUUID();
+    @DisplayName("createMessage gives every recipient its own messageId")
+    void createMessageUsesUniqueMessageIds() {
+        Map<String, Object> params = Map.of(CampaignService.MESSAGE_KEY, "body");
 
-        RecipientTO recipient = new RecipientTO("device-token-123", "Push User", Map.of());
-        Map<String, Object> params = Map.of(
-                "title", "Push title",
-                CampaignService.MESSAGE_KEY, "Push body"
-        );
+        assertNotEquals(
+                event("sms", "+15550001111", Map.of(), params).header().messageId(),
+                event("sms", "+15550001111", Map.of(), params).header().messageId());
+    }
 
-        Object message = factory.createMessage("push", campaignId, recipient, params, templateId);
+    @Test
+    @DisplayName("createMessage puts the Telegram parse mode in the delivery instructions")
+    void createTelegramMessage() {
+        NotificationEventTO telegram = event("telegram", "123456789", Map.of(),
+                Map.of(CampaignService.MESSAGE_KEY, "TG body", CampaignService.PARSE_MODE_KEY, "HTML"));
 
-        PushNotificationMessageTO push = assertInstanceOf(PushNotificationMessageTO.class, message);
-        assertEquals(templateId, push.templateDefinedId());
-        assertNull(push.userId());
-        assertEquals("device-token-123", push.deviceToken());
-        assertEquals("web", push.platform());
-        assertEquals("Push title", push.title());
-        assertEquals("Push body", push.body());
-        assertEquals("normal", push.priority());
-        assertEquals(campaignId, push.campaignId());
-        assertNotNull(push.sendDate());
+        assertEquals("TELEGRAM", telegram.routing().channel());
+        assertEquals("123456789", telegram.routing().target_identifier());
+        assertEquals("HTML", telegram.payload().delivery_instructions().get("parse_mode"));
+    }
+
+    @Test
+    @DisplayName("createMessage maps WhatsApp template data, media and a default message type")
+    void createWhatsAppMessage() {
+        NotificationEventTO whatsApp = event("whatsapp", "+15550002222", Map.of("userId", "not-a-uuid"), Map.of(
+                CampaignService.MESSAGE_KEY, "WA body",
+                "template_name", "welcome",
+                "template_language", "es",
+                "media_url", "https://cdn.example.com/a.jpg",
+                "media_type", "IMAGE"));
+
+        assertEquals("WHATSAPP", whatsApp.routing().channel());
+        assertNull(whatsApp.routing().recipient_id());
+        assertEquals("welcome", whatsApp.content().templateName());
+        assertEquals("es", whatsApp.content().language());
+        assertEquals("https://cdn.example.com/a.jpg", whatsApp.content().mediaUrl());
+        assertEquals("IMAGE", whatsApp.content().mediatype());
+        assertEquals("text", whatsApp.payload().delivery_instructions().get("message_type"));
+    }
+
+    @Test
+    @DisplayName("createMessage passes the Push options as delivery instructions")
+    void createPushMessage() {
+        NotificationEventTO push = event("push", "device-token-123", Map.of(), Map.of(
+                "title", "Push title", CampaignService.MESSAGE_KEY, "Push body", "badge", 3));
+
+        assertEquals("PUSH", push.routing().channel());
+        assertEquals("web", push.payload().delivery_instructions().get("platform"));
+        assertEquals("Push title", push.payload().delivery_instructions().get("title"));
+        assertEquals(3, push.payload().delivery_instructions().get("badge"));
+        assertFalse(push.payload().delivery_instructions().containsKey("icon"));
     }
 
     @Test
@@ -239,36 +190,10 @@ class CampaignMessageFactoryTest {
     @Test
     @DisplayName("createMessage tolerates null params by producing null optional fields")
     void createMessageWithNullParams() {
-        Object message = factory.createMessage(
-                "push",
-                UUID.randomUUID(),
-                new RecipientTO("device-1", "Device", Map.of()),
-                null,
-                UUID.randomUUID()
-        );
+        NotificationEventTO push = event("push", "device-1", Map.of(), null);
 
-        PushNotificationMessageTO push = assertInstanceOf(PushNotificationMessageTO.class, message);
-        assertEquals("web", push.platform());
-        assertNull(push.title());
-        assertNull(push.body());
-    }
-
-    @Test
-    @DisplayName("createMessage timestamps are generated close to now")
-    void createMessageSetsCurrentTimestamp() {
-        LocalDateTime before = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())).minusSeconds(1);
-        Object message = factory.createMessage(
-                "sms",
-                UUID.randomUUID(),
-                new RecipientTO("+123", "User", Map.of()),
-                Map.of(CampaignService.MESSAGE_KEY, "body"),
-                UUID.randomUUID()
-        );
-        LocalDateTime after = LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())).plusSeconds(1);
-
-        SmsMessageDocument sms = assertInstanceOf(SmsMessageDocument.class, message);
-        assertNotNull(sms.getSendDate());
-        assertTrue(!sms.getSendDate().isBefore(before) && !sms.getSendDate().isAfter(after));
+        assertEquals(Map.of(), push.payload().context());
+        assertEquals(Map.of("platform", "web"), push.payload().delivery_instructions());
+        assertNull(push.content().body());
     }
 }
-

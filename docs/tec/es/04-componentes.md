@@ -15,7 +15,7 @@
 | `jpa/sql/entity` + `jpa/sql/repository` | Entidades JPA y repositorios Spring Data (PostgreSQL) |
 | `jpa/nosql/document` + `jpa/nosql/repository` | Documentos MongoDB (`MessageDocument` polimórfico para Sms/Telegram/WhatsApp/Push; `EmailMessageDocument` aparte) |
 | `mapper` | Mappers MapStruct (Entity ↔ TO) |
-| `kafka/listener` | Puntos de entrada `@KafkaListener` — `MultiChannelListener`, `MercuryEmailListener`, `NotificationEventListener` (experimental) |
+| `kafka/listener` | Puntos de entrada `@KafkaListener` — `NotificationEventListener` (topic unificado: SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email) |
 | `kafka/consumer/service` | Implementaciones por canal (`ChannelService`); Email se maneja aparte, vía `EmailMessageConsumerService` |
 | `kafka/router` | `MessageChannelRouter` — resuelve la plantilla y despacha al `ChannelService` correcto |
 | `kafka/config` | `ConsumerConfig`, `ProducerConfig`, `KafkaSslProps` |
@@ -91,7 +91,6 @@ List<T> findByDeliveryStatus(DeliveryStatusType status);
 > Estos son los huecos funcionales reales a la fecha de esta documentación — no aspiraciones, hechos verificados contra el código.
 
 - **Ningún canal fuera de Email llega a un proveedor real.** SMS/Telegram/WhatsApp/Push persisten el mensaje y quedan ahí — listos para cuando se conecte Twilio/Telegram Bot API/WhatsApp Cloud API/FCM-APNs.
-- **"Nexus" (`NotificationEventListener`) es experimental.** Consume un topic unificado pero nada lo publica todavía; sus manejadores por canal solo hacen `log`.
 - **Los mensajes no-email no se migran a PostgreSQL ni se purgan de Mongo.** `ChannelService.updateStatus()` existe pero no tiene ningún llamador real en el flujo — no hay reconciliación de estado terminal para SMS/Telegram/WhatsApp/Push.
 - **`EmailMessageDocument`/`EmailMessageTO` no llevan `campaignId`.** El vínculo campaña↔email en tránsito no existe hoy; solo se reconstruye al llegar a `MessageRecord` en PostgreSQL.
 - **`ChannelConfigEntity` está definido pero no cableado** a ningún flujo de lectura/escritura activo.
