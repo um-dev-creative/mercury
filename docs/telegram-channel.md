@@ -1,5 +1,7 @@
 # Telegram channel (T-111, zerobound decision D-11)
 
+End-user behavior: [user guide](user-guide/en/telegram.md).
+
 mercury owns the bot token, the `chat_id` of every user and the delivery. This page covers the bot and its configuration; the rest of
 the channel (T-112…T-117) is described in zerobound-rest `docs/TELEGRAM_CHANNEL_PLAN.md`.
 
@@ -69,8 +71,8 @@ Run `V2030__telegram_messages.sql`. `POST /api/v1/telegram/messages` `{userId, k
 `zb_<kind>_tg_<lang>.ftl` (T-116), splits texts over 4096 characters at line breaks (it resumes after the parts already sent), and sends with the
 Bot API. Rates per instance: 1 message/s per chat and 30/s per bot (a message that does not fit waits a second, no attempt spent); 429 waits
 `retry_after`; 403 blocks the link (the next send answers 409); other 4xx fail; 5xx and timeouts retry after 1 min, 5 min, 30 min, 2 h, 12 h
-(the 6th failure or 48 h is `FAILED`). Final rows lose their parameters. The existing Kafka path (`mercury-telegram-messages`, campaigns by
-`chatId`) is unchanged: it still only persists; ZeroBound's channel does not use it.
+(the 6th failure or 48 h is `FAILED`). Final rows lose their parameters. The Kafka path (`mercury-unified-message`, campaigns by `chatId`) is a
+separate flow: it still only persists, and ZeroBound's channel does not use it.
 
 ## Exposing the webhook in production (T-117)
 
