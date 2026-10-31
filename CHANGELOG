@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ZEROBOUND_LOGIN_*` / `ZEROBOUND_NEXT_LOGIN_*` (rotation slot). 14 FreeMarker templates `zb_<kind>_<es|en>.ftl`
   and `scripts/zerobound/seed-templates.sql` (not run against any database).
 
+### Changed
+- **SMS, Telegram, WhatsApp and Push share the topic `mercury-unified-message`**, because the Aiven plan limits the number of topics; `routing.channel` tells them apart and email keeps `mercury-email-messages`. Campaigns publish a `NotificationEventTO` (`docs/topic-general-message.md`) and `NotificationEventConsumerServiceImpl` now validates `target_identifier` per channel and persists through `MessageChannelRouter` instead of only logging. `header.messageId` is the Mongo id, so a redelivery does not duplicate a message. `MessageDocument` gains `mediaUrl` and `mediaType`. A processing failure is retried 4 times, 2 seconds apart, instead of being skipped at once. An `EMAIL` record on the unified topic is logged and discarded. Removed `MultiChannelListener`, `WhatsAppMessageTO`, `PushNotificationMessageTO` and the four per-channel topics and consumer factories.
+
+### Fixed
+- **Kafka against Aiven (client certificate).** Mercury connected to the TLS port with `security.protocol=PLAINTEXT` because `KAFKA_SECURITY_PROTOCOL` was not set anywhere, so consumers disconnected in a loop and the broker logged `SSL handshake failed`. `config/local.env` now sets `KAFKA_SECURITY_PROTOCOL=SSL`; other environments must set it too. `KafkaSslProps` logs a warning naming any configured TLS file that is missing instead of skipping it silently.
+- **Docker images for Aiven.** `Dockerfile` and `Dockerfile.native` default to `KAFKA_SECURITY_PROTOCOL=SSL`, because the certificates are baked in and a host without `config/local.env` fell back to `PLAINTEXT`. `aiven-kafka.p12` is now optional: it is only read when the keystore type is not PEM, and requiring it broke the native build.
+
+### Documentation
+- User guide for the SMS, Telegram, WhatsApp and Push channels (`docs/user-guide/`, English and Spanish), and a Kafka on Aiven section with troubleshooting in the environment configuration guide.
+
 ### Security
 - `/api/v1/mail` and `/api/v1/verification-code` accept only tokens Mercury minted for a login client (own `iss`/`aud`, no `uid`):
   a backbone-rest user session is now `401` there (`MachineTokenInterceptor`). Login clients with an empty alias or password never match.

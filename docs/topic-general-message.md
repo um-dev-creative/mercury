@@ -99,6 +99,10 @@ This is the canonical structure used for all topics related to outbound messagin
 
 ---
 
+## 🔌 In Mercury
+
+SMS, Telegram, WhatsApp and Push are published to and consumed from `mercury-unified-message`, one topic because the Aiven plan limits their number. Email keeps `mercury-email-messages`; an `EMAIL` record on the unified topic is logged and discarded. See `docs/tec/en/02-architecture.md`.
+
 ## 💡 Implementation Notes for Developers
 1.  **Idempotency:** All messages should use the unique `messageId` from the header to prevent duplicate sends in case of Kafka retries.
 2.  **Expansion:** If a new channel (e.g., "WhatsApp Business API" specific features) is added, only `payload.delivery_instructions` or `payload.context` needs to change; the core infrastructure remains untouched.

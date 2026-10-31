@@ -19,6 +19,7 @@
 | 🔁 | [**05 · Diagramas de Secuencia**](05-diagramas-secuencia.md) | Los flujos más representativos: arranque (Vault → Config Server), creación de campaña, ciclo de vida del email, validación de sesión |
 | ☁️ | [**06 · Configuración de Entornos**](06-configuracion-entornos.md) | Desarrollo local, prueba/QA (Docker), producción — certificados, secretos, precedencia de propiedades, troubleshooting real |
 | 🚀 | [**07 · Guía de Desarrollo**](07-guia-desarrollo.md) | Setup, comandos de build, estrategia de ramas, cómo agregar un canal nuevo, checklist de PR |
+| 📖 | [**Guía de usuario · Canales de mensajería**](../../user-guide/es/canales-de-mensajeria.md) | Cómo enviar por SMS, Telegram, WhatsApp y Push |
 
 ---
 

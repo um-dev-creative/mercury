@@ -56,7 +56,7 @@ Mercury **no** carga certificados/keystores desde el classpath (ese patrón caus
 certs/mercury/
 ├── mercury.jks               # keystore de la app (JWT, mercury-security SSL bundle)
 ├── umdc-truststore.jks       # trust store — incluye la CA interna "PRX Internal CA"
-├── aiven-kafka.p12           # keystore Kafka (PKCS12, fallback no-PEM)
+├── aiven-kafka.p12           # keystore Kafka (PKCS12, opcional: solo se lee si KAFKA_SSL_KEYSTORE_TYPE no es PEM)
 ├── aiven-kafka-7e59598.cert  # certificado Kafka (PEM, modo por defecto)
 ├── aiven-kafka-7e59598.key   # llave privada Kafka (PEM)
 ├── aiven-kafka-7e59598.pem   # CA de Kafka (PEM)
@@ -202,6 +202,38 @@ El repositorio ya anticipa un chart de Helm (`Dockerfile`/`docker-compose.yml` r
 
 ---
 
+## 📨 Kafka en Aiven: conexión y topic unificado
+
+Mercury se autentica contra Aiven con certificado de cliente (mTLS). Se deben cumplir tres condiciones en **cada equipo que ejecuta el servicio**:
+
+| Requisito | Detalle |
+|---|---|
+| `KAFKA_SECURITY_PROTOCOL=SSL` | `application.yml` usa `PLAINTEXT` por defecto para desarrollo local. Las imágenes Docker definen `SSL`; cualquier otra ejecución debe definirlo. |
+| Archivos PEM en `certs/mercury/` | `aiven-kafka-7e59598.cert`, `.key` y `.pem`, incorporados a la imagen al construirla. |
+| Topics creados en Aiven | `mercury-email-messages` y `mercury-unified-message` (este último se cambia con `UMDC_NOTIFICATION_TOPIC`). |
+
+`aiven-kafka.p12` es opcional: solo se lee si `KAFKA_SSL_KEYSTORE_TYPE` no es `PEM`, y ningún Dockerfile lo exige.
+
+```mermaid
+flowchart LR
+    API[CampaignServiceImpl] -->|EMAIL| E[(mercury-email-messages)]
+    API -->|SMS, TELEGRAM, WHATSAPP, PUSH| U[(mercury-unified-message)]
+    E --> ML[MercuryEmailListener]
+    U --> NL[NotificationEventListener]
+    NL --> NS[NotificationEventConsumerServiceImpl]
+    NS -->|routing.channel| R[MessageChannelRouter]
+    R --> M[(MongoDB messages)]
+```
+
+Esquema del mensaje: [topic-general-message.md](../../topic-general-message.md). Comportamiento para el usuario: [guía de usuario](../../user-guide/es/canales-de-mensajeria.md).
+
+**Notas de operación**
+
+- `header.messageId` es el `_id` en MongoDB, así que una reentrega de Kafka sobrescribe el documento y lo devuelve a `OPENED`.
+- Los registros que nunca podrán entregarse se registran en el log y se descartan: canal desconocido, `EMAIL`, `messageId` vacío o destino inválido.
+- Los fallos de procesamiento se reintentan 4 veces, cada 2 segundos, y luego se omiten con un `ERROR`. No hay topic de mensajes fallidos, porque el plan limita el número de topics.
+- La aplicación lee el certificado de cliente de Kafka al arrancar, así que reemplazarlo exige una imagen nueva y un reinicio.
+
 ## 🔑 Referencia de variables de entorno (por categoría)
 
 | Categoría | Variables | Fuente esperada |
@@ -241,6 +273,10 @@ keytool -list -v -keystore certs/mercury/umdc-truststore.jks -storepass changeit
 **Causa:** casi seguro que Vault o el Config Server ya definen ese valor, y **ganan por precedencia** sobre cualquier variable local (ver la sección de bootstrap arriba). No es un bug ni un problema de caché.
 
 **Fix:** consultar Vault directamente (ver el snippet de `curl` en la sección de desarrollo local) para confirmar de dónde viene el valor antes de seguir intentando overridearlo localmente. Si el valor realmente necesita ser distinto por entorno, la solución es cambiarlo en Vault (afecta a todos los entornos — coordinar con el equipo) o, si es puramente una diferencia de ruta local-vs-contenedor, replicar la ruta exacta en la máquina local (p. ej. crear `/usr/local/runme/templates` si ese es el valor que trae Vault).
+
+### ❌ `Node -1 disconnected` / `Cancelled in-flight API_VERSIONS request` en bucle
+
+Aiven registra a la vez `Failed authentication ... SSL handshake failed`: el cliente habla `PLAINTEXT` contra un puerto TLS. Comprueba el valor efectivo con `docker logs <contenedor> 2>&1 | grep -m2 'security.protocol ='` y define `KAFKA_SECURITY_PROTOCOL=SSL`. Recrea el contenedor: un reinicio no aplica variables nuevas.
 
 ### ❌ `docker exec mercury keytool -list` falla con `Keystore file does not exist: /home/jvapps/.keystore`
 

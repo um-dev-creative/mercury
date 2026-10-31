@@ -16,7 +16,7 @@ import com.umdc.mercury.jpa.sql.repository.CampaignMetricsRepository;
 import com.umdc.mercury.jpa.sql.repository.CampaignRepository;
 import com.umdc.mercury.jpa.sql.repository.ChannelTypeRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository;
-import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
+import com.umdc.mercury.kafka.to.NotificationEventTO;
 import com.umdc.mercury.mapper.CampaignMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -190,7 +190,7 @@ class CampaignServiceImplTest {
             stubTemplateAndMapper();
             mockCampaignPersistence(campaignId);
             when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(messageFactory.topicFor("sms")).thenReturn("mercury-sms-messages");
+            when(messageFactory.topicFor("sms")).thenReturn("mercury-unified-message");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
             when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
@@ -219,7 +219,7 @@ class CampaignServiceImplTest {
             stubTemplateAndMapper();
             mockCampaignPersistence(campaignId);
             when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(messageFactory.topicFor("telegram")).thenReturn("mercury-telegram-messages");
+            when(messageFactory.topicFor("telegram")).thenReturn("mercury-unified-message");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
             when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
@@ -248,7 +248,7 @@ class CampaignServiceImplTest {
             stubTemplateAndMapper();
             mockCampaignPersistence(campaignId);
             when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(messageFactory.topicFor("whatsapp")).thenReturn("mercury-whatsapp-messages");
+            when(messageFactory.topicFor("whatsapp")).thenReturn("mercury-unified-message");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(new Object());
             when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
@@ -274,16 +274,17 @@ class CampaignServiceImplTest {
             pushChannel.setCode("push");
             pushChannel.setEnabled(true);
             UUID campaignId = UUID.randomUUID();
-            PushNotificationMessageTO pushMsg = new PushNotificationMessageTO(
-                    UUID.randomUUID(), UUID.randomUUID(), "device-token-abc", "android",
-                    "Hi", "Hello Push", null, null, null, null, null, null,
-                    LocalDateTime.now(), Map.of(), campaignId);
+            NotificationEventTO pushMsg = new NotificationEventTO(
+                    new NotificationEventTO.Header(campaignId.toString(), "message-1", null, null),
+                    new NotificationEventTO.Routing("PUSH", null, "device-token-abc"),
+                    new NotificationEventTO.Content(null, null, null, "Hello Push", null, "NONE"),
+                    new NotificationEventTO.Payload(Map.of(), Map.of()));
 
             when(channelTypeRepository.findByCode("push")).thenReturn(Optional.of(pushChannel));
             stubTemplateAndMapper();
             mockCampaignPersistence(campaignId);
             when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-            when(messageFactory.topicFor("push")).thenReturn("mercury-push-messages");
+            when(messageFactory.topicFor("push")).thenReturn("mercury-unified-message");
             when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class),
                     any(), any(UUID.class))).thenReturn(pushMsg);
             when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.completedFuture(null));
@@ -304,8 +305,8 @@ class CampaignServiceImplTest {
             ArgumentCaptor<Object> messageCaptor = ArgumentCaptor.forClass(Object.class);
             verify(kafkaTemplate).send(topicCaptor.capture(), (Object) messageCaptor.capture());
 
-            assertThat(topicCaptor.getValue()).isEqualTo("mercury-push-messages");
-            assertThat(messageCaptor.getValue()).isInstanceOf(PushNotificationMessageTO.class);
+            assertThat(topicCaptor.getValue()).isEqualTo("mercury-unified-message");
+            assertThat(messageCaptor.getValue()).isInstanceOf(NotificationEventTO.class);
         }
     }
 

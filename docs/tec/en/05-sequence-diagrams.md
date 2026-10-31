@@ -57,7 +57,7 @@ sequenceDiagram
     participant Service as CampaignServiceImpl
     participant PG as PostgreSQL
     participant Kafka
-    participant Listener as MultiChannelListener
+    participant Listener as NotificationEventListener
     participant Router as MessageChannelRouter
     participant ChSvc as ChannelService&lt;T&gt;
     participant Mongo as MongoDB
@@ -66,7 +66,7 @@ sequenceDiagram
     Controller->>Service: createCampaign() [async]
     Service->>PG: INSERT CampaignEntity + CampaignMetricsEntity
     loop for each recipient
-        Service->>Kafka: publish(channel-topic, message)
+        Service->>Kafka: publish(mercury-unified-message, NotificationEventTO)
     end
     Service-->>Client: 202 / CampaignResponse
 

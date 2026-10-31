@@ -56,7 +56,7 @@ Mercury does **not** load certificates/keystores from the classpath (that patter
 certs/mercury/
 ├── mercury.jks               # the app's own keystore (JWT, mercury-security SSL bundle)
 ├── umdc-truststore.jks       # trust store — includes the internal "PRX Internal CA"
-├── aiven-kafka.p12           # Kafka keystore (PKCS12, non-PEM fallback)
+├── aiven-kafka.p12           # Kafka keystore (PKCS12, optional: only read when KAFKA_SSL_KEYSTORE_TYPE is not PEM)
 ├── aiven-kafka-7e59598.cert  # Kafka certificate (PEM, default mode)
 ├── aiven-kafka-7e59598.key   # Kafka private key (PEM)
 ├── aiven-kafka-7e59598.pem   # Kafka CA (PEM)
@@ -201,6 +201,38 @@ The repository already anticipates a Helm chart (`Dockerfile`/`docker-compose.ym
 > The recommended alternative to a static `VAULT_TOKEN` `Secret` is [Vault's Kubernetes auth method](https://developer.hashicorp.com/vault/docs/auth/kubernetes): the pod's `ServiceAccount` authenticates to Vault directly — zero static token to provision, rotate, or leak.
 
 ---
+
+## 📨 Kafka on Aiven: connection and unified topic
+
+Mercury authenticates against Aiven with a client certificate (mTLS). Three things must hold on **every host that runs the service**:
+
+| Requirement | Detail |
+|---|---|
+| `KAFKA_SECURITY_PROTOCOL=SSL` | `application.yml` defaults to `PLAINTEXT` for local development. The Docker images set `SSL`; other runs must set it themselves. |
+| PEM files in `certs/mercury/` | `aiven-kafka-7e59598.cert`, `.key` and `.pem`, baked into the image at build time. |
+| Topics created in Aiven | `mercury-email-messages` and `mercury-unified-message` (override the latter with `UMDC_NOTIFICATION_TOPIC`). |
+
+`aiven-kafka.p12` is optional: it is only read when `KAFKA_SSL_KEYSTORE_TYPE` is not `PEM`, and neither Dockerfile requires it.
+
+```mermaid
+flowchart LR
+    API[CampaignServiceImpl] -->|EMAIL| E[(mercury-email-messages)]
+    API -->|SMS, TELEGRAM, WHATSAPP, PUSH| U[(mercury-unified-message)]
+    E --> ML[MercuryEmailListener]
+    U --> NL[NotificationEventListener]
+    NL --> NS[NotificationEventConsumerServiceImpl]
+    NS -->|routing.channel| R[MessageChannelRouter]
+    R --> M[(MongoDB messages)]
+```
+
+Message schema: [topic-general-message.md](../../topic-general-message.md). End-user behavior: [user guide](../../user-guide/en/messaging-channels.md).
+
+**Operational notes**
+
+- `header.messageId` is the MongoDB `_id`, so a Kafka redelivery overwrites the document and resets it to `OPENED`.
+- Records that can never be delivered are logged and discarded: unknown channel, `EMAIL`, blank `messageId`, invalid target.
+- Processing failures are retried 4 times, every 2 seconds, then skipped with an `ERROR`. There is no dead-letter topic, because the plan limits the number of topics.
+- The application reads the Kafka client certificate at startup, so replacing it requires a new image and a restart.
 
 ## 🔑 Environment variable reference (by category)
 
@@ -454,6 +486,10 @@ These paths also need `Authorization: Bearer <opaque token>` with `mercury:messa
 ### ❌ `429` on `POST /api/v1/auth/token`
 
 Too many failed alias/password attempts from that address (`LOGIN_THROTTLE_*`). Wait `Retry-After` seconds. Behind a proxy that hides the caller's address, all clients share one counter.
+
+### ❌ `Node -1 disconnected` / `Cancelled in-flight API_VERSIONS request` in a loop
+
+Aiven logs `Failed authentication ... SSL handshake failed` at the same time: the client is speaking `PLAINTEXT` to a TLS port. Check the effective value with `docker logs <container> 2>&1 | grep -m2 'security.protocol ='` and set `KAFKA_SECURITY_PROTOCOL=SSL`. Recreate the container: a restart does not apply new variables.
 
 ### ❌ `docker exec mercury keytool -list` fails with `Keystore file does not exist: /home/jvapps/.keystore`
 

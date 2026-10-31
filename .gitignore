@@ -37,6 +37,7 @@ htmlReport/
 !/docs/tec/
 !/docs/issues/
 !/docs/architecture/
+!/docs/user-guide/
 !/docs/template-management-api.md
 !/docs/generate-session-token.md
 !/docs/smartkin-mail-templates.md

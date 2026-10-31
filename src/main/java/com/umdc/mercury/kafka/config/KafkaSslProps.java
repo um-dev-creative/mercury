@@ -3,6 +3,8 @@ package com.umdc.mercury.kafka.config;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.core.io.Resource;
@@ -20,6 +22,8 @@ import java.util.Map;
 @Component
 @ConditionalOnProperty(name = "umdc.kafka.enabled", havingValue = "true", matchIfMissing = true)
 public class KafkaSslProps {
+
+    private static final Logger logger = LoggerFactory.getLogger(KafkaSslProps.class);
 
     @Value("${umdc.kafka.security.protocol:PLAINTEXT}")
     private String securityProtocol;
@@ -84,15 +88,15 @@ public class KafkaSslProps {
         if ("PEM".equalsIgnoreCase(keystoreType)) {
             // Inline PEM content works in both file-system and JAR deployments.
             // Aiven supplies the client cert and private key as separate files.
-            if (keystoreCertLocation.exists()) {
+            if (existsOrWarn(keystoreCertLocation, "client certificate")) {
                 props.put(SslConfigs.SSL_KEYSTORE_CERTIFICATE_CHAIN_CONFIG,
                         keystoreCertLocation.getContentAsString(StandardCharsets.UTF_8));
             }
-            if (keystoreKeyLocation.exists()) {
+            if (existsOrWarn(keystoreKeyLocation, "client private key")) {
                 props.put(SslConfigs.SSL_KEYSTORE_KEY_CONFIG,
                         keystoreKeyLocation.getContentAsString(StandardCharsets.UTF_8));
             }
-        } else if (keystoreLocation.exists()) {
+        } else if (existsOrWarn(keystoreLocation, "keystore")) {
             props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, toAbsolutePath(keystoreLocation));
             props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, keystorePassword);
             props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, keyPassword);
@@ -100,16 +104,29 @@ public class KafkaSslProps {
 
         props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, truststoreType);
         if ("PEM".equalsIgnoreCase(truststoreType)) {
-            if (truststoreLocation.exists()) {
+            if (existsOrWarn(truststoreLocation, "CA certificate")) {
                 props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG,
                         truststoreLocation.getContentAsString(StandardCharsets.UTF_8));
             }
-        } else if (truststoreLocation.exists()) {
+        } else if (existsOrWarn(truststoreLocation, "truststore")) {
             props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, toAbsolutePath(truststoreLocation));
             props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, truststorePassword);
         }
 
         return props;
+    }
+
+    /**
+     * A missing file is left out of the client config, which only surfaces later as an opaque
+     * handshake failure against the broker, so name the file here.
+     */
+    private boolean existsOrWarn(Resource resource, String description) {
+        boolean exists = resource.exists();
+        if (!exists) {
+            logger.warn("Kafka {} not found at {} (security.protocol={}); it will not be used",
+                    description, resource.getDescription(), securityProtocol);
+        }
+        return exists;
     }
 
     /**

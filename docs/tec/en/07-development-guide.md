@@ -86,8 +86,8 @@ gitGraph
 
 1. Create the Mongo document: extend `MessageDocument` (see [03 · Data Model](03-data-model.md)).
 2. Implement `ChannelService<YourDocument>` — the three methods: `send`, `updateStatus`, `findByDeliveryStatus`.
-3. Add the matching topic in `application.yml` (`umdc.consumer.topics.<channel>`).
-4. Register the channel in `MessageChannelRouter` so `MultiChannelListener` dispatches to it correctly.
+3. Do not add a topic: publish a `NotificationEventTO` to the unified topic from `CampaignMessageFactory` (the Aiven plan limits topics).
+4. Map the channel in `NotificationEventConsumerServiceImpl` and register it in `MessageChannelRouter`.
 5. Add the `ChannelType` in the `channel_type` table (or via the `POST /api/v1/channel-types` endpoint).
 6. Write tests — at minimum: the `ChannelService` (persistence + status filtering) and the router registration.
 

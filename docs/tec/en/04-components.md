@@ -15,7 +15,7 @@
 | `jpa/sql/entity` + `jpa/sql/repository` | JPA entities and Spring Data repositories (PostgreSQL) |
 | `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents (polymorphic `MessageDocument` for Sms/Telegram/WhatsApp/Push; `EmailMessageDocument` separate) |
 | `mapper` | MapStruct mappers (Entity ↔ TO) |
-| `kafka/listener` | `@KafkaListener` entry points — `MultiChannelListener`, `MercuryEmailListener`, `NotificationEventListener` (experimental) |
+| `kafka/listener` | `@KafkaListener` entry points — `NotificationEventListener` (unified topic: SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email) |
 | `kafka/consumer/service` | Per-channel implementations (`ChannelService`); Email is handled separately, via `EmailMessageConsumerService` |
 | `kafka/router` | `MessageChannelRouter` — resolves the template and dispatches to the right `ChannelService` |
 | `kafka/config` | `ConsumerConfig`, `ProducerConfig`, `KafkaSslProps` |
@@ -91,7 +91,6 @@ List<T> findByDeliveryStatus(DeliveryStatusType status);
 > These are the real functional gaps as of this documentation's writing — not aspirations, facts verified against the code.
 
 - **No channel besides Email reaches a real provider.** SMS/Telegram/WhatsApp/Push persist the message and stop there — ready for whenever Twilio/Telegram Bot API/WhatsApp Cloud API/FCM-APNs gets wired in.
-- **"Nexus" (`NotificationEventListener`) is experimental.** It consumes a unified topic, but nothing publishes to it yet; its per-channel handlers only `log`.
 - **Non-email messages aren't migrated to PostgreSQL nor purged from Mongo.** `ChannelService.updateStatus()` exists but has no real caller anywhere in the flow — there's no terminal-status reconciliation for SMS/Telegram/WhatsApp/Push.
 - **`EmailMessageDocument`/`EmailMessageTO` carry no `campaignId`.** The campaign↔email link doesn't exist while the message is in flight today; it's only reconstructed once it reaches `MessageRecord` in PostgreSQL.
 - **`ChannelConfigEntity` is defined but not wired** into any active read/write flow.

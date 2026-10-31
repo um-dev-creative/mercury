@@ -2,8 +2,6 @@ package com.umdc.mercury.kafka.router;
 
 import com.umdc.mercury.api.v1.service.TemplateDefinedService;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
-import com.umdc.mercury.constant.ChannelType;
-import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
@@ -12,8 +10,6 @@ import com.umdc.mercury.kafka.consumer.service.PushChannelService;
 import com.umdc.mercury.kafka.consumer.service.SmsChannelService;
 import com.umdc.mercury.kafka.consumer.service.TelegramChannelService;
 import com.umdc.mercury.kafka.consumer.service.WhatsAppChannelService;
-import com.umdc.mercury.kafka.to.PushNotificationMessageTO;
-import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,8 +17,8 @@ import org.springframework.stereotype.Service;
 import java.util.UUID;
 
 /**
- * Dispatches an inbound channel message, consumed from its Kafka topic by
- * {@link com.umdc.mercury.kafka.listener.MultiChannelListener}, to the {@link com.umdc.mercury.kafka.consumer.service.ChannelService}
+ * Dispatches an inbound channel message, consumed from the unified Kafka topic by
+ * {@link com.umdc.mercury.kafka.listener.NotificationEventListener}, to the {@link com.umdc.mercury.kafka.consumer.service.ChannelService}
  * responsible for persisting/sending it, resolving the associated template first.
  *
  * <p>Email is intentionally not routed here: it is consumed and persisted through its
@@ -62,14 +58,14 @@ public class MessageChannelRouter {
         telegramService.send(message, template);
     }
 
-    public void routeWhatsApp(WhatsAppMessageTO message) {
-        TemplateDefinedTO template = resolveTemplate(message.templateDefinedId());
-        whatsAppChannelService.send(toDocument(message), template);
+    public void routeWhatsApp(WhatsAppMessageDocument message) {
+        TemplateDefinedTO template = resolveTemplate(message.getTemplateDefinedId());
+        whatsAppChannelService.send(message, template);
     }
 
-    public void routePush(PushNotificationMessageTO message) {
-        TemplateDefinedTO template = resolveTemplate(message.templateDefinedId());
-        pushChannelService.send(toDocument(message), template);
+    public void routePush(PushNotificationMessageDocument message) {
+        TemplateDefinedTO template = resolveTemplate(message.getTemplateDefinedId());
+        pushChannelService.send(message, template);
     }
 
     private TemplateDefinedTO resolveTemplate(UUID templateDefinedId) {
@@ -79,44 +75,5 @@ public class MessageChannelRouter {
             logger.warn("Unable to resolve template. templateDefinedId={}, reason={}", templateDefinedId, ex.getMessage());
             return null;
         }
-    }
-
-    private WhatsAppMessageDocument toDocument(WhatsAppMessageTO message) {
-        WhatsAppMessageDocument document = new WhatsAppMessageDocument();
-        document.setCampaignId(message.campaignId());
-        document.setUserId(message.userId());
-        document.setTemplateDefinedId(message.templateDefinedId());
-        document.setSendDate(message.sendDate());
-        document.setParams(message.params());
-        document.setPhoneNumber(message.phoneNumber());
-        document.setMessageType(message.messageType());
-        document.setContent(message.content());
-        document.setTemplateName(message.templateName());
-        document.setTemplateLanguage(message.templateLanguage());
-        document.setDeliveryStatus(DeliveryStatusType.OPENED);
-        document.setChannelType(ChannelType.WHATSAPP);
-        return document;
-    }
-
-    private PushNotificationMessageDocument toDocument(PushNotificationMessageTO message) {
-        PushNotificationMessageDocument document = new PushNotificationMessageDocument();
-        document.setCampaignId(message.campaignId());
-        document.setUserId(message.userId());
-        document.setTemplateDefinedId(message.templateDefinedId());
-        document.setSendDate(message.sendDate());
-        document.setParams(message.params());
-        document.setDeviceToken(message.deviceToken());
-        document.setPlatform(message.platform());
-        document.setTitle(message.title());
-        document.setBody(message.body());
-        document.setIcon(message.icon());
-        document.setImage(message.image());
-        document.setClickAction(message.clickAction());
-        document.setPriority(message.priority());
-        document.setBadge(message.badge());
-        document.setSound(message.sound());
-        document.setDeliveryStatus(DeliveryStatusType.OPENED);
-        document.setChannelType(ChannelType.PUSH);
-        return document;
     }
 }
