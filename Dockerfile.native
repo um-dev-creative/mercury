@@ -20,7 +20,7 @@ ARG TARGETARCH
 WORKDIR /build
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl ca-certificates build-essential zlib1g-dev \
+    build-essential ca-certificates curl zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ARG GRAALVM_VERSION=25.0.2
@@ -30,7 +30,7 @@ RUN set -eu; \
       arm64) GRAAL_ARCH=aarch64 ;; \
       *) echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
-    curl -fsSL "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-${GRAAL_ARCH}_bin.tar.gz" -o /tmp/graalvm.tar.gz && \
+    curl --proto "=https" -fsSL "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-${GRAALVM_VERSION}/graalvm-community-jdk-${GRAALVM_VERSION}_linux-${GRAAL_ARCH}_bin.tar.gz" -o /tmp/graalvm.tar.gz && \
     mkdir -p /opt/graalvm && \
     tar xzf /tmp/graalvm.tar.gz -C /opt/graalvm --strip-components=1 && \
     rm /tmp/graalvm.tar.gz
@@ -42,7 +42,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 ARG MAVEN_VERSION=3.9.14
 # archive.apache.org, not dlcdn.apache.org — dlcdn only mirrors the latest release per line and
 # 404s once a newer 3.9.x replaces this pinned version; the archive keeps every release forever.
-RUN curl -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
+RUN curl --proto "=https" -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
     | tar xz -C /opt && ln -s "/opt/apache-maven-${MAVEN_VERSION}/bin/mvn" /usr/local/bin/mvn
 
 COPY pom.xml ruleset.xml ./
@@ -106,8 +106,11 @@ RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.c
       if [ -f "/run/secrets/$f" ]; then cp "/run/secrets/$f" "/staging-certs/mercury/$f"; \
       else cp "/build/certs/mercury/$f" "/staging-certs/mercury/$f"; fi || exit 1; \
     done && \
-    if [ -f /run/secrets/aiven-kafka.p12 ]; then cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/; \
-    elif [ -f /build/certs/mercury/aiven-kafka.p12 ]; then cp /build/certs/mercury/aiven-kafka.p12 /staging-certs/mercury/; fi && \
+    if [ -f /run/secrets/aiven-kafka.p12 ]; then \
+      cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/; \
+    elif [ -f /build/certs/mercury/aiven-kafka.p12 ]; then \
+      cp /build/certs/mercury/aiven-kafka.p12 /staging-certs/mercury/; \
+    fi && \
     chmod 0444 /staging-certs/mercury/*
 # BuildKit mounts each --secret at mode 0400 owned by root, and `cp` (no -p flag) still
 # preserves those source permission bits — so, unlike the JIT Dockerfile (which chowns/chmods

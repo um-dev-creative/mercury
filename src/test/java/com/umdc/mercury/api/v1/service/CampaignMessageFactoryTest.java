@@ -1,7 +1,5 @@
 package com.umdc.mercury.api.v1.service;
 
-import com.umdc.mercury.api.v1.service.CampaignMessageFactory;
-import com.umdc.mercury.api.v1.service.CampaignService;
 import com.umdc.mercury.api.v1.to.RecipientTO;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
