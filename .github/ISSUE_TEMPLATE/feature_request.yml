@@ -1,0 +1,77 @@
+name: Feature Request
+description: Request a new Mercury endpoint or capability
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use the `full-feature-delivery.prompt.md` prompt with the `orchestrator` agent to implement this feature.
+
+  - type: input
+    id: feature_name
+    attributes:
+      label: Feature Name
+      description: Short human-readable name (used as featureName variable in prompts)
+      placeholder: "Campaign Pause/Resume"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What should this feature do?
+    validations:
+      required: true
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: REST Endpoint (if applicable)
+      description: "HTTP method + path (e.g. PATCH /api/v1/campaigns/{id}/pause)"
+      placeholder: "PATCH /api/v1/campaigns/{id}/pause"
+
+  - type: dropdown
+    id: http_method
+    attributes:
+      label: HTTP Method
+      options: [GET, POST, PUT, PATCH, DELETE, N/A]
+
+  - type: dropdown
+    id: channel_scope
+    attributes:
+      label: Channel Scope
+      options: [ALL, EMAIL, SMS, TELEGRAM, WHATSAPP, PUSH, N/A]
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: layers
+    attributes:
+      label: Mercury Layers Affected
+      options:
+        - label: New DB entity or schema change (needs `database-architect`)
+        - label: New or changed API contract (needs `api-reviewer`)
+        - label: New channel service implementation (needs `developer`)
+        - label: Auth / JWT / BackboneClient changes (needs `security-reviewer`)
+        - label: Kafka topic or bootstrap.yml changes (needs `devops-engineer`)
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        Given a campaign with status ACTIVE
+        When PATCH /api/v1/campaigns/{id}/pause is called
+        Then the campaign status changes to PAUSED and 200 is returned
+    validations:
+      required: true
+
+  - type: input
+    id: orchestrator_prompt
+    attributes:
+      label: Orchestrator Prompt
+      value: ".github/prompts/full-feature-delivery.prompt.md"
+      description: Prompt to invoke with the orchestrator agent

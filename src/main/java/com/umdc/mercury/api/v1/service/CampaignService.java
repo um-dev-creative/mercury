@@ -1,0 +1,81 @@
+// src/main/java/com/prx/mercury/api/v1/service/ChannelTypeService.java
+package com.umdc.mercury.api.v1.service;
+
+import com.umdc.mercury.api.v1.to.CampaignDetailResponse;
+import com.umdc.mercury.api.v1.to.CampaignProgressTO;
+import com.umdc.mercury.api.v1.to.CampaignTO;
+import com.umdc.mercury.api.v1.to.UpdateCampaignRequest;
+import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+public interface CampaignService {
+
+    String PARSE_MODE_KEY = "parseMode";
+    String SENDER_ID_KEY = "senderId";
+    String MESSAGE_KEY = "message";
+    String SUBJECT_KEY = "subject";
+    String BODY_KEY = "body";
+    String FROM_KEY = "from";
+
+    CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request);
+
+    /**
+     * Progress of a campaign, visible only to its owner.
+     *
+     * @param campaignId  the campaign UUID
+     * @param requesterId the verified id of the caller
+     * @throws CampaignNotFoundException if no such campaign exists
+     * @throws com.umdc.mercury.api.v1.exception.ForbiddenException if the caller is not the owner
+     */
+    CampaignProgressTO getProgress(UUID campaignId, UUID requesterId);
+
+    /**
+     * Retrieves a campaign by its unique identifier.
+     *
+     * @param id          the campaign UUID; must not be {@code null}.
+     * @param requesterId the verified id of the caller; only the campaign's owner may read it.
+     * @return the {@link CampaignDetailResponse} populated from the stored entity.
+     * @throws CampaignNotFoundException if no campaign with the given id exists.
+     * @throws com.umdc.mercury.api.v1.exception.ForbiddenException if the caller is not the owner.
+     */
+    CampaignDetailResponse getById(UUID id, UUID requesterId);
+
+    List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId);
+
+    /**
+     * Updates mutable fields of an existing campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param updateRequest the request containing partial fields to update
+     * @param requesterId the user making the request (for auditing/permission checks)
+     * @return the updated CampaignDetailResponse
+     */
+    CampaignDetailResponse updateCampaign(UUID campaignId, UpdateCampaignRequest updateRequest, UUID requesterId);
+
+    /**
+     * Enables or disables (pauses/resumes) a campaign.
+     *
+     * @param campaignId the campaign UUID
+     * @param enabled desired enabled state
+     * @param requesterId the user requesting the change (for permission/audit)
+     */
+    void toggleCampaign(UUID campaignId, boolean enabled, UUID requesterId);
+
+    /**
+     * Soft-deletes a campaign, marking it as deleted instead of removing the row.
+     * Soft-deleted campaigns are excluded from {@link #getById(UUID)},
+     * {@link #getByUserIdAndApplicationId(UUID, UUID)}, {@link #updateCampaign(UUID, UpdateCampaignRequest, UUID)}
+     * and {@link #toggleCampaign(UUID, boolean, UUID)}.
+     *
+     * @param campaignId the campaign UUID
+     * @param requesterId the user requesting the deletion (for permission/audit)
+     * @throws CampaignNotFoundException if the campaign does not exist or is already deleted
+     */
+    void deleteCampaign(UUID campaignId, UUID requesterId);
+
+}
+
+
+

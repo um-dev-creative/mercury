@@ -1,0 +1,1413 @@
+openapi: 3.0.3
+info:
+  title: Mercury API
+  version: 0.0.1
+  description: REST API contract for Mercury messaging services.
+servers:
+  - url: /
+paths:
+  /api/v1/auth/token:
+    post:
+      tags:
+        - auth
+      summary: Generate a session token (M2M-only, no uid)
+      description: >-
+        Implemented by AuthTokenController. Checks the request body's alias/password
+        against Mercury's registered login-client registry (umdc.mercury.login-clients)
+        and mints a Mercury-signed session-token. The resulting token carries no uid
+        claim — it only authenticates the calling backend service, not an end user — so
+        it's only useful against pure M2M endpoints (/api/v1/mail,
+        /api/v1/verification-code). User-scoped endpoints (Template Management,
+        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign) do NOT
+        use this token: the caller sends the end user's backbone-rest session token
+        directly in the session-token header.
+      operationId: accessToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Successfully generated session token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Blank alias.
+        '401':
+          description: Alias/password not in the registered login-client registry.
+        '429':
+          description: Too many failed attempts for this alias and address; see the Retry-After header.
+        '406':
+          description: Token generation unexpectedly produced a blank token.
+
+  /api/v1/auth/logout:
+    post:
+      tags:
+        - auth
+      summary: Revoke the presented session token
+      description: >-
+        Implemented by AuthLogoutController. Adds the token's jti to Mercury's denylist until
+        the token's own expiry, so every Mercury endpoint rejects it from now on. It does not
+        log the user out of backbone-rest: do that there as well to invalidate it everywhere.
+      operationId: logout
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          description: The session token to revoke.
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Token revoked.
+        '401':
+          description: Missing, expired, tampered, already revoked or jti-less token.
+
+  /api/v1/campaigns:
+    post:
+      tags:
+        - campaigns
+      summary: Create a new campaign
+      description: Creates a new messaging campaign and publishes messages to recipients via the specified channel.
+      operationId: createCampaign
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCampaignRequest'
+      responses:
+        '201':
+          description: Campaign created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateCampaignResponse'
+        '400':
+          description: Invalid request payload.
+        '401':
+          description: Missing, expired, tampered or revoked session-token.
+        '403':
+          description: The request userId does not match the session-token user.
+        '422':
+          description: Channel type not found or disabled.
+    get:
+      tags:
+        - campaigns
+      summary: Get campaigns by application for current user
+      description: Retrieves campaigns filtered by application id for the authenticated user. User id is obtained from the session token header.
+      operationId: getCampaignsByApplication
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Campaigns retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampaignDetailResponse'
+        '400':
+          description: Invalid request parameters.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to view these campaigns.
+
+  /api/v1/campaigns/{id}:
+    get:
+      tags:
+        - campaigns
+      summary: Get campaign by ID
+      description: Retrieves the full details of a campaign identified by its UUID. Only the campaign's owner (the session-token user) may read it.
+      operationId: getCampaignById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          description: The end user's backbone-rest session token.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Campaign found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetailResponse'
+        '400':
+          description: Invalid UUID format supplied for id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to view this campaign.
+        '404':
+          description: Campaign with the given id does not exist.
+        '500':
+          description: Unexpected internal error.
+    put:
+      tags:
+        - campaigns
+      summary: Update campaign by ID
+      description: Update mutable fields of a campaign identified by UUID.
+      operationId: updateCampaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCampaignRequest'
+      responses:
+        '200':
+          description: Campaign updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CampaignDetailResponse'
+        '400':
+          description: Invalid request payload.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to update this campaign.
+        '404':
+          description: Campaign not found.
+        '422':
+          description: Business rule violation.
+
+  /api/v1/mail:
+    post:
+      tags:
+        - mail
+      summary: Accept an email for delivery
+      description: |
+        Backend callers only: the `session-token` must be one Mercury minted for a registered login client
+        (`POST /api/v1/auth/token`); a user session issued by backbone-rest is refused with 401.
+        The mail is queued (`OPENED`) and sent by the scheduler. With an `Idempotency-Key` (scoped to the caller)
+        the same key and request is accepted once: a repeat answers the first message with the
+        `Idempotent-Replayed: true` header, and the same key with a different request is 422.
+      operationId: sendEmail
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: Chosen by the caller; makes retries safe.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendEmailRequest'
+      responses:
+        '200':
+          description: Accepted (or the replay of an earlier request with the same Idempotency-Key).
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendEmailResponse'
+        '400':
+          description: Invalid request or unknown template.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/mail/{id}:
+    get:
+      tags:
+        - mail
+      summary: Delivery state of a mail this caller submitted
+      operationId: getMailStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MailStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+        '404':
+          description: Unknown id, another caller's mail, or past retention.
+
+  /api/v1/verification-code:
+    post:
+      tags:
+        - verification-code
+      summary: Send verification code to user
+      description: Send verification code to user.
+      operationId: sendVerificationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerificationCodeRequest'
+      responses:
+        '200':
+          description: Verification code sent successfully.
+        '400':
+          description: Invalid phone number.
+        '500':
+          description: Internal server error.
+
+  /api/v1/verification-code/latest-status:
+    get:
+      tags:
+        - verification-code
+      summary: Get latest verification status
+      description: Get the is_verified status of the latest verification code for a user.
+      operationId: getLatestIsVerifiedStatus
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: boolean
+        '404':
+          description: No verification code found for user.
+        '500':
+          description: Internal server error.
+
+  /api/v1/channel-types:
+    get:
+      tags:
+        - channel-types
+      summary: Get all channel types
+      operationId: getAllChannelTypes
+      responses:
+        '200':
+          description: Channel types retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelTypeTO'
+    post:
+      tags:
+        - channel-types
+      summary: Create new channel type
+      operationId: createChannelType
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelTypeTO'
+      responses:
+        '200':
+          description: Channel type created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/enabled:
+    get:
+      tags:
+        - channel-types
+      summary: Get enabled channel types only
+      operationId: getEnabledChannelTypes
+      responses:
+        '200':
+          description: Enabled channel types retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/code/{code}:
+    get:
+      tags:
+        - channel-types
+      summary: Get channel type by code
+      operationId: getChannelTypeByCode
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Channel type retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/{id}:
+    get:
+      tags:
+        - channel-types
+      summary: Get channel type by ID
+      operationId: getChannelTypeById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Channel type retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+    put:
+      tags:
+        - channel-types
+      summary: Update channel type
+      operationId: updateChannelType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChannelTypeTO'
+      responses:
+        '200':
+          description: Channel type updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChannelTypeTO'
+
+  /api/v1/channel-types/{id}/toggle:
+    patch:
+      tags:
+        - channel-types
+      summary: Enable or disable channel type
+      operationId: toggleChannelType
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: enabled
+          in: query
+          required: true
+          schema:
+            type: boolean
+      responses:
+        '204':
+          description: Channel type toggled successfully.
+
+  /api/v1/campaigns/{id}/toggle:
+    patch:
+      tags:
+        - campaigns
+      summary: Enable or disable a campaign
+      description: Enable or disable (pause/resume) a campaign by id.
+      operationId: toggleCampaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: enabled
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Campaign toggled successfully.
+        '400':
+          description: Invalid parameters.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission.
+        '404':
+          description: Campaign not found.
+        '422':
+          description: Business rule violation.
+
+  /api/v1/templates:
+    post:
+      tags:
+        - templates
+      summary: Create a new template
+      description: Creates a new reusable base template, always persisted as active.
+      operationId: createTemplate
+      parameters:
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTemplateRequest'
+      responses:
+        '201':
+          description: Template created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive application, template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+    get:
+      tags:
+        - templates
+      summary: Search templates
+      description: Searches templates within an application the caller may access. Always scoped by applicationId; defaults to active-only results; bounded and stably paginated/sorted.
+      operationId: searchTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: templateTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: severityTypeId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+        - name: active
+          in: query
+          required: false
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            default: 20
+            maximum: 100
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            example: createdAt,desc
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated search results returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateSearchResponse'
+        '400':
+          description: Missing applicationId, invalid filter/UUID value, or out-of-bounds paging/sort parameter.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '500':
+          description: Unexpected internal error.
+
+  /api/v1/templates/{id}:
+    get:
+      tags:
+        - templates
+      summary: Get template by ID
+      description: Retrieves the full details of an active template identified by its UUID. Unknown and inactive ids are both reported as not found.
+      operationId: getTemplateById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Template found and returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid UUID format supplied for id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    put:
+      tags:
+        - templates
+      summary: Update template by ID
+      description: Updates mutable metadata of an active template identified by UUID. Fields omitted from the request remain unchanged; the owning application is immutable.
+      operationId: updateTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTemplateRequest'
+      responses:
+        '200':
+          description: Template updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateDetailResponse'
+        '400':
+          description: Invalid request payload, or an unknown/inactive template type or severity type reference.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template not found, or exists but is no longer active.
+        '500':
+          description: Unexpected internal error.
+    delete:
+      tags:
+        - templates
+      summary: Deactivate template by ID
+      description: Soft-deletes a template (sets active=false); the row and all dependent references are retained. Idempotent for an already-inactive template.
+      operationId: deleteTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: session-token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Template deactivated successfully (or was already inactive).
+        '400':
+          description: Malformed id.
+        '401':
+          description: Invalid or missing authentication token.
+        '403':
+          description: Caller lacks permission to manage templates for this application.
+        '404':
+          description: Template with the given id does not exist.
+        '500':
+          description: Unexpected internal error.
+
+  /api/v1/telegram/links:
+    post:
+      tags:
+        - telegram
+      summary: Deep link to connect a user's Telegram chat
+      description: |
+        Backend callers only (mercury-minted M2M token). The caller's login alias is the application. Returns
+        `https://t.me/<bot>?start=<token>`: single use, valid 10 minutes; earlier tokens of the user stop working.
+      operationId: createTelegramLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLinkRequest'
+      responses:
+        '201':
+          description: The link and when it expires.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkResponse'
+        '400':
+          description: Invalid user or unsupported language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '503':
+          description: The Telegram channel is off or the bot is unreachable.
+
+  /api/v1/telegram/links/{userId}:
+    get:
+      tags:
+        - telegram
+      summary: State of a user's Telegram link
+      operationId: getTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The state (never the chat id).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkStatusResponse'
+        '401':
+          description: Not a Mercury-minted backend token.
+    delete:
+      tags:
+        - telegram
+      summary: Remove a user's Telegram link and pending tokens (idempotent)
+      operationId: deleteTelegramLink
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Removed, or there was nothing to remove.
+        '401':
+          description: Not a Mercury-minted backend token.
+
+  /api/v1/telegram/messages:
+    post:
+      tags:
+        - telegram
+      summary: Queue a Telegram message for a linked user
+      description: |
+        The message is built by mercury from a template `kind` (`zb_<kind>_tg_<language>`) and the parameters.
+        With an `Idempotency-Key` (scoped to the caller) the same request is accepted once: a repeat answers the first
+        message with `Idempotent-Replayed: true`; the same key with another request is 422. A user who is not linked, or
+        who blocked the bot, is a 409 with `code` `TELEGRAM_NOT_LINKED` or `TELEGRAM_BLOCKED`.
+      operationId: sendTelegramMessage
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramMessageRequest'
+      responses:
+        '202':
+          description: Accepted, or the replay of an earlier request with the same key.
+          headers:
+            Idempotent-Replayed:
+              description: "`true` when this answer replays an earlier request."
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageResponse'
+        '400':
+          description: Invalid request, unknown template or language.
+        '401':
+          description: Not a Mercury-minted backend token.
+        '409':
+          description: TELEGRAM_NOT_LINKED or TELEGRAM_BLOCKED (in `code`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramConflict'
+        '422':
+          description: The Idempotency-Key was already used with a different request.
+
+  /api/v1/telegram/messages/{id}:
+    get:
+      tags:
+        - telegram
+      summary: Delivery state of a Telegram message this caller submitted
+      operationId: getTelegramMessage
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: QUEUED, SENT, FAILED or BLOCKED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramMessageStatusResponse'
+        '404':
+          description: Unknown id or another caller's message.
+
+components:
+  schemas:
+    AuthRequest:
+      type: object
+      description: >-
+        Credentials of a registered Mercury login client (umdc.mercury.login-clients)
+        — not an end user's credentials.
+      required:
+        - alias
+        - password
+      properties:
+        alias:
+          type: string
+        password:
+          type: string
+          format: password
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: The newly minted Mercury-signed session-token.
+    CreateCampaignRequest:
+      type: object
+      required:
+        - name
+        - channelTypeCode
+        - templateId
+        - userId
+        - recipients
+        - status
+        - applicationId
+      properties:
+        name:
+          type: string
+        channelTypeCode:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipientTO'
+        templateParams:
+          type: object
+          additionalProperties: true
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+      example:
+        name: "Welcome Campaign"
+        channelTypeCode: "EMAIL"
+        templateId: "00000000-0000-0000-0000-000000000001"
+        userId: "00000000-0000-0000-0000-000000000002"
+        recipients:
+          - identifier: "user@example.com"
+            name: "Jane Doe"
+        templateParams:
+          firstName: "Jane"
+        scheduledAt: "2026-03-20T10:00:00Z"
+        status: "SCHEDULED"
+        applicationId: "00000000-0000-0000-0000-000000000003"
+
+    CreateCampaignResponse:
+      type: object
+      properties:
+        campaignId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        status:
+          type: string
+        totalRecipients:
+          type: integer
+          format: int32
+        createdAt:
+          type: string
+          format: date-time
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    RecipientTO:
+      type: object
+      required:
+        - identifier
+      properties:
+        identifier:
+          type: string
+          description: Recipient identifier such as email, phone, or chat ID.
+        name:
+          type: string
+          nullable: true
+        customParams:
+          type: object
+          additionalProperties: true
+
+    SendEmailRequest:
+      type: object
+      required:
+        - templateDefinedId
+        - userId
+        - from
+        - to
+        - cc
+        - subject
+        - body
+      properties:
+        templateDefinedId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        from:
+          type: string
+        to:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailContact'
+        cc:
+          type: array
+          items:
+            $ref: '#/components/schemas/EmailContact'
+        subject:
+          type: string
+        body:
+          type: string
+        sendDate:
+          type: string
+          format: date-time
+        params:
+          type: object
+          additionalProperties: true
+      example:
+        templateDefinedId: "11111111-1111-1111-1111-111111111111"
+        userId: "22222222-2222-2222-2222-222222222222"
+        from: "no-reply@example.com"
+        to:
+          - email: "recipient@example.com"
+            name: "Recipient"
+        cc: []
+        subject: "Welcome to Mercury"
+        body: "Hello {{firstName}}, welcome!"
+        sendDate: "2026-03-13T12:00:00Z"
+        params:
+          firstName: "John"
+
+    MailStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [OPENED, PENDING, IN_PROGRESS, SENT, DELIVERED, REJECTED, CANCELED, ABORTED, FAILED]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SendEmailResponse:
+      type: object
+      required:
+        - id
+        - status
+        - message
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        message:
+          type: string
+
+    EmailContact:
+      type: object
+      required:
+        - email
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        alias:
+          type: string
+          nullable: true
+
+    VerificationCodeRequest:
+      type: object
+      required:
+        - applicationId
+        - userId
+        - code
+      properties:
+        applicationId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        code:
+          type: string
+      example:
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        userId: "44444444-4444-4444-4444-444444444444"
+        code: "123456"
+
+    ChannelTypeTO:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        code:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+        enabled:
+          type: boolean
+        implementationClass:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        active:
+          type: boolean
+      example:
+        id: "55555555-5555-5555-5555-555555555555"
+        code: "EMAIL"
+        name: "Email"
+        description: "Standard email channel"
+        icon: "mailto"
+        enabled: true
+        implementationClass: "com.umdc.mercury.channel.EmailChannel"
+        createdAt: "2026-01-01T00:00:00Z"
+        updatedAt: "2026-01-02T00:00:00Z"
+        active: true
+
+    CampaignDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        channelType:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        status:
+          type: string
+        totalRecipients:
+          type: integer
+          format: int32
+        scheduledAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+          additionalProperties: true
+
+    UpdateCampaignRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        templateId:
+          type: string
+          format: uuid
+        recipients:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecipientTO'
+        templateParams:
+          type: object
+          additionalProperties: true
+        scheduledAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+      example:
+        name: "Updated Campaign Name"
+        scheduledAt: "2026-03-20T13:00:00Z"
+        status: "SCHEDULED"
+
+    CreateTemplateRequest:
+      type: object
+      required:
+        - description
+        - location
+        - fileFormat
+        - templateTypeId
+        - applicationId
+        - severityTypeId
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+          description: Metadata-only pointer to where the template content lives; upload/download of content is out of scope.
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+          description: Owning application; immutable once the template is created.
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+
+    UpdateTemplateRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        location:
+          type: string
+          maxLength: 500
+        fileFormat:
+          type: string
+          maxLength: 50
+        templateTypeId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+      example:
+        description: "Updated welcome email"
+        fileFormat: "HTML"
+
+    TemplateDetailResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        description:
+          type: string
+        location:
+          type: string
+        fileFormat:
+          type: string
+        templateTypeId:
+          type: string
+          format: uuid
+        templateTypeName:
+          type: string
+        applicationId:
+          type: string
+          format: uuid
+        severityTypeId:
+          type: string
+          format: uuid
+        severityTypeName:
+          type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      example:
+        id: "88888888-8888-8888-8888-888888888888"
+        description: "Welcome email"
+        location: "s3://mercury-templates/welcome.html"
+        fileFormat: "HTML"
+        templateTypeId: "66666666-6666-6666-6666-666666666666"
+        templateTypeName: "Marketing"
+        applicationId: "33333333-3333-3333-3333-333333333333"
+        severityTypeId: "77777777-7777-7777-7777-777777777777"
+        severityTypeName: "High"
+        active: true
+        createdAt: "2026-03-14T12:00:00Z"
+        updatedAt: "2026-03-14T12:00:00Z"
+
+    TemplateSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateDetailResponse'
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+          format: int32
+
+    TelegramLinkRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+        language:
+          type: string
+          description: es or en (default es).
+
+    TelegramLinkResponse:
+      type: object
+      required:
+        - deepLink
+        - expiresAt
+      properties:
+        deepLink:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    TelegramLinkStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [NONE, PENDING, ACTIVE, BLOCKED]
+        linkedAt:
+          type: string
+          format: date-time
+        language:
+          type: string
+
+    TelegramMessageRequest:
+      type: object
+      required:
+        - userId
+        - kind
+      properties:
+        userId:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          description: Template kind, e.g. debt_due (file zb_<kind>_tg_<language>).
+        language:
+          type: string
+        params:
+          type: object
+          additionalProperties: true
+        disableNotification:
+          type: boolean
+
+    TelegramMessageResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+
+    TelegramMessageStatusResponse:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [QUEUED, SENT, FAILED, BLOCKED]
+        sentAt:
+          type: string
+          format: date-time
+
+    TelegramConflict:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          enum: [TELEGRAM_NOT_LINKED, TELEGRAM_BLOCKED]

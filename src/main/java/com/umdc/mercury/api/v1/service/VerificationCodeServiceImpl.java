@@ -1,0 +1,147 @@
+package com.umdc.mercury.api.v1.service;
+
+import com.umdc.mercury.api.v1.to.VerificationCodeRequest;
+import com.umdc.mercury.api.v1.to.VerificationCodeTO;
+import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
+import com.umdc.mercury.jpa.sql.repository.VerificationCodeRepository;
+import com.umdc.mercury.mapper.VerificationCodeMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Service implementation for managing verification codes.
+ * This service handles operations related to the creation and confirmation
+ * of verification codes used in application authentication flows.
+ */
+@Service
+public class VerificationCodeServiceImpl implements VerificationCodeService {
+
+    /** Header of a {@code 406}: guesses left on the code that can still be confirmed. */
+    public static final String ATTEMPTS_REMAINING = "Attempts-Remaining";
+
+    private static final ZoneId UTC = ZoneId.of("UTC");
+
+    private static final Logger logger = LoggerFactory.getLogger(VerificationCodeServiceImpl.class);
+
+    private final VerificationCodeRepository verificationCodeRepository;
+    private final VerificationCodeMapper verificationCodeMapper;
+
+    /**
+     * Constructs a new VerificationCodeServiceImpl with required dependencies.
+     *
+     * @param verificationCodeRepository Repository for verification code persistence operations
+     * @param verificationCodeMapper     Mapper for converting between document and transfer objects
+     */
+    public VerificationCodeServiceImpl(VerificationCodeRepository verificationCodeRepository, VerificationCodeMapper verificationCodeMapper) {
+        this.verificationCodeRepository = verificationCodeRepository;
+        this.verificationCodeMapper = verificationCodeMapper;
+    }
+
+    /**
+     * Confirms a verification code for a user and application.
+     * This method validates the provided code against stored verification codes,
+     * updates attempt counts, and marks the code as verified if it matches.
+     *
+     * @param verificationCodeRequest The request containing userId, applicationId and code to verify
+     * @return ResponseEntity with ACCEPTED status if verified, NOT_ACCEPTABLE otherwise
+     * @throws IllegalArgumentException if no valid verification code is found for the user and application
+     */
+    @Override
+    public ResponseEntity<Void> confirmCode(VerificationCodeRequest verificationCodeRequest) {
+        var verificationCodeEntityOptional = this.verificationCodeRepository.findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(
+                verificationCodeRequest.userId(),
+                verificationCodeRequest.applicationId(),
+                LocalDateTime.now(UTC), false);
+        if (verificationCodeEntityOptional.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .header("message", "No valid verification code found for the user and application")
+                    .build();
+        }
+
+        // Single-pass: mutate each qualifying entity and track whether any was verified,
+        // eliminating the redundant second stream().filter().findFirst() pass. A plain loop
+        // is used deliberately instead of a stream, since the body performs mutation/side
+        // effects rather than a pure transformation.
+        boolean anyVerified = false;
+        int attemptsLeft = 0;
+        List<VerificationCodeEntity> collectionResult = new ArrayList<>();
+        for (VerificationCodeEntity verificationCodeEntity : verificationCodeEntityOptional) {
+            if (Boolean.TRUE.equals(verificationCodeEntity.getIsVerified())
+                    || verificationCodeEntity.getAttempts() >= verificationCodeEntity.getMaxAttempts()) {
+                continue;
+            }
+            verificationCodeEntity.setAttempts(verificationCodeEntity.getAttempts() + 1);
+            verificationCodeEntity.setModifiedAt(LocalDateTime.now(UTC));
+            verificationCodeEntity.setModifiedBy(verificationCodeRequest.userId().toString());
+            if (verificationCodeEntity.getVerificationCode().equals(verificationCodeRequest.code())) {
+                verificationCodeEntity.setIsVerified(true);
+                verificationCodeEntity.setVerifiedAt(LocalDateTime.now(UTC));
+                anyVerified = true;
+                logger.debug("Verification code confirmed: {}", verificationCodeEntity);
+            }
+            collectionResult.add(verificationCodeEntity);
+            attemptsLeft = Math.max(attemptsLeft, verificationCodeEntity.getMaxAttempts() - verificationCodeEntity.getAttempts());
+        }
+
+        verificationCodeRepository.saveAll(collectionResult);
+
+        // a wrong code says how many guesses are left (0 = ask for a new code), so a client can tell "wrong" from "exhausted"
+        return anyVerified
+                ? ResponseEntity.status(HttpStatus.ACCEPTED).build()
+                : ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE).header(ATTEMPTS_REMAINING, String.valueOf(attemptsLeft)).build();
+    }
+
+    /**
+     * Creates a new verification code entry.
+     * Maps the provided transfer object to an document, persists it to the database,
+     * and returns the created code as a transfer object.
+     *
+     * @param verificationCodeTO The verification code transfer object to create
+     * @return The created verification code as a transfer object
+     */
+    @Override
+    @Transactional
+    public VerificationCodeTO create(VerificationCodeTO verificationCodeTO) {
+        logger.debug("Creating verification code: {}", verificationCodeTO);
+        // a new code replaces the pending ones of the same user and application (resend): the old code stops working
+        verificationCodeRepository.expirePending(verificationCodeTO.userId(), verificationCodeTO.applicationId(), LocalDateTime.now(UTC));
+
+        return verificationCodeMapper.toVerificationCodeTO(
+                verificationCodeRepository.save(verificationCodeMapper
+                        .toVerificationCodeEntity(verificationCodeTO)));
+    }
+
+    /**
+     * Retrieves the latest is_verified status for a user.
+     * This method queries the repository for the most recent verification code
+     * status for the given userId, handling not found and error cases.
+     *
+     * @param userId The ID of the user whose verification status is to be retrieved
+     * @return ResponseEntity containing the is_verified status, NOT_FOUND if no code exists,
+     *         BAD_REQUEST for invalid userId format, INTERNAL_SERVER_ERROR for other errors
+     */
+    @Override
+    public ResponseEntity<Boolean> getLatestIsVerifiedStatus(String userId) {
+        try {
+            java.util.UUID uuid = java.util.UUID.fromString(userId);
+            Boolean isVerified = verificationCodeRepository.findLatestIsVerifiedByUserId(uuid);
+            if (isVerified == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+            }
+            return ResponseEntity.ok(isVerified);
+        } catch (IllegalArgumentException _) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
+        } catch (Exception _) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
+}

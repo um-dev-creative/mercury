@@ -1,0 +1,511 @@
+# Application specific configurations
+log:
+  debug: ${LOGGING_TRACE_ENABLED}
+
+umdc:
+  app:
+    title: Mercury
+    version: 0.0.3
+  mercury:
+    # Backend callers allowed to obtain a Mercury session-token via
+    # POST /api/v1/auth/token — e.g. smartkin-backend, zerobound-rest — before they call
+    # /api/v1/mail or /api/v1/verification-code. Not the same registry as
+    # umdc.security.auth.clients below (that one is OUTBOUND — who Mercury
+    # authenticates AS when calling other services).
+    #
+    # They are looked up first in the mercury.login_clients table (bcrypt hash, see
+    # scripts/login-clients/add-login-client.sh); an alias that is NOT in the table falls back
+    # to the static list below. Set properties-enabled=false once every caller is in the table.
+    login-registry:
+      properties-enabled: ${LOGIN_REGISTRY_PROPERTIES_ENABLED:true}
+    login-clients:
+      - alias: ${DIRECTORY_BACKEND_LOGIN_ALIAS:}
+        password: ${DIRECTORY_BACKEND_LOGIN_PASSWORD:}
+      # zerobound-rest (T-71, zerobound decision D-8): its alias/password live in Vault; a client left
+      # empty never matches (AuthServiceImpl). Rotate by adding the next client before removing this one.
+      - alias: ${ZEROBOUND_LOGIN_ALIAS:}
+        password: ${ZEROBOUND_LOGIN_PASSWORD:}
+      - alias: ${ZEROBOUND_NEXT_LOGIN_ALIAS:}
+        password: ${ZEROBOUND_NEXT_LOGIN_PASSWORD:}
+    # Telegram channel (T-111, zerobound decision D-11). Token and webhook secret are Vault-owned: empty
+    # = the channel stays off. Never put them in an env file.
+    telegram:
+      enabled: ${TELEGRAM_ENABLED:false}
+      bot-token: ${TELEGRAM_BOT_TOKEN:}
+      webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
+      api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
+      # Login-client alias of the application whose users link their chat (ZEROBOUND_LOGIN_ALIAS), and how updates arrive:
+      # poll = getUpdates with a lease (dev/QA), webhook = Telegram posts to webhook-url (production).
+      application: ${TELEGRAM_APPLICATION:}
+      mode: ${TELEGRAM_MODE:poll}
+      webhook-url: ${TELEGRAM_WEBHOOK_URL:}
+  backbone:
+    # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
+    # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing
+    # it here means one env var change covers both clients across environments.
+    base-url: ${BACKBONE_BASE_URL:https://api.umdc-qa.tst/backbone}
+  management:
+    clientRoles: ${AUTH_ROLE_ID}  # Client roles for management
+  api:
+    # Per-endpoint exclusion from SessionJwtInterceptor is done via the
+    # @SkipSessionValidation annotation now (see CampaignApi, ChannelTypeApi,
+    # and security-oauth's own AuthAPi) — umdc.api.excludes/exclude.methods
+    # were removed from security-oauth; both are unused here on purpose.
+    endpoint: /api/v1  # API endpoint for the application
+  consumer:
+    group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
+    topics:
+      email: mercury-email-messages
+      # SMS, Telegram, WhatsApp and Push share this topic (split by routing.channel)
+      notification: ${UMDC_NOTIFICATION_TOPIC:mercury-unified-message}
+    mercury:
+      topic: ${MERCURY_EMAIL_TOPIC}
+  # Kafka related toggles (allow disabling consumers or preventing auto-start)
+  kafka:
+    # Set to false to disable creating Kafka consumer beans entirely
+    enabled: ${UMDC_KAFKA_ENABLED:true}
+    # Controls whether listener containers auto-start on context refresh. Set to false for local dev when Kafka is unavailable
+    auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
+    client-id: ${KAFKA_CLIENT_ID:u5c06022c8c6@application-user.avns.net}
+    # Aiven Kafka with client certificates (mTLS, what the Aiven service uses): KAFKA_SECURITY_PROTOCOL=SSL
+    # plus the PEM files below. PLAINTEXT against a TLS port disconnects in a loop and the broker logs
+    # "SSL handshake failed". With SASL_SSL: KAFKA_SASL_MECHANISM=SCRAM-SHA-256 and KAFKA_SASL_JAAS_CONFIG
+    # via Vault. Leave PLAINTEXT for local dev without a broker.
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    sasl:
+      mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      jaas:
+        config: ${KAFKA_SASL_JAAS_CONFIG:}
+    ssl:
+      endpoint:
+        identification:
+          algorithm: ${KAFKA_SSL_ENDPOINT_ID_ALGO:https}
+      keystore:
+        # Non-PEM fallback (PKCS12/JKS). file: (not classpath:) so this resolves the same
+        # way whether the JVM's cwd is the project root (local/IDE runs) or the container's
+        # WORKDIR (Docker — see Dockerfile's COPY certs/mercury/) — both have a certs/mercury/
+        # directory with identical contents, gitignored, never on the classpath/in the jar.
+        location: ${KAFKA_SSL_KEYSTORE_LOCATION:file:certs/mercury/aiven-kafka.p12}
+        password: ${KAFKA_SSL_KEYSTORE_PASSWORD:${SSL_KEYSTORE_PASSWORD:changeit}}
+        type: ${KAFKA_SSL_KEYSTORE_TYPE:PEM}
+        # PEM: separate cert and key files (Aiven standard)
+        certificate:
+          location: ${KAFKA_SSL_KEYSTORE_CERT_LOCATION:file:certs/mercury/aiven-kafka-7e59598.cert}
+        key:
+          location: ${KAFKA_SSL_KEYSTORE_KEY_LOCATION:file:certs/mercury/aiven-kafka-7e59598.key}
+      truststore:
+        location: ${KAFKA_SSL_TRUSTSTORE_LOCATION:file:certs/mercury/aiven-kafka-7e59598.pem}
+        password: ${KAFKA_SSL_TRUSTSTORE_PASSWORD:${SSL_TRUSTSTORE_PASSWORD:changeit}}
+        type: ${KAFKA_SSL_TRUSTSTORE_TYPE:PEM}
+  # Default consumer group id used by listeners that reference ${prx.consumer.group-id}
+  logging:
+    trace:
+      enabled: ${LOGGING_TRACE_ENABLED}
+  verification:
+    code:
+      template:
+        id: ${PRX_VERIFICATION_CODE_TEMPLATE_ID}  # Verification code template ID
+  scheduler:
+    send-email:
+      fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
+    save-message-processed:
+      fixed-rate: ${PRX_SCHEDULER_SAVE_MESSAGE_RATE:300000}     # Rate for persisting sent messages (ms); default 5 min
+  bootstrap:
+    server:
+      url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
+      port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
+  security:
+    jwt:
+      # No default on purpose: a default committed here would let anyone with the repo forge a
+      # session-token in any environment where this is unset. Base64, >= 256 bits, and the SAME
+      # value backbone-rest signs with. Missing => the app refuses to start. Local dev: set it in
+      # secrets/local.env (see secrets/local.env.example).
+      secret: ${APP_TOKEN_SECRET}
+      expirationMs: ${APP_TOKEN_EXPIRATION:3600000}
+      # Expected iss/aud of a session-token (SessionJwtClaimsProperties); stamped on issuance
+      # and checked on every verification.
+      issuer: ${APP_TOKEN_ISSUER:mercury}
+      audience: ${APP_TOKEN_AUDIENCE:mercury}
+      # The end user's session-token is issued by backbone-rest (same secret), so its iss/aud must
+      # be accepted too. Comma-separated extra values, on top of issuer/audience above. Defaults
+      # match backbone-rest's own (JWT_ISSUER / JWT_AUDIENCE in its application.yml); override
+      # here if those are set differently in the deployed environment.
+      trusted-issuers: ${APP_TOKEN_TRUSTED_ISSUERS:backbone-rest}
+      trusted-audiences: ${APP_TOKEN_TRUSTED_AUDIENCES:backbone-rest-client}
+      # iss and aud are mandatory. Set true only for an environment whose backbone-rest does not
+      # stamp them (JWT_ISSUER / JWT_AUDIENCE unset there): a token with NO iss/aud is then still
+      # accepted, while a PRESENT but different one is always rejected.
+      allow-missing-claims: ${APP_TOKEN_ALLOW_MISSING_CLAIMS:false}
+      # A token Mercury did not mint is also checked against backbone-rest's own deny-list
+      # (GET /api/v1/session/validate), so a logout there is honoured here. Positive answers are
+      # cached for this long, which is the worst-case delay before a logout is reflected.
+      validate-with-backbone: ${APP_TOKEN_VALIDATE_WITH_BACKBONE:true}
+      backbone-validation-cache-ttl: ${APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL:30s}
+    # Failed-login throttle for POST /api/v1/auth/token (LoginThrottleProperties)
+    login-throttle:
+      max-attempts: ${LOGIN_THROTTLE_MAX_ATTEMPTS:5}
+      window: ${LOGIN_THROTTLE_WINDOW:15m}
+    permissions:
+      # Role/feature name backbone-rest's general.role / general.feature must grant a caller
+      # (via general.application_role_user, scoped to the request's applicationId) for
+      # TemplateServiceImpl's ApplicationAuthorizationService check to pass. Must match a
+      # seeded role or feature name in backbone-rest for the relevant application(s).
+      template-manage: ${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}
+      # Permission a user needs to administer the login clients (/api/v1/login-clients); checked in the application below.
+      login-client-manage: ${LOGIN_CLIENT_MANAGE_PERMISSION:LOGIN_CLIENT_MANAGE}
+    login-clients:
+      # Id of the backbone-rest application (normally Iris') in which login-client-manage is checked. EMPTY = nobody can administer the
+      # login clients (the endpoints answer 403): grant the permission to a role of that application first, then set this.
+      admin-application-id: ${LOGIN_CLIENTS_ADMIN_APPLICATION_ID:}
+    # AuthProperties/JwtConverterProperties (security-oauth jar) bind to umdc.security.auth.* -
+    # this block was previously (wrongly) at umdc.auth.*, one level too shallow, so
+    # AuthProperties.getClients() always returned null and BackendFeignClientInterceptor's
+    # clientProperties field was always null (NPE on any BackboneClient call).
+    auth:
+      converter:
+        resource-id: ${AUTH_CLIENT_ID}  # Resource ID for the authentication client
+        principal-claim-name: ${AUTH_RESOURCE_PRINCIPAL}  # Principal claim name for the resource
+      clients:
+        - id: backbone
+          authorization-grant-type: ${BACKBONE_GRANT_TYPE}
+          scope: ${BACKBONE_SCOPE}
+          client-secret: ${BACKBONE_CLIENT_SECRET}
+          client-id: ${BACKBONE_CLIENT_ID}
+          redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
+          username: ${BACKBONE_USERNAME}
+          password: ${BACKBONE_PASSWORD}
+        - id: mercury
+          authorization-grant-type: ${MERCURY_GRANT_TYPE}
+          scope: ${MERCURY_SCOPE}
+          client-secret: ${MERCURY_CLIENT_SECRET}
+          client-id: ${MERCURY_CLIENT_ID}
+          redirect-uri: ${AUTH_URI}${AUTH_TOKEN_URI}
+          username: ${MERCURY_USERNAME}
+          password: ${MERCURY_PASSWORD}
+    # certs/mercury/ is always at this fixed, repo-relative path — baked into every
+    # Docker image (Dockerfile's COPY certs/mercury/) and present in every local
+    # checkout — so these are hardcoded, not sourced from SSL_KEYSTORE_LOCATION/
+    # SSL_TRUSTSTORE_LOCATION env vars. Type/password verified against the actual
+    # files with keytool: mercury.jks is JKS/changeit, umdc-truststore.jks is
+    # PKCS12/changeit.
+    #
+    # No "file:" prefix here, unlike the Kafka/Eureka locations elsewhere in this file:
+    # com.umdc.security's KeystoreUtil (closed-source security-oauth dependency) loads these
+    # via a raw ClassLoader.getResourceAsStream(location) - it doesn't parse a "file:" scheme,
+    # so a prefixed value always resolves to null there. KeyStore.load(null, pwd) then silently
+    # builds an EMPTY keystore instead of throwing (InvalidAlgorithmParameterException: the
+    # trustAnchors parameter must be non-empty). That bug is fixed by the plain classpath-relative
+    # paths below - see pom.xml's <resources> for how certs/mercury/ gets onto the classpath.
+    #
+    # keystore/truststore ARE SWAPPED BELOW ON PURPOSE - do not "fix" this back.
+    # KeystoreUtil.getSslBundle(SecurityProperties) -> loadSslBundle(KeyStore, KeyStore, String)
+    # loads properties.getKeystore() and properties.getTruststore() in the right order, but its
+    # own final call swaps them: SslStoreBundle.of(trustStoreArg, password, keyStoreArg) instead
+    # of SslStoreBundle.of(keyStoreArg, password, trustStoreArg) (confirmed by decompiling
+    # security-oauth-0.0.1.jar's KeystoreUtil.class with javap - the bytecode pushes local var 2
+    # [trustStore] before local var 1 [keyStore] onto the stack for that invokestatic). The
+    # resulting SslBundle - the one SecurityConfig.getRestTemplate() feeds to the OAuth2
+    # resource server's JWK-fetch RestTemplate - ends up trusting mercury.jks (our own client
+    # cert, not a CA) instead of umdc-truststore.jks (which holds PRX Internal CA), causing
+    # "PKIX path building failed: unable to find valid certification path to requested target"
+    # on every real JWK fetch. Swapping which file each property here points to pre-compensates
+    # for that swap, so the SslBundle KeystoreUtil actually builds ends up correct: keyStore =
+    # mercury.jks, trustStore = umdc-truststore.jks. getSSLContext(SecurityProperties), the one
+    # other method on KeystoreUtil that builds trust/key managers, does NOT have this bug - but
+    # nothing in this app calls it (confirmed: SecurityConfig only calls getSslBundle).
+    keystore:
+      location: certs/mercury/umdc-truststore.jks
+      type: PKCS12
+      password: changeit
+    truststore:
+      location: certs/mercury/mercury.jks
+      type: JKS
+      password: changeit
+    management-authenticator:
+      enabled: true  # Enable management authenticator
+      # Deliberately NOT swapped like umdc.security.keystore/truststore above: nothing in this
+      # jar or Mercury calls KeystoreUtil.getManagementAuthenticatorSslBundle() (confirmed by
+      # decompiling security-oauth-0.0.1.jar), so this block is dead config either way. It has
+      # the identical loadSslBundle() argument-swap bug if it's ever wired up in the future.
+      keystore:
+        location: certs/mercury/mercury.jks
+        type: JKS
+        password: changeit
+      truststore:
+        location: certs/mercury/umdc-truststore.jks
+        type: PKCS12
+        password: changeit
+app:
+  clientRoles: ${AUTH_ROLE_ID}
+  # The name of the application
+  name: mercury
+  # The version of the application
+  version: 0.0.1
+  # NOTE: an `api.excludes`/`api.exclude.methods: accessToken,generateTokenSession`
+  # sub-block used to live here. It had no consumer anywhere in this app or in any
+  # currently-used shared-library jar (commons, commons-services, security-oauth) —
+  # confirmed by decompiling all three at the versions this pom.xml actually pulls.
+  # Its method names matched security-oauth's AuthAPi#accessToken/#generateTokenSession
+  # exactly, which strongly suggests it was a pre-@SkipSessionValidation exclusion
+  # mechanism, superseded and left behind (compare umdc.api.excludes above, which is
+  # explicitly documented as intentionally-unused for the same reason). Removed as
+  # dead config — do not resurrect without wiring a real consumer.
+# Spring Boot specific configurations
+# Server specific configurations
+server:
+  port: ${APP_PORT}
+  ssl:
+    # Enables SSL for the server; HTTPS-only by default (this service must never serve
+    # plaintext HTTP). Set SSL_ENABLED=false only for local dev when certs/mercury/mercury.jks
+    # is unavailable.
+    enabled: ${SSL_ENABLED:true}
+    # The SSL bundle for the server
+    bundle: mercury-security
+    # Protocols are NOT set here: with a named bundle Spring Boot ignores server.ssl.enabled-protocols.
+    # TLS 1.3 only is enforced by spring.ssl.bundle.jks.mercury-security.options.enabled-protocols below.
+    compression:
+      enabled: true
+      mime-types: text/html,text/xml,text/plain,text/css,application/json
+      min-response-size: 1024
+# Actuator health/metrics exposure for Service-Monitor (Prometheus scrape + Eureka health propagation)
+management:
+  endpoints:
+    web:
+      exposure:
+        # Deliberately not "*": avoid leaking env/beans/configprops/heapdump on an
+        # internally-routable but unauthenticated actuator surface.
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${app.name}
+
+spring:
+  task:
+    scheduling:
+      pool:
+        # Telegram long polling holds its thread up to 25 s; with one thread it would hold back email and every other job.
+        size: 4
+  # Modern Spring Cloud config-fetch mechanism (replaces the legacy spring.cloud.bootstrap.enabled
+  # bootstrap-context approach — see docs/architecture/graalvm-native-image.md for why: the legacy
+  # mechanism runs its own separate, nested SpringApplication for the bootstrap-only context before
+  # the real one, which Spring Boot's AOT processor mistakes for the whole application, silently
+  # dropping every real bean (Tomcat, JPA, Kafka, Mongo, security...) from native-image builds.
+  # `optional:` on both so a disabled/unreachable Vault or Config Server never blocks startup —
+  # spring.cloud.vault.enabled and the properties below still gate what each one actually does,
+  # completely unchanged from before this migration.
+  config:
+    import: "optional:vault://,optional:configserver:"
+  kafka:
+    # Bootstrap server drawn from the same env-vars used by ConsumerConfig
+    bootstrap-servers: ${BOOTSTRAP_SERVER_URI:localhost}:${BOOTSTRAP_SERVER_PORT:9092}
+    consumer:
+      group-id: ${PRX_CONSUMER_GROUP_ID:mercury-multi-channel}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+      properties:
+        spring.json.add.type.headers: true
+        spring.json.trusted.packages: '*'
+    listener:
+      # Mirror prx.kafka.auto-startup so the Spring-Boot-autoconfigured factory
+      # also does NOT auto-start when Kafka is unavailable locally
+      auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
+  freemarker:
+    # FreeMarkerConfig loads this as a plain java.io.File directory (not a classpath
+    # resource), so it must resolve to a real directory inside the running container —
+    # both Dockerfile and Dockerfile.native bake the .ftl files at this exact
+    # WORKDIR-relative path; docker-compose.yml can additionally bind-mount a host
+    # directory over it (see MERCURY_TEMPLATES_HOST_PATH there) without changing this default.
+    template-loader-path: ${TEMPLATE_PATH:/usr/local/runme/templates}
+    suffix: ${TEMPLATE_SUFFIX:.ftl}
+    check-template-location: false
+
+  mail:
+    smtp:
+      ssl:
+        trust: ${MAIL_HOST}  # Trust the mail server
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}  # Port for the mail server
+    username: ${MAIL_USERNAME}  # Username for the mail server
+    password: ${MAIL_PASSWORD}  # Password for the mail server
+    protocol: ${MAIL_PROTOCOL}  # Protocol for the mail server
+    properties:
+      mail.smtp.auth: ${MAIL_PROPERTIES_SMTP_AUTH:true}  # Enable SMTP authentication
+      mail.smtp.starttls.enable: ${MAIL_PROPERTIES_STARTTLS_ENABLED:true}  # Enable STARTTLS
+#      mail.smtp.ssl.trust: ${MAIL_HOST}  # Trust the mail host
+      mail.smtp.connectiontimeout: 5000  # Connection timeout in milliseconds
+      mail.smtp.timeout: 5000  # Timeout in milliseconds
+      mail.smtp.writetimeout: 5000  # Write timeout in milliseconds
+  datasource:
+    username: ${MERCURY_DB_USERNAME}  # Username for the database
+    password: ${MERCURY_DB_PASSWORD}  # Password for the database
+    url: jdbc:postgresql://${MERCURY_DB_URI}:${MERCURY_DB_PORT}/${MERCURY_DB_NAME}?prepareThreshold=0  # JDBC URL for the database
+    driver-class-name: org.postgresql.Driver  # Driver class name for PostgresSQL
+  # JPA (Java Persistence API) settings
+  jpa:
+    hibernate.ddl-auto: none  # Hibernate DDL auto setting
+    show-sql: false  # Show SQL statements
+    database: POSTGRESQL  # Database type
+    database-platform: org.hibernate.dialect.PostgreSQLDialect  # Hibernate dialect for PostgresSQL
+    properties:
+      jdbc:
+        lob.non_contextual_creation: true  # Non-contextual LOB creation
+      hibernate:
+        boot:
+          allow_jdbc_metadata_access: true
+      log-level: error
+    defer-datasource-initialization: true
+  # SSL configuration
+  ssl:
+    bundle:
+      jks:
+        # Defaults mirror umdc.security.keystore/truststore above (same files, same verified
+        # type/password) so the server.ssl.enabled default of true actually works out of the
+        # box, instead of depending on SSL_KEYSTORE_LOCATION/SSL_TRUSTSTORE_LOCATION being set
+        # externally - the same undefaulted-env-var pattern that kept silently breaking there.
+        mercury-security:
+          options:
+            # Only TLS 1.3 is accepted (a TLS 1.2 handshake is rejected).
+            enabled-protocols: TLSv1.3
+          keystore:
+            location: ${SSL_KEYSTORE_LOCATION:file:certs/mercury/mercury.jks}
+            password: ${SSL_KEYSTORE_PASSWORD:changeit}
+            type: ${SSL_KEYSTORE_TYPE:JKS}
+          truststore:
+            location: ${SSL_TRUSTSTORE_LOCATION:file:certs/mercury/umdc-truststore.jks}
+            password: ${SSL_TRUSTSTORE_PASSWORD:changeit}
+            type: ${SSL_TRUSTSTORE_TYPE:PKCS12}
+  mustache:
+    check-template-location: false
+  test:
+    context:
+      failure:
+        threshold: 10000000
+  main:
+    # Allows overriding of bean definitions
+    allow-bean-definition-overriding: true
+  profiles:
+    active: ${SPRING_BOOT_PROFILE_ACTIVE}
+  application:
+    # The name of the Spring Boot application, taken from the app.name property
+    name: ${app.name}
+  # spring.security.oauth2.{client,resourceserver.jwt} intentionally removed: leftover
+  # config for the decommissioned Keycloak-style IdP (see SessionTokenSecurityConfig's
+  # javadoc). MercuryApplication excludes com.umdc.security.config.SecurityConfig (the
+  # custom chain that used to consume these properties) from component scanning — but
+  # that exclusion only stops OUR OWN class; it does nothing about Spring Boot's OWN
+  # built-in OAuth2ResourceServerAutoConfiguration / OAuth2ResourceServerWebSecurityAutoConfiguration
+  # (spring-boot-security-oauth2-resource-server), which auto-configures a JwtDecoder and
+  # its own SecurityFilterChain purely from these properties resolving — from ANY source,
+  # including Vault/Config Server remotely, which can still serve stale values for this
+  # key from before the Keycloak IdP was decommissioned, entirely outside this file's
+  # control. Confirmed by hitting the exact symptom in a real deployment: every request
+  # 500ing trying to fetch a JWKS from a host that no longer serves it. Explicitly
+  # excluding both autoconfiguration classes below closes this regardless of what any
+  # remote config source still serves for this key — safe because ManagedClientSecurityConfig
+  # injects its own BackboneOpaqueTokenIntrospector bean directly rather than relying on
+  # either of these classes to supply one.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration
+      - org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration
+  cloud:
+    # The Spring Cloud Config specific configurations
+    #<><><><><><><><><><><><><><> VAULT <><><><><><><><><><><><><><>
+    vault:
+      enabled: ${VAULT_ENABLED:false}
+      uri: ${VAULT_URI:https://vault.umdc-qa.tst}
+      authentication: TOKEN
+      token: ${VAULT_TOKEN}
+      kv:
+        enabled: true
+        backend: ${VAULT_KV_BACKEND:secret}
+        default-context: ${spring.application.name}
+        profile-separator: /
+      # Explicit ssl block (same pattern as spring.cloud.config.tls below) rather than relying
+      # on -Djavax.net.ssl.trustStore: that system property is only ever set in the Dockerfile's
+      # CMD, so a local/IDE run (no such flag) fell back to the JDK's own default cacerts, which
+      # doesn't trust the internal CA — Vault's handshake failed with PKIX path building errors
+      # even though Config Client's own explicit trust-store (below) worked fine. This used to be
+      # unsafe: a trust-store default pointing at a nonexistent classpath sentinel is WORSE than
+      # no default (Spring always resolves a non-null Resource once any default is given, then
+      # KeyStoreConfiguration asserts it exists and fails bean creation outright — see the
+      # keystore.jks incident this avoided by never baking a fake file in). certs/mercury/ is
+      # different: gitignored, genuinely present (see Dockerfile's COPY certs/mercury/), and
+      # resolves the same way locally and in the container.
+      ssl:
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
+    # The active profile for the Spring Boot application
+    profile: ${SPRING_BOOT_PROFILE_ACTIVE}
+    config:
+      # The active profile for the Spring Cloud Config
+      profile: ${SPRING_BOOT_PROFILE_ACTIVE}
+      # The label for the Spring Cloud Config
+      label: ${SPRING_CLOUD_CONFIG_LABEL}
+      # The URI for the Spring Cloud Config server — must be a full URL (scheme+host+port),
+      # e.g. https://config-server:8082. ConfigClientProperties has no "port" field (only
+      # "uri", a String[]), so a separate spring.cloud.config.port key binds to nothing —
+      # CNFS_PORT is real, but only as config-server's OWN server.port, not this client's.
+      uri: ${CNFS_URI}
+      # Enables sending of state for the Spring Cloud Config
+      send-state: true
+      tls:
+        enabled: true
+        trust-store: file:certs/mercury/umdc-truststore.jks
+        trust-store-password: changeit
+        trust-store-type: PKCS12
+  data:
+    mongodb:
+      # Needed for the TTL index on revoked_tokens.expiresAt (RevokedTokenDocument)
+      auto-index-creation: true
+  mongodb:
+    representation:
+      uuid: STANDARD
+    port: ${MONGO_PORT}
+    database: ${MONGO_DATABASE}
+    username: ${MONGO_USERNAME}
+    host: ${MONGO_HOST}
+    password: ${MONGO_PASSWORD}
+    uri: mongodb+srv://${MONGO_USERNAME}:${MONGO_PASSWORD}@${MONGO_HOST}/${MONGO_DATABASE}?retryWrites=true&w=majority
+logging:
+  level:
+    org.springframework.cloud.configuration.SSLContextFactory: ERROR
+
+# The `swagger.*` block that used to live here (base-package, api-info, ...) predates
+# this app's move to springdoc-openapi and has no consumer: springdoc reads
+# `springdoc.*`, not `swagger.*` — Springfox is not on the classpath (see
+# springdoc.version in pom.xml). It also referenced an undefined ${app.description}
+# property. Replaced below with the real, explicit springdoc.* configuration.
+springdoc:
+  api-docs:
+    enabled: true
+    # Default is /v3/api-docs; explicit here so it's a stable, documented contract
+    # rather than "whatever springdoc currently defaults to."
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    # Alphabetical tag/operation ordering makes a spec with many controllers (and,
+    # importantly, endpoints contributed by shared-library jars like security-oauth's
+    # AuthAPi — see below) easier to scan than declaration order.
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: false
+  default-produces-media-type: application/json
+  # Deliberately NOT set: springdoc scans every @RestController bean in the Spring
+  # context by default, including ones registered from dependency jars rather than
+  # this repo's own source — e.g. security-oauth's AuthApiController
+  # (POST /api/v1/auth/token, POST /api/v1/auth/session-token). Setting
+  # packages-to-scan to com.umdc.mercury.* here would silently hide those from
+  # /v3/api-docs and /swagger-ui.html, the way the hand-maintained
+  # src/main/resources/api/openapi.yaml already did (see
+  # docs/architecture/session-token-authorization.md). Leave unset so the live
+  # spec always reflects every endpoint this app actually exposes.

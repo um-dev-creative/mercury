@@ -1,0 +1,71 @@
+name: Bug Report
+description: Report a defect in Mercury
+labels: ["bug", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use the `fix-bug.prompt.md` prompt with the `developer` agent to fix this issue.
+
+  - type: input
+    id: endpoint
+    attributes:
+      label: Affected Endpoint or Component
+      description: REST path or Mercury component (e.g. `PATCH /api/v1/campaigns/{id}/toggle`)
+      placeholder: "PATCH /api/v1/campaigns/{id}/toggle"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What is broken? What did you expect to happen?
+      placeholder: |
+        When calling PATCH /api/v1/campaigns/{id}/toggle with a disabled campaign,
+        the API returns 500 instead of 422.
+    validations:
+      required: true
+
+  - type: textarea
+    id: stack_trace
+    attributes:
+      label: Stack Trace / Error Output
+      description: Paste the exception or error response body
+      render: text
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Create a campaign
+        2. Disable the campaign
+        3. Call PATCH /api/v1/campaigns/{id}/toggle
+        4. Observe 500 response
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Suspected Mercury Layer
+      options:
+        - Controller (*Api / *Controller)
+        - Service (*ServiceImpl)
+        - Repository (JPA / MongoDB)
+        - Kafka listener / channel service
+        - Scheduler / MessageProcessor
+        - Config / bootstrap.yml
+        - Unknown
+    validations:
+      required: true
+
+  - type: input
+    id: fix_prompt
+    attributes:
+      label: Agent Prompt to Use
+      value: ".github/prompts/fix-bug.prompt.md"
+      description: Prompt to invoke with the developer agent to fix this bug

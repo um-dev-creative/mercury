@@ -1,0 +1,165 @@
+package com.umdc.mercury.kafka.config;
+
+import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.io.Resource;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+@Component
+@ConditionalOnProperty(name = "umdc.kafka.enabled", havingValue = "true", matchIfMissing = true)
+public class KafkaSslProps {
+
+    private static final Logger logger = LoggerFactory.getLogger(KafkaSslProps.class);
+
+    @Value("${umdc.kafka.security.protocol:PLAINTEXT}")
+    private String securityProtocol;
+
+    @Value("${umdc.kafka.sasl.mechanism:}")
+    private String saslMechanism;
+
+    @Value("${umdc.kafka.sasl.jaas.config:}")
+    private String saslJaasConfig;
+
+    @Value("${umdc.kafka.ssl.endpoint.identification.algorithm:https}")
+    private String endpointIdentificationAlgorithm;
+
+    // PEM keystore: separate cert and key files (Aiven standard layout)
+    @Value("${umdc.kafka.ssl.keystore.certificate.location:classpath:aiven-kafka-7e59598.cert}")
+    private Resource keystoreCertLocation;
+
+    @Value("${umdc.kafka.ssl.keystore.key.location:classpath:aiven-kafka-7e59598.key}")
+    private Resource keystoreKeyLocation;
+
+    // Non-PEM keystore (PKCS12 / JKS) — used when ssl.keystore.type != PEM
+    @Value("${umdc.kafka.ssl.keystore.location:classpath:aiven-kafka.p12}")
+    private Resource keystoreLocation;
+
+    @Value("${umdc.kafka.ssl.keystore.password:changeit}")
+    private String keystorePassword;
+
+    @Value("${umdc.kafka.ssl.keystore.type:PEM}")
+    private String keystoreType;
+
+    @Value("${umdc.kafka.ssl.key.password:${umdc.kafka.ssl.keystore.password:changeit}}")
+    private String keyPassword;
+
+    // Truststore — PEM CA cert or JKS/PKCS12
+    @Value("${umdc.kafka.ssl.truststore.location:classpath:aiven-kafka-7e59598.pem}")
+    private Resource truststoreLocation;
+
+    @Value("${umdc.kafka.ssl.truststore.password:changeit}")
+    private String truststorePassword;
+
+    @Value("${umdc.kafka.ssl.truststore.type:PEM}")
+    private String truststoreType;
+
+    public Map<String, Object> build() throws IOException {
+        Map<String, Object> props = new HashMap<>();
+
+        if (SecurityProtocol.PLAINTEXT.name.equals(securityProtocol)) {
+            return props;
+        }
+
+        props.put(org.apache.kafka.clients.CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, securityProtocol);
+        props.put(SslConfigs.SSL_ENDPOINT_IDENTIFICATION_ALGORITHM_CONFIG, endpointIdentificationAlgorithm);
+
+        if (!saslMechanism.isBlank()) {
+            props.put(SaslConfigs.SASL_MECHANISM, saslMechanism);
+        }
+        if (!saslJaasConfig.isBlank()) {
+            props.put(SaslConfigs.SASL_JAAS_CONFIG, saslJaasConfig);
+        }
+
+        props.put(SslConfigs.SSL_KEYSTORE_TYPE_CONFIG, keystoreType);
+        if ("PEM".equalsIgnoreCase(keystoreType)) {
+            // Inline PEM content works in both file-system and JAR deployments.
+            // Aiven supplies the client cert and private key as separate files.
+            if (existsOrWarn(keystoreCertLocation, "client certificate")) {
+                props.put(SslConfigs.SSL_KEYSTORE_CERTIFICATE_CHAIN_CONFIG,
+                        keystoreCertLocation.getContentAsString(StandardCharsets.UTF_8));
+            }
+            if (existsOrWarn(keystoreKeyLocation, "client private key")) {
+                props.put(SslConfigs.SSL_KEYSTORE_KEY_CONFIG,
+                        keystoreKeyLocation.getContentAsString(StandardCharsets.UTF_8));
+            }
+        } else if (existsOrWarn(keystoreLocation, "keystore")) {
+            props.put(SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, toAbsolutePath(keystoreLocation));
+            props.put(SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, keystorePassword);
+            props.put(SslConfigs.SSL_KEY_PASSWORD_CONFIG, keyPassword);
+        }
+
+        props.put(SslConfigs.SSL_TRUSTSTORE_TYPE_CONFIG, truststoreType);
+        if ("PEM".equalsIgnoreCase(truststoreType)) {
+            if (existsOrWarn(truststoreLocation, "CA certificate")) {
+                props.put(SslConfigs.SSL_TRUSTSTORE_CERTIFICATES_CONFIG,
+                        truststoreLocation.getContentAsString(StandardCharsets.UTF_8));
+            }
+        } else if (existsOrWarn(truststoreLocation, "truststore")) {
+            props.put(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, toAbsolutePath(truststoreLocation));
+            props.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, truststorePassword);
+        }
+
+        return props;
+    }
+
+    /**
+     * A missing file is left out of the client config, which only surfaces later as an opaque
+     * handshake failure against the broker, so name the file here.
+     */
+    private boolean existsOrWarn(Resource resource, String description) {
+        boolean exists = resource.exists();
+        if (!exists) {
+            logger.warn("Kafka {} not found at {} (security.protocol={}); it will not be used",
+                    description, resource.getDescription(), securityProtocol);
+        }
+        return exists;
+    }
+
+    /**
+     * The Kafka client opens keystore/truststore locations as plain files, but a
+     * classpath resource packaged inside an executable Spring Boot jar (as opposed to
+     * an exploded classes directory) has no filesystem path to hand it. Copy it out to
+     * a temp file in that case; a resource that's already a real file (dev/IDE runs,
+     * or an external file:/absolute path) is used as-is.
+     */
+    private static String toAbsolutePath(Resource resource) throws IOException {
+        if (resource.isFile()) {
+            return resource.getFile().getAbsolutePath();
+        }
+        Path tempFile = Files.createTempFile("kafka-ssl-", "-" + resource.getFilename(), ownerOnlyPermissions());
+        tempFile.toFile().deleteOnExit();
+        // Files.copy with REPLACE_EXISTING would recreate the file and lose its owner-only permissions.
+        try (InputStream in = resource.getInputStream(); OutputStream out = Files.newOutputStream(tempFile)) {
+            in.transferTo(out);
+        }
+        return tempFile.toAbsolutePath().toString();
+    }
+
+    private static FileAttribute<?>[] ownerOnlyPermissions() {
+        if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+            return new FileAttribute<?>[0];
+        }
+        Set<PosixFilePermission> ownerOnly = EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE);
+        return new FileAttribute<?>[] {PosixFilePermissions.asFileAttribute(ownerOnly)};
+    }
+}
