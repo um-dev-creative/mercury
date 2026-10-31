@@ -3,6 +3,7 @@ package com.umdc.mercury.telegram;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateNotFoundException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ public class TelegramTemplateRenderer {
 
     private final Configuration freemarker;
 
-    public TelegramTemplateRenderer(Configuration freemarker) {
+    public TelegramTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarker) {
         this.freemarker = freemarker;
     }
 
