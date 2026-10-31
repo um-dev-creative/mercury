@@ -21,16 +21,26 @@ public interface CampaignService {
 
     CompletableFuture<CampaignProgressTO> createCampaign(CampaignTO request);
 
-    CampaignProgressTO getProgress(UUID campaignId);
+    /**
+     * Progress of a campaign, visible only to its owner.
+     *
+     * @param campaignId  the campaign UUID
+     * @param requesterId the verified id of the caller
+     * @throws CampaignNotFoundException if no such campaign exists
+     * @throws com.umdc.mercury.api.v1.exception.ForbiddenException if the caller is not the owner
+     */
+    CampaignProgressTO getProgress(UUID campaignId, UUID requesterId);
 
     /**
      * Retrieves a campaign by its unique identifier.
      *
-     * @param id the campaign UUID; must not be {@code null}.
+     * @param id          the campaign UUID; must not be {@code null}.
+     * @param requesterId the verified id of the caller; only the campaign's owner may read it.
      * @return the {@link CampaignDetailResponse} populated from the stored entity.
      * @throws CampaignNotFoundException if no campaign with the given id exists.
+     * @throws com.umdc.mercury.api.v1.exception.ForbiddenException if the caller is not the owner.
      */
-    CampaignDetailResponse getById(UUID id);
+    CampaignDetailResponse getById(UUID id, UUID requesterId);
 
     List<CampaignDetailResponse> getByUserIdAndApplicationId(UUID userId, UUID applicationId);
 

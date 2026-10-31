@@ -13,7 +13,7 @@ import java.util.UUID;
 public class TemplateEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
@@ -37,7 +37,7 @@ public class TemplateEntity {
     private TemplateTypeEntity templateTypeEntity;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "application_id", nullable = false)
     private ApplicationEntity applicationEntity;
 
@@ -54,7 +54,7 @@ public class TemplateEntity {
     private Boolean active;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "severity_type_id", nullable = false)
     private SeverityTypeEntity severityTypeEntity;
 

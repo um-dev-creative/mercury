@@ -20,7 +20,7 @@ Then implement in this exact order:
 
 1. **`*Api` interface** — add the method with full `@Operation(summary, description, operationId)` and `@ApiResponses`. operationId = `{httpMethod}{FeatureName}` in camelCase. Status codes: 200/201, 400, 403, 404 (if `{id}` in path), 422 (if channel-related), 500.
 
-2. **Request record** (if not GET/DELETE) — Java `record` in `com.prx.mercury.api.v1.to` with `@NotNull`/`@NotBlank`/`@Valid`/`@NotEmpty` on each field.
+2. **Request record** (if not GET/DELETE) — Java `record` in `com.umdc.mercury.api.v1.to` with `@NotNull`/`@NotBlank`/`@Valid`/`@NotEmpty` on each field.
 
 3. **`*Service` interface** — `CompletableFuture<ResponseRecord>` for writes, `ResponseRecord` or `List<ResponseRecord>` for reads.
 

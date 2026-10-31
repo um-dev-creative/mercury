@@ -1,6 +1,11 @@
 package com.umdc.mercury.api.v1.controller;
 
 import com.umdc.mercury.api.v1.exception.CampaignNotFoundException;
+import com.umdc.mercury.api.v1.exception.InvalidSessionTokenException;
+import com.umdc.mercury.api.v1.exception.LoginClientAlreadyExistsException;
+import com.umdc.mercury.api.v1.exception.LoginClientNotFoundException;
+import com.umdc.mercury.api.v1.exception.MailNotFoundException;
+import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,14 +16,17 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
+import java.util.Objects;
 
 /**
  * Global exception handler that maps exceptions thrown by controllers to structured
@@ -34,6 +42,10 @@ import java.util.stream.Collectors;
  *   <li>{@link CompletionException} wrapping {@link IllegalStateException} → 422</li>
  *   <li>{@link IllegalStateException} – disabled channel or other state violations → 422</li>
  *   <li>{@link CampaignNotFoundException} – campaign not found → 404</li>
+ *   <li>{@link TemplateNotFoundException} – template not found or inactive → 404</li>
+ *   <li>{@link MissingServletRequestParameterException} – missing required query parameter → 400</li>
+ *   <li>{@link ForbiddenException} – caller authenticated but not authorized → 403</li>
+ *   <li>{@link InvalidSessionTokenException} – session-token failed signature verification → 401</li>
  *   <li>All other {@link Exception} → 500</li>
  * </ul>
  */
@@ -103,6 +115,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles requests for templates that do not exist (or are no longer active),
+     * returning {@code 404 Not Found}.
+     */
+    @ExceptionHandler(TemplateNotFoundException.class)
+    public ResponseEntity<ApiError> handleTemplateNotFound(TemplateNotFoundException ex,
+                                                           HttpServletRequest request) {
+        logger.warn("Template not found for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Handles a missing required query parameter (e.g. {@code applicationId} on a search
+     * endpoint), returning {@code 400 Bad Request}.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex,
+                                                           HttpServletRequest request) {
+        logger.warn("Missing required parameter for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .badRequest()
+                .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
      * Delegates to the appropriate handler based on the underlying cause type.
      */
     @ExceptionHandler(CompletionException.class)
@@ -124,6 +162,13 @@ public class GlobalExceptionHandler {
     /**
      * Handles argument violations (e.g. unknown template id, empty recipients).
      */
+    @ExceptionHandler(MailNotFoundException.class)
+    public ResponseEntity<ApiError> handleMailNotFound(MailNotFoundException ex, HttpServletRequest request) {
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex,
                                                           HttpServletRequest request) {
@@ -131,6 +176,23 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .badRequest()
                 .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(LoginClientNotFoundException.class)
+    public ResponseEntity<ApiError> handleLoginClientNotFound(LoginClientNotFoundException ex, HttpServletRequest request) {
+        logger.warn("Login client not found for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /// Handles registering an alias that already exists, returning `409 Conflict`.
+    @ExceptionHandler(LoginClientAlreadyExistsException.class)
+    public ResponseEntity<ApiError> handleLoginClientAlreadyExists(LoginClientAlreadyExistsException ex, HttpServletRequest request) {
+        logger.warn("Login client clash for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(ForbiddenException.class)
@@ -143,6 +205,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles a {@code session-token} that failed signature verification (missing, expired,
+     * tampered, or malformed), returning {@code 401 Unauthorized}.
+     */
+    @ExceptionHandler(InvalidSessionTokenException.class)
+    public ResponseEntity<ApiError> handleInvalidSessionToken(InvalidSessionTokenException ex,
+                                                              HttpServletRequest request) {
+        logger.warn("Invalid session token for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
      * Handles state violations such as disabled channel types.
      */
     @ExceptionHandler(IllegalStateException.class)
@@ -152,6 +227,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .unprocessableContent()
                 .body(buildError(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /**
+     * Keeps the status a controller or service chose; without this the catch-all answers 500.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = Objects.nonNull(ex.getReason()) ? ex.getReason() : status.getReasonPhrase();
+        return ResponseEntity.status(status).body(buildError(status, message, request.getRequestURI()));
     }
 
     /**

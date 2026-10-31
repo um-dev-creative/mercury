@@ -17,7 +17,7 @@ Related Story: [[TBD-003]](https://placeholder.local/TBD-003)
 Retrieves campaigns filtered by application id for the authenticated user. User id is derived from the `session-token` header.
 
 ### Implementation Notes
-* Controller extracts user id from the session-token via `JwtUtil.getUidFromToken` and delegates to `CampaignService#getByUserIdAndApplicationId`.
+* Controller resolves the user id from `session-token` via `SessionJwtServiceImpl.getVerifiedUid` (verifies the HS256 signature and expiration before trusting the `uid` claim — see `docs/architecture/session-token-authorization.md`) and delegates to `CampaignService#getByUserIdAndApplicationId`. A token that fails verification returns `401` (`InvalidSessionTokenException`).
 * Returns an array of `CampaignDetailResponse` objects for campaigns created by the user and matching the application id.
 
 ---

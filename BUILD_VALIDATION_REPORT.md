@@ -27,19 +27,19 @@ Commands run
 ------------
 (Primary command used to run the focused test batch via Surefire):
 
-mvn -Dtest="com.prx.mercury.api.v1.service.EmailServiceImplTest,com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest,com.prx.mercury.api.v1.to.VerificationCodeRequestTest,com.prx.mercury.mapper.VerificationCodeMapperTest,com.prx.mercury.mapper.TemplateMapperTest,com.prx.mercury.mapper.MessageRecordMapperTest" surefire:test -DtrimStackTrace=false
+mvn -Dtest="com.umdc.mercury.api.v1.service.EmailServiceImplTest,com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest,com.umdc.mercury.api.v1.to.VerificationCodeRequestTest,com.umdc.mercury.mapper.VerificationCodeMapperTest,com.umdc.mercury.mapper.TemplateMapperTest,com.umdc.mercury.mapper.MessageRecordMapperTest" surefire:test -DtrimStackTrace=false
 
 Notes:
 - I invoked the Surefire plugin directly to avoid PMD/other lifecycle plugins that can fail under the current JDK/tooling combination.
 
 Tests executed (per-class)
 --------------------------
-- com.prx.mercury.api.v1.service.EmailServiceImplTest — Tests run: 7 — Failures: 0
-- com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest — Tests run: 12 — Failures: 0
-- com.prx.mercury.api.v1.to.VerificationCodeRequestTest — Tests run: 5 — Failures: 0
-- com.prx.mercury.mapper.MessageRecordMapperTest — Tests run: 5 — Failures: 0
-- com.prx.mercury.mapper.TemplateMapperTest — Tests run: 2 — Failures: 0
-- com.prx.mercury.mapper.VerificationCodeMapperTest — Tests run: 3 — Failures: 0
+- com.umdc.mercury.api.v1.service.EmailServiceImplTest — Tests run: 7 — Failures: 0
+- com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest — Tests run: 12 — Failures: 0
+- com.umdc.mercury.api.v1.to.VerificationCodeRequestTest — Tests run: 5 — Failures: 0
+- com.umdc.mercury.mapper.MessageRecordMapperTest — Tests run: 5 — Failures: 0
+- com.umdc.mercury.mapper.TemplateMapperTest — Tests run: 2 — Failures: 0
+- com.umdc.mercury.mapper.VerificationCodeMapperTest — Tests run: 3 — Failures: 0
 
 Sample logs / noteworthy output
 ------------------------------
@@ -64,11 +64,11 @@ How to reproduce locally (quick)
 1. Ensure a compatible JDK is active (Java 21 recommended) OR run with the current Java but invoke Surefire directly.
 2. From project root run:
 
-mvn -Dtest="com.prx.mercury.api.v1.service.EmailServiceImplTest,com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest,com.prx.mercury.api.v1.to.VerificationCodeRequestTest,com.prx.mercury.mapper.VerificationCodeMapperTest,com.prx.mercury.mapper.TemplateMapperTest,com.prx.mercury.mapper.MessageRecordMapperTest" surefire:test
+mvn -Dtest="com.umdc.mercury.api.v1.service.EmailServiceImplTest,com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest,com.umdc.mercury.api.v1.to.VerificationCodeRequestTest,com.umdc.mercury.mapper.VerificationCodeMapperTest,com.umdc.mercury.mapper.TemplateMapperTest,com.umdc.mercury.mapper.MessageRecordMapperTest" surefire:test
 
 3. To run a single test class:
 
-mvn -Dtest=com.prx.mercury.api.v1.service.VerificationCodeServiceImplTest surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.VerificationCodeServiceImplTest surefire:test
 
 Generating coverage (JaCoCo)
 ---------------------------

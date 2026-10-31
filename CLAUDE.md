@@ -12,10 +12,10 @@ mvn -U clean package -DskipTests
 mvn clean test
 
 # Run a single test class
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest surefire:test
 
 # Run a single test method
-mvn -Dtest=com.prx.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
+mvn -Dtest=com.umdc.mercury.api.v1.service.CampaignServiceImplTest#methodName surefire:test
 
 # Full build with tests and JaCoCo coverage report
 mvn -B -V -e clean verify
@@ -33,7 +33,7 @@ JaCoCo enforces **70% line coverage** (BUNDLE) and **50% branch coverage** (PACK
 
 ## Architecture Overview
 
-Mercury is a **multi-channel messaging microservice** built on Spring Boot 3.5.8 / Java 21. It exposes a REST API, queues messages via Kafka, sends emails via SMTP with FreeMarker templates, and persists data across PostgreSQL and MongoDB.
+Mercury is a **multi-channel messaging microservice** built on Spring Boot 4.1.0 / Java 25 (LTS). It exposes a REST API, queues messages via Kafka, sends emails via SMTP with FreeMarker templates, and persists data across PostgreSQL and MongoDB.
 
 ### Layered Request Flow
 
@@ -44,21 +44,28 @@ REST Controller (*Controller + *Api interface)
         ├─> NoSQL Repositories (MongoDB)
         └─> KafkaTemplate (publish per-recipient messages to channel topics)
 
-Kafka Listeners (MultiChannelListener: SMS / Telegram / WhatsApp only)
+NotificationEventListener (unified topic `mercury-unified-message`: SMS / Telegram / WhatsApp / Push, split by routing.channel)
+  └─> NotificationEventConsumerServiceImpl (validates, maps the event to the channel's document)
   └─> MessageChannelRouter (resolves the template, then dispatches)
-        └─> ChannelService implementations (Sms / Telegram / WhatsApp)
-              └─> MessageNSRepository (MongoDB, polymorphic "messages" collection)
+        └─> ChannelService implementations (Sms / Telegram / WhatsApp / Push)
+              └─> ChannelTemplateRenderer (FreeMarker) ─> MessageNSRepository (MongoDB, polymorphic "messages" collection, status OPENED)
 
 SendEmailScheduler (fixed-rate)
   └─> MessageProcessor
         ├─> processMessage()  — reads OPENED docs from MongoDB, sends via SMTP, updates status
         └─> updateMessageStatus() — reads SENT docs, writes MessageRecord to PostgreSQL, creates VerificationCode if applicable, deletes MongoDB doc
+
+MultiChannelScheduler (fixed-rate)
+  └─> MultiChannelMessageProcessor
+        └─> dispatchTelegram() — reads OPENED Telegram docs, sends via TelegramMessageDispatcher
+             (Bot API), writes back SENT/FAILED and advances CampaignMetricsService counters
 ```
 
-> **Known gaps (as of the Spring Boot 4 upgrade branch):**
-> - `PUSH` has no `ChannelService`, no Kafka listener and no topic wired up yet — messages built for it by `CampaignMessageFactory` currently have no consumer.
+> **Known gaps:**
+> - Only **Email** and **Telegram** reach a real provider. SMS, WhatsApp and Push are persisted as `OPENED` and stay queued until their providers (Twilio / WhatsApp Cloud API / FCM-APNs) are integrated — add a dispatcher under `provider/` and a `dispatchX()` in `MultiChannelMessageProcessor`, mirroring Telegram.
+> - Non-email messages are never migrated to PostgreSQL as `MessageRecord` nor purged from MongoDB once terminal — the equivalent of `MessageProcessor.updateMessageStatus()` does not exist for them yet.
 > - A second, unfinished messaging design ("Nexus") exists in parallel: `NotificationEventListener` actively consumes a unified `${umdc.consumer.topics.notification}` topic via `NotificationEventConsumerServiceImpl`, but nothing in the campaign-creation flow publishes to it yet, and its per-channel handlers only log (no persistence or send logic). Treat it as experimental/unwired until a decision is made to migrate the producer side to it.
-> - None of the `ChannelService` implementations (Email/SMS/Telegram/WhatsApp) call a real provider yet — they persist the message so it's ready once an SMTP/Twilio/Telegram Bot API/WhatsApp Cloud API integration is added.
+> - `EmailMessageDocument`/`EmailMessageTO` carry no `campaignId`, so email deliveries cannot be attributed to a campaign and do not advance the campaign metrics.
 
 ### Key Package Map
 
@@ -68,13 +75,15 @@ SendEmailScheduler (fixed-rate)
 | `api/v1/service` | Business logic; async ops return `CompletableFuture` |
 | `api/v1/to` | Immutable Java records: `*Request`, `*Response`, `*TO` suffixes |
 | `jpa/sql/entity` + `jpa/sql/repository` | JPA entities and Spring Data repositories (PostgreSQL) |
-| `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents for in-flight messages (`MessageDocument` is the polymorphic base for Sms/Telegram/WhatsApp; `EmailMessageDocument` is separate) |
+| `jpa/nosql/document` + `jpa/nosql/repository` | MongoDB documents for in-flight messages (`MessageDocument` is the polymorphic base for Sms/Telegram/WhatsApp/Push; `EmailMessageDocument` is separate) |
 | `mapper` | MapStruct mappers bridging entities ↔ TOs |
-| `kafka/listener` | `@KafkaListener` entry points — `MultiChannelListener` (SMS/Telegram/WhatsApp), `MercuryEmailListener` (email), `NotificationEventListener` (experimental unified "Nexus" topic, see Known gaps above) |
+| `kafka/listener` | `@KafkaListener` entry points — `NotificationEventListener` (unified topic: SMS/Telegram/WhatsApp/Push), `MercuryEmailListener` (email) |
 | `kafka/consumer/service` | Per-channel service implementations (`ChannelService` contract); email is handled separately by `EmailMessageConsumerService`, not by a `ChannelService` |
-| `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp only) |
+| `kafka/router` | `MessageChannelRouter` resolves the template via `TemplateDefinedService` and dispatches to the correct `ChannelService` (SMS/Telegram/WhatsApp/Push) |
+| `telegram` | Telegram channel for ZeroBound (links, updates, delivery through the Bot API), separate from the Kafka campaign path; see `docs/telegram-channel.md` |
 | `scheduler` | `SendEmailScheduler` drives `MessageProcessor` on configurable fixed rates |
-| `processor` | `MessageProcessor` — orchestrates the email send-and-persist lifecycle |
+| `processor` | `MessageProcessor` (email) and `MultiChannelMessageProcessor` (Telegram, growing) — orchestrate the send-and-reconcile lifecycle per channel |
+| `provider` | Real outbound integrations, one class per channel (`TelegramMessageDispatcher` so far) — the actual HTTP/SDK call to the provider, kept separate from persistence (`kafka/consumer/service`) and orchestration (`processor`) |
 | `client` | `BackboneClient` — Feign client for auth/session validation against the Backbone service |
 | `constant` | `ChannelType` enum (EMAIL, SMS, TELEGRAM, WHATSAPP, PUSH) and delivery status types |
 | `config` | Spring `@Configuration` classes for Mail, FreeMarker, Database, Kafka |
@@ -90,18 +99,46 @@ SendEmailScheduler (fixed-rate)
 
 1. `POST /api/v1/campaigns` → `CampaignServiceImpl.createCampaign()` (async)
 2. Validates channel type (enabled), resolves template, persists `CampaignEntity` + initial `CampaignMetricsEntity`
-3. Publishes one Kafka message per recipient to the channel topic (e.g., `email-topic`)
-4. Kafka consumer picks up messages; `SendEmailScheduler` drives `MessageProcessor` to send and reconcile
+3. Publishes one Kafka message per recipient: email to `mercury-email-messages`; SMS/Telegram/WhatsApp/Push as a `NotificationEventTO` to `mercury-unified-message` (schema: `docs/topic-general-message.md`). The Aiven plan limits the number of topics, so don't add per-channel topics.
+4. Kafka consumer picks up messages; `SendEmailScheduler` drives `MessageProcessor` to send and reconcile email
 
 ## Key Conventions
 
 - **Controller pattern**: every controller implements a `*Api` interface. OpenAPI (`@Operation`, `@ApiResponse`) annotations belong on the interface, not the controller class.
 - **DTO location**: all transfer objects go in `api/v1/to` as Java records with Bean Validation annotations.
-- **Scheduler rates**: use `${prx.scheduler.*}` property placeholders, not hardcoded `fixedRate` values.
+- **Scheduler rates**: use `${umdc.scheduler.*}` property placeholders, not hardcoded `fixedRate` values. Note the whole config namespace is `umdc.*` since the `com.prx` → `com.umdc` migration — `${prx.*}` placeholders no longer resolve.
 - **Channel services**: new channel implementations must implement `send`, `updateStatus`, and `findByDeliveryStatus`.
 - **Logging**: SLF4J `LoggerFactory` only — no other logging frameworks. Async methods use `CompletableFuture`.
 - **MapStruct mappers**: place in `mapper/` package; processor is on the annotation processing path, so no manual `new` instantiation of mappers.
-- **Kafka**: `PRX_KAFKA_AUTO_STARTUP=false` by default (set in `bootstrap.yml`) so listeners don't crash local dev without a running broker. Set to `true` in deployed environments.
+- **Kafka**: `UMDC_KAFKA_AUTO_STARTUP=false` by default (set in `bootstrap.yml`) so listeners don't crash local dev without a running broker. Set to `true` in deployed environments.
+
+## Authentication essentials
+
+Full detail: `docs/architecture/session-token-authorization.md` and
+`docs/tec/en/06-environment-configuration.md#-authentication--token-configuration-essential`.
+
+- **Two credentials.** A client *application* sends `Authorization: Bearer <Backbone opaque token>` (scopes
+  `mercury:message:read`/`write`, enforced by `ManagedClientSecurityConfig` on `/campaigns`, `/channel-types`,
+  `/templates`). An end *user* sends `session-token: <session JWT issued by backbone-rest>`. User-scoped
+  operations need both. `session-token-bkd` is gone.
+- **`APP_TOKEN_SECRET` is required and has no default** (base64, ≥ 256 bits, identical to backbone-rest's).
+  Never reintroduce a default in `application.yml`; locally use `secrets/local.env`.
+- **`SessionJwtServiceImpl.getTokenClaims` is the only trust gate** (signature, `exp`, `type=session-token`,
+  `iss`/`aud`, local `jti` denylist, backbone-rest's deny-list). Resolve a caller's identity with
+  `getVerifiedUid`; never decode a JWT payload by hand (`JwtUtil.getUidFromToken` is unverified — don't use it).
+- **Trusted `iss`/`aud`:** backbone-rest's (`backbone-rest` / `backbone-rest-client` by default) are listed in
+  `umdc.security.jwt.trusted-*`; `iss`/`aud` are mandatory (`allow-missing-claims=false`).
+- **Backbone validation uses `BackboneSessionClient`, not `security-oauth`'s `BackbonePublicClient.validate`**:
+  it sends the token in `session-token` (what the current backbone-rest reads) and also as the raw `Authorization` value
+  (the only header older backbone-rest versions read; the jar sends just `session-token`). Pinned by
+  `BackboneSessionClientContractTest`. backbone-rest session tokens now carry the application they were opened for (`aid`);
+  Mercury serves several applications and does not restrict it.
+- **Fail closed:** MongoDB or backbone-rest unreachable ⇒ token rejected.
+- **`POST /api/v1/auth/token`** (own `AuthTokenController`; the jar's `AuthApiController` is excluded in
+  `MercuryApplication`) is throttled (`umdc.security.login-throttle.*`). **`POST /api/v1/auth/logout`** revokes
+  the presented token locally.
+- **Test the real filter chains** with `SecurityFilterChainsTest` (`@WebMvcTest` + probe controllers) when changing
+  anything in `security/`; mocks alone cannot catch wiring or header-contract mistakes.
 
 ## External Dependencies
 

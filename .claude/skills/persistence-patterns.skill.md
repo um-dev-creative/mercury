@@ -80,4 +80,4 @@ public interface CampaignMapper {
 MapStruct mappers are Spring beans — inject with `@Autowired` / constructor injection, never `Mappers.getMapper()` in production code.
 
 ### DatabaseConfig
-`com.prx.mercury.config.DatabaseConfig` configures dual datasource (PostgreSQL + MongoDB). Do not bypass this with manual datasource creation.
+`com.umdc.mercury.config.DatabaseConfig` configures dual datasource (PostgreSQL + MongoDB). Do not bypass this with manual datasource creation.

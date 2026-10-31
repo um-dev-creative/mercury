@@ -18,7 +18,7 @@ Manages Kafka topics and consumer groups for local Mercury development and debug
 | `sms-topic` | SMS | `SmsChannelService` |
 | `telegram-topic` | TELEGRAM | `TelegramChannelService` |
 
-Consumer group: `mercury-multi-channel` (default, set via `${prx.consumer.group-id}`)
+Consumer group: `mercury-multi-channel` (default, set via `${umdc.consumer.group-id}`)
 
 ## Available Commands
 
@@ -56,7 +56,7 @@ kafka-topics.sh --delete --topic email-topic --bootstrap-server localhost:9092
 
 ## Notes
 
-- `PRX_KAFKA_AUTO_STARTUP=false` by default in `bootstrap.yml` — Mercury listeners do NOT auto-start locally without a broker
-- Set `PRX_KAFKA_AUTO_STARTUP=true` to enable listeners when a local broker is available
+- `UMDC_KAFKA_AUTO_STARTUP=false` by default in `bootstrap.yml` — Mercury listeners do NOT auto-start locally without a broker
+- Set `UMDC_KAFKA_AUTO_STARTUP=true` to enable listeners when a local broker is available
 - Bootstrap server for local dev: `localhost:9092` (configure via `${BOOTSTRAP_SERVER_URI}:${BOOTSTRAP_SERVER_PORT}`)
 - For local dev with Docker: `docker run -p 9092:9092 apache/kafka:latest`

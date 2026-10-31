@@ -17,6 +17,7 @@ Related Story: [[TBD-005]](https://placeholder.local/TBD-005)
 Retrieves progress metrics for a campaign, including counts of sent, delivered, failed, and other channel-specific statistics. This projection is built by the `CampaignProgressService` from metrics stored in the database.
 
 ### Implementation Notes
+* The `session-token` header is present on this operation but currently unused by the controller — no ownership check is performed, so any caller authorized at the M2M layer can read the progress of any campaign by id. Wire it into an ownership check, or drop the parameter (open design question, see `docs/architecture/session-token-authorization.md`).
 * The `CampaignService#getProgress(UUID)` delegates to `CampaignProgressService#getProgress`. If the campaign is unknown the service may throw an exception.
 * The progress object is not persisted in a separate table but is computed from metrics; exact fields depend on the `CampaignProgressTO` shape.
 

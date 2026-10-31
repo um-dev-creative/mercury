@@ -1,1 +1,310 @@
+# Changelog
+All notable changes to this project will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased] - 2026-10-06
+
+### Added
+- **Telegram campaigns are delivered for real, and non-email channels render their template.** `MultiChannelScheduler` sends queued messages through the bot in `TELEGRAM_BOT_TOKEN` and updates the campaign metrics. Without a token they stay `OPENED`.
+
+- **Telegram channel for ZeroBound.** Bot client, user-to-chat links, update input by polling or webhook, and delivery through `POST /api/v1/telegram/messages` with an `Idempotency-Key`, retries and rate limits. Off by default (`TELEGRAM_ENABLED=false`); needs `V2028` to `V2030`, applied by hand. See `docs/telegram-channel.md` and `docs/user-guide/`.
+- **Login clients in the database.** `POST /api/v1/auth/token` now looks the caller up in the new `mercury.login_clients` table (`V2031__login_clients.sql`, applied by hand like the other scripts): alias, **bcrypt hash** of the password, `active` flag. A row decides on its own (an inactive one is a refusal and does not fall back to the static entry of the same alias); an alias that is not in the table still falls back to `umdc.mercury.login-clients` of `application.yml`, so `directory-backend` and `zerobound` keep working until they are moved (switch the fallback off with `LOGIN_REGISTRY_PROPERTIES_ENABLED=false`). An unknown alias still costs one bcrypt comparison, so timing does not reveal whether it exists, and if the table cannot be read only the static clients match (fail closed for the table ones). New `LoginClientVerifier`, `LoginClientEntity`, `LoginClientRepository`; `scripts/login-clients/add-login-client.sh` prints the `INSERT ... ON CONFLICT` with the hash (password read from `MERCURY_LOGIN_PASSWORD`, never as an argument). Documented in `docs/login-clients.md`. Not run against a real database.
+- **Login clients API** (`/api/v1/login-clients`): list, register (password generated and shown once when not supplied), switch on/off or describe, rotate the password, delete. It needs the `LOGIN_CLIENT_MANAGE` permission (`LOGIN_CLIENT_MANAGE_PERMISSION`) in the backbone-rest application `LOGIN_CLIENTS_ADMIN_APPLICATION_ID`, checked with the caller's own session token against backbone's IAM; with the variable empty the endpoints answer `403`. Never returns a password or hash, and the log carries only the alias and the verified user id. Iris has the screen for it.
+
+- `scripts/smartkin/bootstrap-reference-data.sql`: creates the reference rows that `scripts/smartkin/seed-templates.sql` needs and that nothing else in mercury creates (no API, no script: the schema is managed outside the application): a verification-code row in `mercury.template_types`, `severity_type` INFO, `frequency_type` ONCE, and the nine rows of `mercury.message_status_type` named after `DeliveryStatusType`, which `MessageProcessor` looks up by name for every message (without them no mail is processed). It only adds what is missing, finds rows by name ignoring case, ignores inactive rows, prints the three ids the seed takes, has a dry run (`-v dry_run=1`), and, because mercury has ONE verification-code type (`PRX_VERIFICATION_CODE_TEMPLATE_ID`), refuses to create another when verification templates of a different type exist unless `-v verification_type_id=<id>` reuses it or `-v create_new_type=1` says so. Validated on a throwaway PostgreSQL (dry run, create, repeat, case, inactive rows, existing verification templates, unknown id, chained with the seed); not run against a real database. `docs/smartkin-mail-templates.md` gets a section on what has to exist first and who creates it (the application, role and owner user come from backbone-rest), with a Mermaid flow. `SmartkinTemplatesTest` checks that the two scripts agree on the variables.
+
+- **SmartKin verification e-mail** (see `docs/smartkin-mail-templates.md`). SmartKin sends one kind of e-mail through Mercury, the verification code of a new account, with the params `vc` and `user_name` (and no expiry); it used the generic `ds_new_user_verification_code_es.ftl`. New FreeMarker templates `sk_verification_es.ftl` and `sk_verification_en.ftl`: branded, HTML-escaped, a safety note, and the validity shown only when `expiresInMinutes` arrives (so they never promise a duration Mercury does not enforce). `scripts/smartkin/seed-templates.sql` registers them in `mercury.templates` / `mercury.template_defined` as verification-code templates: idempotent, it checks every id before writing, says which variable is missing, corrects a row registered with another type and prints the `template_defined` ids smartkin-backend needs (validated on a throwaway PostgreSQL; not run against a real database). `SmartkinTemplatesTest` renders both templates with the params SmartKin sends. The doc warns that `umdc.verification.code.template.id` means the template TYPE id in Mercury and the template_defined id in smartkin-backend.
+
+- **T-71 — mail for zerobound-rest** (see `docs/zerobound-mail-templates.md`). `POST /api/v1/mail` is implemented (it answered 501):
+  queues the mail, optional `Idempotency-Key` (same key + request = one mail, `Idempotent-Replayed: true`; same key + other request = 422)
+  and `GET /api/v1/mail/{id}` with the delivery log (`mail_tracking`, TTL 30 days, no personal data). Login clients
+  `ZEROBOUND_LOGIN_*` / `ZEROBOUND_NEXT_LOGIN_*` (rotation slot). 14 FreeMarker templates `zb_<kind>_<es|en>.ftl`
+  and `scripts/zerobound/seed-templates.sql` (not run against any database).
+
+### Changed
+- **SMS, Telegram, WhatsApp and Push share the topic `mercury-unified-message`**, because the Aiven plan limits the number of topics; `routing.channel` tells them apart and email keeps `mercury-email-messages`. Campaigns publish a `NotificationEventTO` (`docs/topic-general-message.md`) and `NotificationEventConsumerServiceImpl` now validates `target_identifier` per channel and persists through `MessageChannelRouter` instead of only logging. `header.messageId` is the Mongo id, so a redelivery does not duplicate a message. `MessageDocument` gains `mediaUrl` and `mediaType`. A processing failure is retried 4 times, 2 seconds apart, instead of being skipped at once. An `EMAIL` record on the unified topic is logged and discarded. Removed `MultiChannelListener`, `WhatsAppMessageTO`, `PushNotificationMessageTO` and the four per-channel topics and consumer factories.
+
+### Fixed
+- A Kafka redelivery of a message already stored is ignored, because it would reset it to `OPENED` and send it again.
+- `ResponseStatusException` keeps its status instead of becoming a 500 in `GlobalExceptionHandler`.
+- The scheduler pool now has 4 threads, because Telegram long polling would hold back email and the other jobs. The two email jobs can now run at the same time.
+- **Kafka against Aiven (client certificate).** Mercury connected to the TLS port with `security.protocol=PLAINTEXT` because `KAFKA_SECURITY_PROTOCOL` was not set anywhere, so consumers disconnected in a loop and the broker logged `SSL handshake failed`. `config/local.env` now sets `KAFKA_SECURITY_PROTOCOL=SSL`; other environments must set it too. `KafkaSslProps` logs a warning naming any configured TLS file that is missing instead of skipping it silently.
+- **Docker images for Aiven.** `Dockerfile` and `Dockerfile.native` default to `KAFKA_SECURITY_PROTOCOL=SSL`, because the certificates are baked in and a host without `config/local.env` fell back to `PLAINTEXT`. `aiven-kafka.p12` is now optional: it is only read when the keystore type is not PEM, and requiring it broke the native build.
+- **Kafka keystore temp file.** A keystore extracted from the jar was left readable by other users, because `Files.copy` with `REPLACE_EXISTING` recreated the file with default permissions. It now stays owner-only.
+
+### Documentation
+- User guide for the SMS, Telegram, WhatsApp and Push channels (`docs/user-guide/`, English and Spanish), and a Kafka on Aiven section with troubleshooting in the environment configuration guide.
+
+### Tests
+- Project method coverage raised from 80.1% to 86.3%: controllers, default API and service behavior, mail, Kafka producer, FreeMarker and MongoDB health configuration, native hints and the email scheduler.
+- Static analysis cleanup: unused same-package imports and multi-call `assertThrows` lambdas. `Dockerfile.native` restricts `curl` to HTTPS and sorts its packages.
+- **Kafka against Aiven (client certificate).** Mercury connected to the TLS port with `security.protocol=PLAINTEXT` because `KAFKA_SECURITY_PROTOCOL` was not set anywhere, so consumers disconnected in a loop and the broker logged `SSL handshake failed`. `config/local.env` now sets `KAFKA_SECURITY_PROTOCOL=SSL`; other environments must set it too. `KafkaSslProps` logs a warning naming any configured TLS file that is missing instead of skipping it silently.
+
+### Security
+- `/api/v1/mail` and `/api/v1/verification-code` accept only tokens Mercury minted for a login client (own `iss`/`aud`, no `uid`):
+  a backbone-rest user session is now `401` there (`MachineTokenInterceptor`). Login clients with an empty alias or password never match.
+- Request logging no longer prints recipients, subject, body or params (`SendEmailRequest`, `EmailMessageDocument`).
+
+### Changed
+- `BackboneSessionClient` sends the session token to backbone-rest's `GET /api/v1/session/validate` in the `session-token`
+  header (what backbone-rest now reads; on its session endpoints `Authorization: Bearer` carries an application client) **and**,
+  for environments still running an older backbone-rest, as the raw `Authorization` value. No deployment order is needed.
+
+### Security
+- **MER-11 — `session-token` verification now validates `iss`, `aud` and revocation.** It
+  previously required only a valid HS256 signature, `type` and `exp`, so a token signed with the
+  shared secret by another service, meant for another audience, or already invalidated was
+  accepted until `exp`. `SessionJwtServiceImpl.getTokenClaims` (the gate behind
+  `SessionJwtInterceptor`, `getVerifiedUid` and `getUsernameFromToken`) now also rejects a wrong
+  `iss`/`aud` and a revoked `jti`, failing closed if the denylist is unreachable.
+  `generateSessionToken` stamps configurable `iss`/`aud` (`umdc.security.jwt.issuer` /
+  `.audience`) and ignores caller-supplied ones. Revocation is a MongoDB denylist
+  (`revoked_tokens`, TTL-purged at the token's `exp`) behind the new `TokenRevocationService`.
+  `umdc.security.jwt.trusted-issuers` / `.trusted-audiences` list the extra `iss`/`aud` values
+  to accept (backbone-rest's, since it issues the end user's token). Transition switch
+  `umdc.security.jwt.allow-missing-claims` (default `true`) tolerates tokens with no `iss`/`aud`
+  (backbone-rest, pre-MER-11) while still rejecting mismatching ones; set it to `false` once all
+  issuers stamp both claims. See `docs/architecture/session-token-authorization.md`.
+
+- **MER-11 — refresh tokens no longer accepted as a `session-token`.** backbone-rest signs its
+  7-day refresh tokens (`type=refresh-token`, carrying `uid`) with the shared key; `getTokenClaims`
+  now requires `type=session-token`.
+- **MER-11 — `/api/v1/templates/**` now requires the service's `Authorization: Bearer` token** (scope
+  `mercury:message:read` for GET, `mercury:message:write` otherwise), like Campaign and ChannelType,
+  in addition to the end user's `session-token`.
+
+- **MER-11 — a logout at backbone-rest is now honoured by Mercury.** Backbone keeps its own `jti`
+  deny-list, so a logged-out token used to stay valid here until `exp`. A token Mercury did not mint is
+  now also checked with `GET /api/v1/session/validate` (`BackboneSessionValidator`, through Mercury's own
+  `BackboneSessionClient`: backbone-rest reads the token from `Authorization` whereas `security-oauth`'s
+  `BackbonePublicClient` sends `session-token`, which would have made every Backbone token look invalid); positive answers are
+  cached 30s (`umdc.security.jwt.backbone-validation-cache-ttl`), failures reject the token (fail closed).
+- **MER-11 — `POST /api/v1/auth/logout`** revokes the presented session-token in Mercury's denylist
+  (`SessionJwtServiceImpl.revokeToken`), making `TokenRevocationService` reachable.
+- **MER-11 — `POST /api/v1/auth/token` is throttled and audited.** With `session-token-bkd` gone the
+  alias/password is the only barrier: 5 failures per alias + address in 15m ⇒ `429` + `Retry-After`;
+  successes/failures are logged (never the password).
+- **MER-11 — `APP_TOKEN_SECRET` no longer has a committed default.** The dev value in `application.yml`
+  let anyone with the repo forge a session-token wherever the variable was unset; the app now refuses to
+  start without it (set it in Vault, or `secrets/local.env` locally — see `secrets/local.env.example`).
+- **MER-11 — `iss`/`aud` are mandatory by default** (`allow-missing-claims=false`).
+- **MER-11 — Campaign identity/ownership.** `createCampaign` requires the `session-token` and its verified
+  `uid` must equal the request `userId` (`403` otherwise); `getById` and `getProgress` require it and
+  enforce ownership (`403` for a non-owner), like update/toggle/delete.
+
+### Documentation
+- **MER-11 — essential configuration documented across projects.** Mercury: `docs/tec/en/06-environment-configuration.md`
+  (new *Authentication & token configuration* section, cross-project matching table, troubleshooting),
+  `CLAUDE.md`, `README.md`, `docs/tec/en/02-architecture.md`. backbone-rest: `docs/v1/00-prerequisites.md`,
+  `docs/v1/02-authentication-sessions.md` (fixed the `validate` path/header), `CLAUDE.md`. directory-backend:
+  `CLAUDE.md`, `README.md`.
+
+### Changed
+- **MER-11 — `POST /api/v1/auth/token` no longer takes `session-token-bkd`.** Served by the new
+  `AuthTokenController`; `security-oauth`'s `AuthApiController` is excluded from the component scan.
+  The registered alias/password alone authenticates the caller. `AuthServiceImpl` drops
+  `validate`/`BackbonePublicClient`.
+- **Breaking for API clients:** `POST /api/v1/campaigns` and `GET /api/v1/campaigns/{id}` now require the
+  `session-token` header; `/api/v1/templates/**` requires `Authorization: Bearer`. No client in the
+  workspace calls them today (directory-backend only uses `/auth/token` and `/verification-code`).
+- `umdc.security.jwt.trusted-issuers` / `.trusted-audiences` default to backbone-rest's own
+  (`backbone-rest` / `backbone-rest-client`).
+
+### Removed
+- **MER-11 — `session-token-bkd` → Mercury `session-token` exchange.** The end user's backbone-rest
+  session token is now sent directly in the `session-token` header (and the calling service's
+  opaque token in `Authorization: Bearer`, for Campaign/ChannelType). `AuthServiceImpl` no longer
+  overrides `token(AuthRequest, String)`, and `POST /api/v1/auth/session-token` no longer exists
+  (the library controller that mapped it is excluded).
+
+## [Unreleased] - 2026-09-28
+
+### Security
+- **Forgeable `uid` claim in `session-token` trusted for real authorization decisions.**
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` — used across `CampaignController`,
+  `TemplateController`, and `AuthServiceImpl` to resolve the caller's user id — only
+  base64-decodes the JWT payload; it never checks the signature. Two concrete impacts:
+  - **`AuthServiceImpl.token(AuthRequest, sessionTokenBkd)`** (`POST /api/v1/auth/session-token`,
+    the `generateTokenSession` operation — not the same as `POST /api/v1/auth/token`,
+    `accessToken`, which validates `session-token-bkd` remotely against backbone before
+    ever reaching this method) is `@SkipSessionValidation`, so Mercury's
+    `SessionJwtInterceptor` never validated that header either. The unverified `uid` it
+    decoded was then embedded in a freshly-minted, validly Mercury-signed session token
+    — any caller who could satisfy the static registered-login-client alias/password
+    check could mint a legitimate Mercury token for an arbitrary `uid`, impersonating
+    any user everywhere that token is later trusted (e.g. the Template Management API).
+  - **`CampaignController`**'s `getByApplication`/`updateCampaign`/`toggleCampaign`/
+    `deleteCampaign` also never went through `SessionJwtInterceptor` (`CampaignApi` is
+    `@SkipSessionValidation` — its routes are M2M-only, authenticated instead by
+    `ManagedClientSecurityConfig`'s backbone opaque-token chain for the *calling
+    service*). The `uid` from that same unverified header was still used to scope the
+    `getByApplication` query and to gate the "only the owner can update/toggle/delete"
+    checks in `CampaignServiceImpl` — so any M2M caller holding a valid
+    `mercury:message:*` scope token could read, update, pause, or soft-delete any other
+    user's campaigns by self-crafting the `uid` claim.
+
+  Fixed by adding `SessionJwtServiceImpl.getVerifiedUid(String)` — verifies the token's
+  HS256 signature (the same shared `APP_TOKEN_SECRET` backbone-rest signs with) and
+  expiration via the existing `getTokenClaims`, returning the `uid` claim only if the
+  token is genuinely trustworthy. All three call sites now use it; `CampaignController`
+  and `TemplateController` throw a new `InvalidSessionTokenException` (mapped to `401`)
+  when verification fails, and `AuthServiceImpl.token(AuthRequest, String)` returns `400`
+  (matching that endpoint's already-documented contract) instead of minting a token.
+  `com.umdc.commons.util.JwtUtil.getUidFromToken` is no longer used anywhere in this
+  codebase.
+- Documented two related, lower-severity design gaps for follow-up (not changed in this
+  pass, since both alter existing API/trust-boundary behavior rather than harden an
+  already-intended check): `CampaignController.createCampaign` attributes a campaign to
+  whatever `userId` is in the request body, with no cross-check against any token at all;
+  and `getById`/`getProgress` have no ownership scoping at all (any caller with a valid
+  M2M scope can read any campaign by id). See
+  `docs/architecture/session-token-authorization.md`.
+
+### Fixed (documentation)
+- Corrected a path error in the security writeup above and its first `CHANGELOG` entry:
+  the vulnerable exchange operation is `POST /api/v1/auth/session-token`
+  (`generateTokenSession`), not `POST /api/v1/auth/token` (`accessToken` — a different
+  operation that validates `session-token-bkd` remotely against backbone-rest and never
+  embeds a `uid` in its output). Verified against the actual `security-oauth` bytecode
+  (decompiled with CFR) rather than assumed.
+- `docs/get-campaigns-by-application.md`, `docs/toggle-campaign.md`,
+  `docs/update-campaign.md` still described the now-removed unverified
+  `JwtUtil.getUidFromToken` extraction — updated to describe `getVerifiedUid` and the
+  `401`/`InvalidSessionTokenException` behavior. `docs/get-campaign-progress.md` gained a
+  note that its `session-token` parameter is accepted but unused (one of the two open
+  design questions above).
+
+### Added (documentation & tooling)
+- `docs/generate-session-token.md` — documents both session-token-issuing operations
+  (`POST /api/v1/auth/token`, `POST /api/v1/auth/session-token`). Neither is implemented
+  in this repo (`AuthAPi`/`AuthApiController` live in `security-oauth`), which is why
+  neither previously appeared in `src/main/resources/api/openapi.yaml` — that file is
+  hand-maintained (see `pom.xml`) and only ever covered this repo's own controllers.
+  Added both, with request/response schemas (`AuthRequest`/`AuthResponse`), to close that
+  gap; `OpenApiSpecTest` now asserts both `operationId`s stay present.
+- Explicit `springdoc.*` configuration in `application.yml` (`api-docs.path`,
+  `swagger-ui.path`/`enabled`, sorters, `show-actuator: false`) — replaces a dead
+  `swagger.*` block left over from a pre-springdoc setup (referenced an undefined
+  `${app.description}` property; springdoc never read `swagger.*` in the first place).
+  Deliberately does **not** set `springdoc.packages-to-scan`, so the live spec
+  (`GET /v3/api-docs`, `GET /swagger-ui.html`) reflects every `@RestController` bean the
+  app actually exposes, including ones contributed by dependency jars.
+- Removed a dead `app.api.excludes`/`app.api.exclude.methods: accessToken,generateTokenSession`
+  block from `application.yml` — confirmed unconsumed anywhere in this app or in any
+  currently-used version of `commons`/`commons-services`/`security-oauth` (decompiled all
+  three). Its method names matched `security-oauth`'s `AuthAPi` exactly, suggesting a
+  pre-`@SkipSessionValidation` exclusion mechanism that was superseded and never deleted.
+
+### Added
+- **Template Management API (MER-6)** — full CRUD + search over the reusable base
+  `TemplateEntity` (`mercury.templates`), distinct from `TemplateDefinedEntity`
+  (application/user-specific usage, referenced by campaigns/messages — untouched):
+  - `POST   /api/v1/templates` — create (always persisted active)
+  - `PUT    /api/v1/templates/{id}` — update mutable metadata; `applicationId` immutable
+  - `DELETE /api/v1/templates/{id}` — soft-delete (`active=false`), idempotent
+  - `GET    /api/v1/templates/{id}` — active-only lookup; unknown/inactive both 404
+  - `GET    /api/v1/templates` — application-scoped, paginated, filtered search
+  - `TemplateApi`/`TemplateController`, `TemplateService`/`TemplateServiceImpl`,
+    `TemplateUpdateApplier`, `TemplateSpecifications` (DB-level filter/paging/sort)
+  - DTOs: `CreateTemplateRequest`, `UpdateTemplateRequest`, `TemplateDetailResponse`,
+    `TemplateSearchResponse`, internal `TemplateSearchCriteria`
+  - `TemplateNotFoundException` + `GlobalExceptionHandler` 404 mapping;
+    `MissingServletRequestParameterException` → 400 mapping (was falling through to 500)
+  - New lookup repositories: `ApplicationRepository`, `SeverityTypeRepository`
+  - OpenAPI paths/schemas in `src/main/resources/api/openapi.yaml`;
+    `docs/template-management-api.md`
+- **Real application-scoped authorization**, replacing a local placeholder:
+  `ApplicationAuthorizationService`/`ApplicationAuthorizationServiceImpl` calls
+  backbone-rest's `POST /api/v1/iam/permissions/check` (new `BackbonePermissionClient`
+  Feign client + `PermissionCheckRequest`/`PermissionCheckResponse`), which now
+  actually enforces the caller's role against the real
+  `general.application_role_user` ACL for the requested application (previously the
+  `applicationId` field on that endpoint was accepted but silently ignored — see
+  companion changes in the `backbone-rest` repo). Fails closed: a denied check, or
+  backbone-rest being unreachable/erroring, both reject with `403`.
+- `FeignHttpClientConfig` — global `feign.Client` bean used by every `@FeignClient`
+  in the app (see Fixed, below, for why this was necessary).
+- `docs/tec/en/06-environment-configuration.md` — complete, file-by-file variable
+  reference for `config/local.env`, `secrets/local.env`, `config/native.env`, and
+  `default.env` (names/purpose only for the latter — it carries real secrets and is
+  gitignored); two new troubleshooting entries for the PKIX and Hibernate-proxy
+  issues below.
+- `MERCURY_TEMPLATES_HOST_PATH` (`config/local.env`) — lets ops point
+  `docker-compose.yml`'s template mount at a real host directory (e.g.
+  `C:\ambientes\mercury\templates`) instead of the repo checkout path, without
+  rebuilding the image. Requires `docker compose --env-file config/local.env ...`
+  (documented) since Compose never reads `env_file:` entries for its own `${...}`
+  substitution.
+
+### Fixed
+- **`JpaSystemException: Generation of HibernateProxy instances at runtime is not
+  allowed when the configured BytecodeProvider is 'none'`** on any lazy entity
+  association (e.g. `GET /api/v1/campaigns/{id}`):
+  - JVM mode: `net.bytebuddy:byte-buddy` was present only via `mockito-core`'s
+    test-scope dependency and got stripped from the packaged jar by
+    `spring-boot:repackage`, leaving Hibernate with no bytecode provider at all.
+    Added as an explicit `compile`-scope dependency in `pom.xml`.
+  - GraalVM native-image mode: a true native binary cannot generate proxy classes
+    at runtime regardless of the classpath, and no `hibernate-enhance-maven-plugin`
+    release exists matching `hibernate-core:7.4.5.Final` (confirmed against Maven
+    Central). Converted every `FetchType.LAZY` `@ManyToOne`/`@OneToOne` association
+    to `FetchType.EAGER` across all entities (`CampaignEntity`,
+    `CampaignMetricsEntity`, `ChannelConfigEntity`, `MessageDeliveryLogEntity`,
+    `MessageRecordEntity`, `TemplateDefinedEntity`, `TemplateEntity`,
+    `VerificationCodeEntity`) instead.
+- **`AuthenticationServiceException` / `PKIX path building failed` fetching
+  `.../protocol/openid-connect/certs`** on requests that should never touch JWT
+  decoding: excluding the decommissioned Keycloak-style `SecurityConfig` from
+  component-scan (pre-existing) only stops that one custom bean — it does not stop
+  Spring Boot's own `OAuth2ResourceServerAutoConfiguration`/
+  `OAuth2ResourceServerWebSecurityAutoConfiguration` from independently building a
+  `JwtDecoder` if the JWK-set-URI property still resolves from Vault/Config Server.
+  Both now explicitly listed in `application.yml`'s `spring.autoconfigure.exclude`.
+- **Same PKIX symptom, different call sites** — every outbound HTTPS call this app
+  makes to PRX-internal hosts via a manually-built HTTP client
+  (`BackendFeignClientInterceptor.getToken()`'s M2M token fetch, and — more
+  broadly — every `@FeignClient` in the app, including `BackbonePublicClient`'s
+  opaque-token introspection used on **every** `/api/v1/campaigns/**` and
+  `/api/v1/channel-types/**` request) did not reliably pick up the JVM-wide trust
+  store `TrustStoreInitializer` installs at startup. Both now build their client
+  explicitly from `SSLContext.getDefault()` (read at call time); confirmed via the
+  Spring Boot condition-evaluation report that the new global `feignClient()` bean
+  is the one actually used by every Feign client in the app.
+- **FreeMarker templates missing inside the container** (`spring.freemarker.template-loader-path`
+  resolves to an empty/missing directory — `FreeMarkerConfig` reads it as a plain
+  filesystem path, not a classpath resource): `Dockerfile` never copied
+  `src/main/resources/templates/` into the image; the only prior mechanism was
+  `docker-compose.yml`'s runtime bind-mount of the host checkout path, which never
+  generalized beyond "Compose invoked from a git clone on this exact host." Both
+  `Dockerfile` and `Dockerfile.native` now bake the templates in at build time;
+  `application.yml`'s `TEMPLATE_PATH`/`TEMPLATE_SUFFIX` gained matching defaults.
+- `TemplateMapper.toTemplateTO` hardcoded `isActive` to `true` and never mapped
+  severity — now maps the real persisted `active` state and severity type.
+
+### Changed
+- `TemplateMapper` gained `toEntity(CreateTemplateRequest, ...)` and
+  `toDetailResponse(TemplateEntity)` for the new API, alongside the existing
+  (bug-fixed) `toSource`/`toTemplateTO` methods.
+
+### Documentation
+- `docs/template-management-api.md` — new: endpoints, auth/application-scope model
+  (including the real backbone-rest ACL call), request/response/query fields,
+  pagination, error statuses, `TemplateEntity` vs. `TemplateDefinedEntity`,
+  soft-delete/reference retention, `location`-as-metadata, sequence + lifecycle
+  Mermaid diagrams.
+- `docs/architecture/graalvm-native-image.md` — appended findings 5–8 to the
+  "Real-deployment findings" section: the Hibernate/byte-buddy and
+  `FetchType.EAGER` fix, the `spring.autoconfigure.exclude` fix, the Feign/`RestTemplate`
+  trust-store fix, and the templates-baked-into-image fix.
+- `docs/tec/en/06-environment-configuration.md` — complete `.env` file reference
+  (see Added, above) and two new troubleshooting entries.
+- `docs/openapi-client/README.md` — new `operationId -> path` rows for the five
+  Template Management endpoints.
+- `docker-compose.yml`, `config/local.env` — inline comments explaining the
+  `--env-file` requirement and `MERCURY_TEMPLATES_HOST_PATH`.
+
+---
+
+*(No prior entries — this file was empty before this release.)*

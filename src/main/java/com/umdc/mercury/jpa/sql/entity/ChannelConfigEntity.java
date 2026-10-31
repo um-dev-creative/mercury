@@ -14,12 +14,12 @@ import java.util.UUID;
 @Table(name = "channel_config", schema = "mercury")
 public class ChannelConfigEntity {
     @Id
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "channel_type_id", nullable = false)
     private ChannelTypeEntity channelType;
 

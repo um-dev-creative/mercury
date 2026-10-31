@@ -1,11 +1,8 @@
 package com.umdc.mercury.kafka.config;
 
-import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
-import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.consumer.service.EmailMessageConsumerService;
 import com.umdc.mercury.kafka.to.EmailMessageTO;
 import com.umdc.mercury.kafka.to.NotificationEventTO;
-import com.umdc.mercury.kafka.to.WhatsAppMessageTO;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
@@ -34,6 +31,9 @@ import java.util.Map;
 public class ConsumerConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(ConsumerConfig.class);
+    private static final long NOTIFICATION_RETRY_INTERVAL_MS = 2000L;
+    // Retries cover a short outage (e.g. MongoDB); after them the record is logged and skipped.
+    private static final long NOTIFICATION_MAX_RETRIES = 4L;
 
     @Value("${umdc.consumer.group-id:mercury-multi-channel}")
     private String groupId;
@@ -86,54 +86,6 @@ public class ConsumerConfig {
 
     @Bean
     @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
-    public ConsumerFactory<String, SmsMessageDocument> smsMessageConsumerFactory() throws IOException {
-        ErrorHandlingDeserializer<SmsMessageDocument> valueDeserializer =
-                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(SmsMessageDocument.class));
-        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, SmsMessageDocument> smsMessageKafkaListenerContainerFactory() throws IOException {
-        ConcurrentKafkaListenerContainerFactory<String, SmsMessageDocument> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(smsMessageConsumerFactory());
-        factory.setAutoStartup(autoStartup);
-        return factory;
-    }
-
-    @Bean
-    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
-    public ConsumerFactory<String, TelegramMessageDocument> telegramMessageConsumerFactory() throws IOException {
-        ErrorHandlingDeserializer<TelegramMessageDocument> valueDeserializer =
-                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(TelegramMessageDocument.class));
-        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, TelegramMessageDocument> telegramMessageKafkaListenerContainerFactory() throws IOException {
-        ConcurrentKafkaListenerContainerFactory<String, TelegramMessageDocument> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(telegramMessageConsumerFactory());
-        factory.setAutoStartup(autoStartup);
-        return factory;
-    }
-
-    @Bean
-    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
-    public ConsumerFactory<String, WhatsAppMessageTO> whatsAppMessageConsumerFactory() throws IOException {
-        ErrorHandlingDeserializer<WhatsAppMessageTO> valueDeserializer =
-                new ErrorHandlingDeserializer<>(new JacksonJsonDeserializer<>(WhatsAppMessageTO.class));
-        return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), valueDeserializer);
-    }
-
-    @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> whatsAppMessageKafkaListenerContainerFactory() throws IOException {
-        ConcurrentKafkaListenerContainerFactory<String, WhatsAppMessageTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(whatsAppMessageConsumerFactory());
-        factory.setAutoStartup(autoStartup);
-        return factory;
-    }
-
-    @Bean
-    @SuppressWarnings("java:S2095") // deserializer lifecycle is owned/closed by the KafkaConsumer it's registered with, not by this factory method
     public ConsumerFactory<String, NotificationEventTO> notificationEventConsumerFactory() throws IOException {
         JacksonJsonDeserializer<NotificationEventTO> jsonDeserializer = new JacksonJsonDeserializer<>(NotificationEventTO.class);
         jsonDeserializer.setUseTypeHeaders(false);
@@ -154,9 +106,9 @@ public class ConsumerConfig {
 
     private DefaultErrorHandler notificationEventErrorHandler() {
         DefaultErrorHandler handler = new DefaultErrorHandler(
-                (consumerRecord, ex) -> logger.warn("Skipping un-deserializable consumerRecord from topic={}, partition={}, offset={}: {}",
+                (consumerRecord, ex) -> logger.error("Skipping unprocessable consumerRecord from topic={}, partition={}, offset={}: {}",
                         consumerRecord.topic(), consumerRecord.partition(), consumerRecord.offset(), ex.getMessage()),
-                new FixedBackOff(0L, 0L)
+                new FixedBackOff(NOTIFICATION_RETRY_INTERVAL_MS, NOTIFICATION_MAX_RETRIES)
         );
         handler.addNotRetryableExceptions(DeserializationException.class);
         return handler;

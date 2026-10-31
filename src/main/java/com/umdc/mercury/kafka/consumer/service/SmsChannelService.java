@@ -1,5 +1,6 @@
 package com.umdc.mercury.kafka.consumer.service;
 
+import com.umdc.mercury.api.v1.service.ChannelTemplateRenderer;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.SmsMessageDocument;
@@ -16,20 +17,23 @@ public class SmsChannelService implements ChannelService<SmsMessageDocument> {
     private static final Logger logger = LoggerFactory.getLogger(SmsChannelService.class);
 
     private final MessageNSRepository messageRepository;
+    private final ChannelTemplateRenderer templateRenderer;
 
-    public SmsChannelService(MessageNSRepository messageRepository) {
+    public SmsChannelService(MessageNSRepository messageRepository, ChannelTemplateRenderer templateRenderer) {
         this.messageRepository = messageRepository;
+        this.templateRenderer = templateRenderer;
     }
 
     /**
-     * Persists the SMS message. Actual delivery through an SMS gateway (e.g. Twilio)
-     * is not yet integrated; this stores the message so it can be picked up once a
-     * provider is wired in.
+     * Renders the campaign template into the message body and persists it. Actual delivery
+     * through an SMS gateway (e.g. Twilio) is not yet integrated; this stores the message so
+     * it can be picked up once a provider is wired in.
      */
     @Override
     public SmsMessageDocument send(SmsMessageDocument message, TemplateDefinedTO template) {
         logger.info("Persisting SMS message. phoneNumber={}, templateId={}, campaignId={}",
                 message.getPhoneNumber(), template != null ? template.id() : null, message.getCampaignId());
+        message.setMessage(templateRenderer.render(template, message.getParams(), message.getMessage()));
         return messageRepository.save(message);
     }
 

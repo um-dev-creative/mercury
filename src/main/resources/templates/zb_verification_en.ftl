@@ -1,0 +1,23 @@
+<#-- ZeroBound: verification (en). Params: see docs/zerobound-mail-templates.md. Amounts arrive already masked/formatted by zerobound. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Verify your email</title>
+    <style>
+        .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #f8f9fa; padding: 16px; text-align: center; border-radius: 5px; }
+        .code { display: inline-block; background-color: #e9ecef; padding: 12px 20px; font-size: 24px; letter-spacing: 5px; border-radius: 5px; }
+        .muted, .footer { font-size: 12px; color: #6c757d; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header"><h1>Verify your email</h1></div>
+    <p>Use this code to verify your email in ZeroBound:</p>
+    <p><span class="code">${vc?html}</span></p>
+    <p class="muted">Code valid for ${expiresInMinutes?html} minutes.</p>
+    <p class="footer">This is an automatic email, please do not reply. If you did not request this code, ignore this message.</p>
+</div>
+</body>
+</html>

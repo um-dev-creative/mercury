@@ -33,7 +33,7 @@ mvn -Dtest=FullyQualifiedClassName surefire:test  # Single test class
 | Rule | Details |
 |---|---|
 | OpenAPI annotations | On `*Api` interfaces **only** — never on `*Controller` |
-| DTOs | Java `record`s in `com.prx.mercury.api.v1.to` with `*Request`, `*Response`, `*TO` suffixes |
+| DTOs | Java `record`s in `com.umdc.mercury.api.v1.to` with `*Request`, `*Response`, `*TO` suffixes |
 | Logging | `LoggerFactory.getLogger()` (SLF4J) only — never `System.out.println` |
 | Async | Write operations return `CompletableFuture<T>`; read ops return `T` or `List<T>` |
 | Scheduler rates | `${prx.scheduler.*}` property placeholders — never hardcoded milliseconds |

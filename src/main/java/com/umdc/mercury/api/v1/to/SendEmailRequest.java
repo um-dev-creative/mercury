@@ -35,18 +35,11 @@ public record SendEmailRequest (
         Map<String, Object> params
 ){
 
+    /** No recipients, subject, body or parameters: Mercury logs requests and they carry personal data. */
     @Override
     public String toString() {
-        return "SendEmailRequest{" +
-                "templateId='" + templateDefinedId + '\'' +
-                ", userId='" + userId + '\'' +
-                ", from='" + from + '\'' +
-                ", to=" + to +
-                ", cc=" + cc +
-                ", subject='" + subject + '\'' +
-                ", body='" + body + '\'' +
-                ", sendDate=" + sendDate +
-                ", params=" + params +
-                '}';
+        return "SendEmailRequest{templateId='" + templateDefinedId + "', userId='" + userId
+                + "', recipients=" + (to == null ? 0 : to.size()) + ", cc=" + (cc == null ? 0 : cc.size())
+                + ", sendDate=" + sendDate + ", params=" + (params == null ? 0 : params.size()) + " keys}";
     }
 }

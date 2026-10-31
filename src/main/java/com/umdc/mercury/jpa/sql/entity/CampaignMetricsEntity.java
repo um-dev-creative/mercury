@@ -12,12 +12,12 @@ import java.util.UUID;
 public class CampaignMetricsEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @ColumnDefault("mercury.uuid_generate_v4()")
+    @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;
 
     @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "campaign_id", nullable = false)
     private CampaignEntity campaign;
 

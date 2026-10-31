@@ -43,6 +43,7 @@ public interface CampaignMapper {
     @Mapping(target = "channelType", source = "channelType")
     @Mapping(target = "templateDefined", source = "templateDefined")
     @Mapping(target = "createdBy", source = "campaignTO.userId")
+    @Mapping(target = "userId", source = "campaignTO.userId")
     @Mapping(target = "totalRecipients", source = "totalRecipients")
     @Mapping(target = "updatedBy", source = "campaignTO.userId")
     @Mapping(target = "scheduledAt", source = "campaignTO.scheduledAt")

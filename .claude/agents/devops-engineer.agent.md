@@ -15,7 +15,7 @@ Manages the operational infrastructure of Mercury: Maven build health, Kafka top
 ## Tech Stack Expertise
 
 - Maven: `mvn -U clean package -DskipTests`, `mvn clean verify`, `mvn -Pcoverage clean test`, `mvn -Pbenchmark clean test`
-- Kafka: `PRX_KAFKA_AUTO_STARTUP=false` default; `PRX_KAFKA_ENABLED=true` for deployed; topics: `email-topic`, `sms-topic`, `telegram-topic`
+- Kafka: `UMDC_KAFKA_AUTO_STARTUP=false` default; `UMDC_KAFKA_ENABLED=true` for deployed; topics: `email-topic`, `sms-topic`, `telegram-topic`
 - Docker: `Dockerfile` present at project root; image targets Spring Boot fat jar
 - Vault: credentials at `${APP_TOKEN_SECRET}`, `${BACKBONE_CLIENT_SECRET}`, `${MERCURY_CLIENT_SECRET}`, etc. — see `bootstrap.yml`
 - Environment: `default.env` at project root; `environment_variables.md` documents all variables
@@ -25,8 +25,8 @@ Manages the operational infrastructure of Mercury: Maven build health, Kafka top
 ## Conventions to Follow
 
 - New env vars must be added to `environment_variables.md` and `default.env`
-- Scheduler rates exposed as `${prx.scheduler.*}` properties — defaults in `bootstrap.yml`
-- `PRX_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
+- Scheduler rates exposed as `${umdc.scheduler.*}` properties — defaults in `bootstrap.yml`
+- `UMDC_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
 - Version bumps follow `pom.xml` `<version>` — currently `0.0.1`
 - DDL strategy is `none` — schema changes require SQL migration scripts in `src/main/resources/db/`
 

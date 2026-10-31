@@ -71,7 +71,7 @@ tools: [Read, Edit, Bash]
 - Never release if `mvn clean verify` fails (PMD violations or JaCoCo below threshold)
 - Never push directly to `main` — push via PR unless this is a hotfix tag
 - New env vars introduced in this release must be in `environment_variables.md` before tagging
-- `PRX_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
+- `UMDC_KAFKA_AUTO_STARTUP` must remain `false` as default in `bootstrap.yml`
 
 ## Output Format
 

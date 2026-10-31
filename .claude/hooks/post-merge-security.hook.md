@@ -13,9 +13,9 @@ Activates when:
   - `pom.xml` (dependency changes)
   - `src/main/resources/bootstrap.yml` (config changes)
   - `environment_variables.md` (env var documentation)
-  - Any `*Config.java` in `src/main/java/com/prx/mercury/config/`
-  - `src/main/java/com/prx/mercury/security/`
-  - `src/main/java/com/prx/mercury/client/`
+  - Any `*Config.java` in `src/main/java/com/umdc/mercury/config/`
+  - `src/main/java/com/umdc/mercury/security/`
+  - `src/main/java/com/umdc/mercury/client/`
 
 ## Steps
 

@@ -53,5 +53,5 @@ docker push <registry>/mercury:0.0.1
 - `Dockerfile` is present at `/Users/lmata/projects/GitHub/mercury/Dockerfile`
 - Build the JAR with Maven before running Docker build
 - Environment variables for runtime are documented in `environment_variables.md` and `default.env`
-- `PRX_KAFKA_AUTO_STARTUP` must be set to `true` in deployed container environment
+- `UMDC_KAFKA_AUTO_STARTUP` must be set to `true` in deployed container environment
 - Vault and Config Server URLs must be provided via environment variables at container start
