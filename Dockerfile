@@ -37,7 +37,9 @@ COPY src/main/resources/templates/ templates/
 # mechanism as maven_settings above — so `docker build` needs one `--secret id=<name>,src=<path
 # on the build host>` per file below:
 #   prx_internal_ca, mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert,
-#   aiven_kafka_key, aiven_kafka_pem, aiven_kafka_p12, svc_pem
+#   aiven_kafka_key, aiven_kafka_pem, svc_pem
+# aiven_kafka_p12 is optional: Kafka only reads it when KAFKA_SSL_KEYSTORE_TYPE is not PEM, and
+# PEM is the default.
 RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt \
     --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks \
     --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks \
@@ -55,8 +57,8 @@ RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.c
     cp /run/secrets/aiven-kafka-7e59598.cert certs/mercury/aiven-kafka-7e59598.cert && \
     cp /run/secrets/aiven-kafka-7e59598.key certs/mercury/aiven-kafka-7e59598.key && \
     cp /run/secrets/aiven-kafka-7e59598.pem certs/mercury/aiven-kafka-7e59598.pem && \
-    cp /run/secrets/aiven-kafka.p12 certs/mercury/aiven-kafka.p12 && \
-    cp /run/secrets/svc.pem certs/mercury/svc.pem
+    cp /run/secrets/svc.pem certs/mercury/svc.pem && \
+    if [ -f /run/secrets/aiven-kafka.p12 ]; then cp /run/secrets/aiven-kafka.p12 certs/mercury/aiven-kafka.p12; fi
 
 RUN addgroup -S "${APP_GROUP}" && adduser -S "${APP_USER}" -G "${APP_GROUP}" && \
     chown -R "${APP_USER}:${APP_GROUP}" . && \
@@ -64,6 +66,10 @@ RUN addgroup -S "${APP_GROUP}" && adduser -S "${APP_USER}" -G "${APP_GROUP}" && 
     chmod 750 docker-entrypoint.sh
 
 USER ${APP_USER}:${APP_GROUP}
+
+# The Aiven client certificates are baked into this image and application.yml defaults to PLAINTEXT
+# for local dev, which Aiven drops ("Node -1 disconnected"). Override at run time if ever needed.
+ENV KAFKA_SECURITY_PROTOCOL=SSL
 
 EXPOSE 8118
 

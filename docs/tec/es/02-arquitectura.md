@@ -66,16 +66,13 @@ flowchart TD
     Persist --> Publish["Publica 1 mensaje Kafka<br/>por destinatario"]
 
     Publish --> TopicEmail(["topic: mercury-email-messages"])
-    Publish --> TopicSms(["topic: mercury-sms-messages"])
-    Publish --> TopicTelegram(["topic: mercury-telegram-messages"])
-    Publish --> TopicWhatsapp(["topic: mercury-whatsapp-messages"])
-    Publish --> TopicPush(["topic: mercury-push-messages"])
+    Publish --> TopicUnified(["topic: mercury-unified-message"])
 
     TopicEmail --> EmailListener["MercuryEmailListener"]
     EmailListener --> EmailConsumer["EmailMessageConsumerServiceImpl"]
     EmailConsumer --> MongoEmail[("MongoDB<br/>EmailMessageDocument")]
 
-    TopicSms & TopicTelegram & TopicWhatsapp & TopicPush --> MCListener["MultiChannelListener"]
+    TopicUnified --> MCListener["NotificationEventListener<br/>(routing.channel)"]
     MCListener --> Router["MessageChannelRouter<br/>(resuelve plantilla vía TemplateDefinedService)"]
     Router --> ChannelSvc["ChannelService&lt;T&gt;<br/>Sms / Telegram / WhatsApp / Push"]
     ChannelSvc --> MongoMulti[("MongoDB<br/>messages (polimórfico)")]
@@ -121,15 +118,14 @@ sequenceDiagram
 
 ---
 
-## 🌱 Los dos diseños de mensajería que coexisten
+## 🌱 Un topic para cuatro canales
 
-Mercury tiene **dos** caminos de ingestión de mensajes en el código, en distinto grado de madurez:
+SMS, Telegram, WhatsApp y Push comparten `mercury-unified-message` porque el plan de Aiven limita el número de topics; email conserva `mercury-email-messages`. Las campañas publican un `NotificationEventTO` (esquema: [`docs/topic-general-message.md`](../../topic-general-message.md)), `NotificationEventListener` lo consume y `NotificationEventConsumerServiceImpl` separa por `routing.channel`, valida `target_identifier` según el canal y construye el documento del canal.
 
-1. **El camino en producción** (documentado arriba): un topic por canal, un `ChannelService` por canal, `MessageChannelRouter` como despachador.
-2. **"Nexus" (experimental)**: `NotificationEventListener` consume un topic unificado (`${umdc.consumer.topics.notification}`) vía `NotificationEventConsumerServiceImpl` — pero **nada** en el flujo de creación de campañas publica ahí todavía, y sus manejadores por canal solo hacen `log`, sin persistencia ni envío real.
-
-> [!NOTE]
-> Tratar "Nexus" como experimental/no cableado hasta que se tome una decisión explícita de migrar el lado productor hacia ese diseño.
+- `payload.context` lleva los parámetros de plantilla y `payload.delivery_instructions` las opciones del canal (`sender_id`, `parse_mode`, `message_type`, `platform`, `title`, `icon`, `click_action`, `priority`, `badge`, `sound`).
+- `header.messageId` es el id del documento en Mongo, así una reentrega de Kafka no crea un segundo mensaje.
+- Los registros imposibles de entregar se registran y descartan. Un fallo de procesamiento se reintenta 4 veces, cada 2 segundos, y después se registra y se omite.
+- `EMAIL` en el topic unificado se registra y descarta: el esquema no tiene remitente, asunto ni copias.
 
 ---
 

@@ -57,7 +57,7 @@ sequenceDiagram
     participant Service as CampaignServiceImpl
     participant PG as PostgreSQL
     participant Kafka
-    participant Listener as MultiChannelListener
+    participant Listener as NotificationEventListener
     participant Router as MessageChannelRouter
     participant ChSvc as ChannelService&lt;T&gt;
     participant Mongo as MongoDB

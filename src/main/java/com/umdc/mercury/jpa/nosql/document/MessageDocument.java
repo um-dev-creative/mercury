@@ -20,6 +20,8 @@ public abstract class MessageDocument {
     private LocalDateTime sendDate;
     private Map<String, Object> params;
     private UUID campaignId;
+    private String mediaUrl;
+    private String mediaType;
 
     public String getId() {
         return id;
@@ -27,6 +29,22 @@ public abstract class MessageDocument {
 
     public void setId(String id) {
         this.id = id;
+    }
+
+    public String getMediaUrl() {
+        return mediaUrl;
+    }
+
+    public void setMediaUrl(String mediaUrl) {
+        this.mediaUrl = mediaUrl;
+    }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public void setMediaType(String mediaType) {
+        this.mediaType = mediaType;
     }
 
     public UUID getUserId() {

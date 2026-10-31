@@ -66,16 +66,13 @@ flowchart TD
     Persist --> Publish["Publishes 1 Kafka message<br/>per recipient"]
 
     Publish --> TopicEmail(["topic: mercury-email-messages"])
-    Publish --> TopicSms(["topic: mercury-sms-messages"])
-    Publish --> TopicTelegram(["topic: mercury-telegram-messages"])
-    Publish --> TopicWhatsapp(["topic: mercury-whatsapp-messages"])
-    Publish --> TopicPush(["topic: mercury-push-messages"])
+    Publish --> TopicUnified(["topic: mercury-unified-message"])
 
     TopicEmail --> EmailListener["MercuryEmailListener"]
     EmailListener --> EmailConsumer["EmailMessageConsumerServiceImpl"]
     EmailConsumer --> MongoEmail[("MongoDB<br/>EmailMessageDocument")]
 
-    TopicSms & TopicTelegram & TopicWhatsapp & TopicPush --> MCListener["MultiChannelListener"]
+    TopicUnified --> MCListener["NotificationEventListener<br/>(routing.channel)"]
     MCListener --> Router["MessageChannelRouter<br/>(resolves the template via TemplateDefinedService)"]
     Router --> ChannelSvc["ChannelService&lt;T&gt;<br/>Sms / Telegram / WhatsApp / Push"]
     ChannelSvc --> MongoMulti[("MongoDB<br/>messages (polymorphic)")]
@@ -121,15 +118,14 @@ sequenceDiagram
 
 ---
 
-## 🌱 The two messaging designs that coexist
+## 🌱 One topic for four channels
 
-Mercury has **two** message-ingestion paths in the codebase, at different levels of maturity:
+SMS, Telegram, WhatsApp and Push share `mercury-unified-message` because the Aiven plan limits the number of topics; email keeps `mercury-email-messages`. Campaigns publish a `NotificationEventTO` (schema: [`docs/topic-general-message.md`](../../topic-general-message.md)), `NotificationEventListener` consumes it, and `NotificationEventConsumerServiceImpl` splits by `routing.channel`, validates `target_identifier` for that channel and builds the channel's document.
 
-1. **The production path** (documented above): one topic per channel, one `ChannelService` per channel, `MessageChannelRouter` as dispatcher.
-2. **"Nexus" (experimental)**: `NotificationEventListener` consumes a unified topic (`${umdc.consumer.topics.notification}`) via `NotificationEventConsumerServiceImpl` — but **nothing** in the campaign-creation flow publishes to it yet, and its per-channel handlers only `log`, with no persistence or real sending.
-
-> [!NOTE]
-> Treat "Nexus" as experimental/unwired until an explicit decision is made to migrate the producer side to that design.
+- `payload.context` carries the template parameters and `payload.delivery_instructions` the channel options (`sender_id`, `parse_mode`, `message_type`, `platform`, `title`, `icon`, `click_action`, `priority`, `badge`, `sound`).
+- `header.messageId` is the Mongo document id, so a Kafka redelivery does not create a second message.
+- Undeliverable records are logged and discarded. A processing failure is retried 4 times, 2 seconds apart, then logged and skipped.
+- `EMAIL` on the unified topic is logged and discarded: the schema has no sender, subject or copy recipients.
 
 ---
 

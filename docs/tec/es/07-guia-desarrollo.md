@@ -87,7 +87,7 @@ gitGraph
 1. Crear el documento Mongo: extender `MessageDocument` (ver [03 · Modelo de Datos](03-modelo-datos.md)).
 2. Implementar `ChannelService<TuDocumento>` — los tres métodos: `send`, `updateStatus`, `findByDeliveryStatus`.
 3. Agregar el topic correspondiente en `application.yml` (`umdc.consumer.topics.<canal>`).
-4. Registrar el canal en `MessageChannelRouter` para que `MultiChannelListener` lo despache correctamente.
+4. Mapear el canal en `NotificationEventConsumerServiceImpl` y registrarlo en `MessageChannelRouter`.
 5. Agregar el `ChannelType` en la tabla `channel_type` (o vía el endpoint `POST /api/v1/channel-types`).
 6. Escribir tests — mínimo: el `ChannelService` (persistencia + filtrado por estado) y el registro en el router.
 
