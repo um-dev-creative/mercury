@@ -1,5 +1,6 @@
 package com.umdc.mercury.telegram;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ public class TelegramInbox {
     private final TelegramInboxStateRepository state;
     private final Clock clock;
 
+    @Autowired
     public TelegramInbox(TelegramInboxStateRepository state) {
         this(state, Clock.systemUTC());
     }

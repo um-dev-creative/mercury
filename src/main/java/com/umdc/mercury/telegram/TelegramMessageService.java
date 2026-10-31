@@ -1,5 +1,6 @@
 package com.umdc.mercury.telegram;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ public class TelegramMessageService {
         record Blocked() implements Result { }
     }
 
+    @Autowired
     public TelegramMessageService(TelegramMessageRepository messages, TelegramLinkService links,
                                   TelegramTemplateRenderer templates, TelegramBotProperties properties) {
         this(messages, links, templates, properties, Clock.systemUTC());
@@ -52,10 +54,12 @@ public class TelegramMessageService {
     }
 
     /**
+     * Not transactional on purpose: the single insert has its own transaction, so when two requests race on a key the
+     * loser can still read the winner's row. Inside one transaction PostgreSQL would refuse that read.
+     *
      * @throws IllegalArgumentException unknown template or unsupported language (400)
      * @throws IllegalStateException    the key was used with a different request (422)
      */
-    @Transactional
     public Result accept(String application, TelegramMessageRequest request, String idempotencyKey) {
         final String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.strip();
         final String language = request.language() == null || request.language().isBlank()
