@@ -763,7 +763,7 @@ paths:
       description: >
         Needs `If-Match: "<etag>"` (save over the version that was read) or `If-None-Match: *` (create the file). Without either,
         428. A stale etag is 412; content FreeMarker cannot read is 422 with the problems and line numbers; over the size limit is
-        413; system templates (prefixes in `umdc.templates.protected-prefixes`) are 403.
+        413; system templates (prefixes in `umdc.templates.protected-prefixes`) need `confirmSystem=true` or they are 403. Every save is recorded as a version.
       operationId: putTemplateContent
       parameters:
         - name: id
@@ -772,6 +772,7 @@ paths:
           schema: {type: string, format: uuid}
         - {name: If-Match, in: header, required: false, schema: {type: string}}
         - {name: If-None-Match, in: header, required: false, schema: {type: string}}
+        - {name: confirmSystem, in: query, required: false, schema: {type: boolean, default: false}}
       requestBody:
         required: true
         content:
@@ -798,6 +799,64 @@ paths:
               schema:
                 $ref: '#/components/schemas/TemplateProblemsResponse'
         '428': {description: No If-Match or If-None-Match.}
+  /api/v1/templates/{id}/versions:
+    get:
+      tags: [templates]
+      summary: List the saved versions of a template's content
+      description: Newest first, without the content. Needs the template permission.
+      operationId: listTemplateVersions
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: The versions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateVersionResponse'
+  /api/v1/templates/{id}/versions/{version}:
+    get:
+      tags: [templates]
+      summary: Read one saved version, with its content
+      operationId: getTemplateVersion
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: version, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200':
+          description: The version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersionResponse'
+        '404': {description: No such template or version.}
+  /api/v1/templates/{id}/versions/{version}/restore:
+    post:
+      tags: [templates]
+      summary: Restore an older version
+      description: >
+        Saves that version's content as a new version (nothing is erased). Needs `If-Match` with the etag of the current content (428
+        without it, 412 if it changed). System templates need `confirmSystem=true`.
+      operationId: restoreTemplateVersion
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: version, in: path, required: true, schema: {type: integer}}
+        - {name: If-Match, in: header, required: true, schema: {type: string}}
+        - {name: confirmSystem, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200':
+          description: The content after the restore.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: No permission, or a system template without confirmSystem.}
+        '404': {description: No such template or version.}
+        '412': {description: The content changed since it was read.}
+        '422': {description: The old content no longer parses.}
+        '428': {description: No If-Match.}
   /api/v1/templates/preview:
     post:
       tags: [templates]
@@ -1557,6 +1616,17 @@ components:
           items:
             $ref: '#/components/schemas/TemplateProblem'
 
+    TemplateVersionResponse:
+      type: object
+      properties:
+        version: {type: integer}
+        etag: {type: string}
+        sizeBytes: {type: integer}
+        reason: {type: string, enum: [SAVE, RESTORE, BASELINE]}
+        createdBy: {type: string, format: uuid, nullable: true}
+        createdAt: {type: string, format: date-time}
+        content: {type: string, nullable: true, description: Present when one version is read, not in the list.}
+
     TemplateContentResponse:
       type: object
       properties:
@@ -1567,7 +1637,7 @@ components:
         etag: {type: string}
         exists: {type: boolean}
         lastModified: {type: string, format: date-time, nullable: true}
-        readOnly: {type: boolean}
+        system: {type: boolean, description: "A system template other services depend on: saving it needs confirmSystem=true."}
         parameters:
           type: array
           items: {type: string}

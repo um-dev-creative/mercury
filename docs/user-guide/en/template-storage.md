@@ -24,7 +24,8 @@ A template is either **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) or **Markdow
 - A Markdown template is written as Markdown (`# Title`, `**bold**`, `- list`, `[text](https://…)`) and Mercury turns it into HTML when it sends the message. HTML written inside Markdown is shown as text, not run; use an `.html` template if you need HTML.
 - A template cannot be saved if it has a mistake; the error says the line and column.
 - Two people editing the same template: the second save is refused until they reload, so nobody loses the other's work.
-- Templates that other systems depend on (names starting with `zb_`, `sk_`, `iris_`, `ds_`) are read-only from the API.
+- Every save is kept as a version, so you can go back. Restoring an old version saves it as a new one; nothing is erased (the latest 50 are kept).
+- Templates that other systems depend on (names starting with `zb_`, `sk_`, `iris_`, `ds_`) need an explicit confirmation to save, and the original is kept so it can always be restored.
 
 ## Safe edits
 

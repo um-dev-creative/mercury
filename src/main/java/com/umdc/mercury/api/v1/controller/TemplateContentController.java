@@ -7,6 +7,7 @@ import com.umdc.mercury.api.v1.to.PreviewTemplateResponse;
 import com.umdc.mercury.api.v1.to.SaveTemplateContentRequest;
 import com.umdc.mercury.api.v1.to.TemplateContentResponse;
 import com.umdc.mercury.api.v1.to.TemplateProblemsResponse;
+import com.umdc.mercury.api.v1.to.TemplateVersionResponse;
 import com.umdc.mercury.security.SessionJwtServiceImpl;
 import com.umdc.mercury.template.content.TemplateSyntaxException;
 import com.umdc.mercury.template.storage.TemplateStorage;
@@ -23,8 +24,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 import static com.umdc.security.constant.ConstantApp.SESSION_TOKEN_KEY;
@@ -69,17 +72,55 @@ public class TemplateContentController {
     public ResponseEntity<Object> put(@PathVariable("id") UUID id,
                                       @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
                                       @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch,
+                                      @RequestParam(value = "confirmSystem", defaultValue = "false") boolean confirmSystem,
                                       @RequestHeader(SESSION_TOKEN_KEY) String sessionToken,
                                       @Valid @RequestBody SaveTemplateContentRequest request) {
         UUID requesterId = verified(sessionToken);
         String expected = expectedEtag(ifMatch, ifNoneMatch);
         if (expected == null) {
             return ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED)
-                    .body(new TemplateProblemsResponse("Send If-Match with the etag you read, or If-None-Match: * to create the file", java.util.List.of()));
+                    .body(new TemplateProblemsResponse("Send If-Match with the etag you read, or If-None-Match: * to create the file", List.of()));
         }
         try {
-            TemplateContentResponse saved = contentService.save(id, request.content(), expected, requesterId, sessionToken);
+            TemplateContentResponse saved = contentService.save(id, request.content(), expected, confirmSystem, requesterId, sessionToken);
             return ResponseEntity.ok().eTag(quote(saved.etag())).body(saved);
+        } catch (TemplateSyntaxException e) {
+            return ResponseEntity.unprocessableEntity().body(new TemplateProblemsResponse(e.getMessage(), e.problems()));
+        }
+    }
+
+    @GetMapping("/{id}/versions")
+    @Operation(summary = "List the saved versions of a template's content", operationId = "listTemplateVersions")
+    public ResponseEntity<List<TemplateVersionResponse>> versions(@PathVariable("id") UUID id,
+                                                                  @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+        verified(sessionToken);
+        return ResponseEntity.ok(contentService.versions(id, sessionToken));
+    }
+
+    @GetMapping("/{id}/versions/{version}")
+    @Operation(summary = "Read one saved version", operationId = "getTemplateVersion")
+    public ResponseEntity<TemplateVersionResponse> version(@PathVariable("id") UUID id, @PathVariable("version") int version,
+                                                           @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+        verified(sessionToken);
+        return ResponseEntity.ok(contentService.version(id, version, sessionToken));
+    }
+
+    /** Saves an older version's content as a new version. Needs {@code If-Match} with the etag of the current content. */
+    @PostMapping("/{id}/versions/{version}/restore")
+    @Operation(summary = "Restore an older version", operationId = "restoreTemplateVersion")
+    public ResponseEntity<Object> restore(@PathVariable("id") UUID id, @PathVariable("version") int version,
+                                          @RequestHeader(value = HttpHeaders.IF_MATCH, required = false) String ifMatch,
+                                          @RequestParam(value = "confirmSystem", defaultValue = "false") boolean confirmSystem,
+                                          @RequestHeader(SESSION_TOKEN_KEY) String sessionToken) {
+        UUID requesterId = verified(sessionToken);
+        String expected = expectedEtag(ifMatch, null);
+        if (expected == null) {
+            return ResponseEntity.status(HttpStatus.PRECONDITION_REQUIRED)
+                    .body(new TemplateProblemsResponse("Send If-Match with the etag of the current content", List.of()));
+        }
+        try {
+            TemplateContentResponse restored = contentService.restore(id, version, expected, confirmSystem, requesterId, sessionToken);
+            return ResponseEntity.ok().eTag(quote(restored.etag())).body(restored);
         } catch (TemplateSyntaxException e) {
             return ResponseEntity.unprocessableEntity().body(new TemplateProblemsResponse(e.getMessage(), e.problems()));
         }
