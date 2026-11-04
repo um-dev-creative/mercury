@@ -1,5 +1,6 @@
 package com.umdc.mercury.config;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.umdc.security.config.SecurityConfig;
@@ -33,6 +34,34 @@ public class ThirdPartyNativeRuntimeHints {
             MemberCategory.DECLARED_FIELDS
     };
 
+    /**
+     * Classes jjwt's public API ({@code Jwts}, {@code Jwks}, {@code Keys}) loads by name at class
+     * initialisation ({@code Classes.newInstance("...$Supplier")}) and calls through its internal
+     * bridges. GraalVM only keeps what it can see statically, so without these entries
+     * {@code Jwts.<clinit>} fails with {@code NoSuchMethodException: DefaultJwtBuilder$Supplier.<init>()}
+     * and every request that builds or parses a session token answers 500.
+     */
+    static final List<String> JJWT_LOADED_BY_NAME = List.of(
+            "io.jsonwebtoken.impl.DefaultClaimsBuilder$Supplier",
+            "io.jsonwebtoken.impl.DefaultJwtBuilder$Supplier",
+            "io.jsonwebtoken.impl.DefaultJwtHeaderBuilder$Supplier",
+            "io.jsonwebtoken.impl.DefaultJwtParserBuilder$Supplier",
+            "io.jsonwebtoken.impl.io.StandardCompressionAlgorithms",
+            "io.jsonwebtoken.impl.security.DefaultDynamicJwkBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.DefaultJwkParserBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.DefaultJwkSetBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.DefaultJwkSetParserBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.DefaultKeyOperationBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.DefaultKeyOperationPolicyBuilder$Supplier",
+            "io.jsonwebtoken.impl.security.JwksBridge",
+            "io.jsonwebtoken.impl.security.KeysBridge",
+            "io.jsonwebtoken.impl.security.StandardCurves",
+            "io.jsonwebtoken.impl.security.StandardEncryptionAlgorithms",
+            "io.jsonwebtoken.impl.security.StandardHashAlgorithms",
+            "io.jsonwebtoken.impl.security.StandardKeyAlgorithms",
+            "io.jsonwebtoken.impl.security.StandardKeyOperations",
+            "io.jsonwebtoken.impl.security.StandardSecureDigestAlgorithms");
+
     static class Hints implements RuntimeHintsRegistrar {
         @Override
         public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
@@ -59,6 +88,10 @@ public class ThirdPartyNativeRuntimeHints {
             // so VaultProperties' reflective no-arg-constructor binding failed with
             // "NoSuchMethodException: VaultProperties.<init>()" despite the constructor existing.
             hints.reflection().registerType(VaultProperties.class, FULL_ACCESS);
+            // jjwt (session tokens) instantiates its builders and algorithm registries by name, see
+            // JJWT_LOADED_BY_NAME; it also finds its compression codecs through META-INF/services.
+            JJWT_LOADED_BY_NAME.forEach(name -> hints.reflection().registerTypeIfPresent(classLoader, name, FULL_ACCESS));
+            hints.resources().registerPattern("META-INF/services/io.jsonwebtoken.*");
         }
     }
 }
