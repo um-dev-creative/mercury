@@ -1,5 +1,6 @@
 package com.umdc.mercury.config;
 
+import freemarker.core.TemplateClassResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,11 @@ public class FreeMarkerConfig {
         File file = new File(templateLoaderPath);
         freemarker.template.Configuration config = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30);
         config.setDirectoryForTemplateLoading(file);
+        // A template is code. Once people can edit them, a template must not be able to instantiate arbitrary classes
+        // (`?new` with freemarker.template.utility.Execute or ObjectConstructor runs commands on the server) nor reach the
+        // Java API of the objects it is given (`?api`). Both are refused here, for every channel that renders.
+        config.setNewBuiltinClassResolver(TemplateClassResolver.ALLOWS_NOTHING_RESOLVER);
+        config.setAPIBuiltinEnabled(false);
         return config;
     }
 }
