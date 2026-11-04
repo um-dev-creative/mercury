@@ -177,7 +177,7 @@ class TemplateContentServiceImplTest {
         assertThrows(ForbiddenException.class, () -> service.save(templateId, "x", null, false, requester, TOKEN));
         assertThat(storage.read("iris_verification_es.ftl")).isEmpty();
         verify(repository, never()).save(any());
-        verify(versions, never()).record(any(), any(), any(), any(), any());
+        verify(versions, never()).append(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -191,8 +191,8 @@ class TemplateContentServiceImplTest {
 
         assertThat(storage.read("iris_verification_es.ftl").orElseThrow().text()).isEqualTo("cambiado");
         assertThat(saved.system()).isTrue();
-        verify(versions).record(eq(templateId), eq("original"), any(), eq(TemplateVersions.BASELINE), eq(null));
-        verify(versions).record(eq(templateId), eq("cambiado"), eq(saved.etag()), eq(TemplateVersions.SAVE), eq(requester));
+        verify(versions).append(eq(templateId), eq("original"), any(), eq(TemplateVersions.BASELINE), eq(null));
+        verify(versions).append(eq(templateId), eq("cambiado"), eq(saved.etag()), eq(TemplateVersions.SAVE), eq(requester));
     }
 
     @Test
@@ -201,12 +201,12 @@ class TemplateContentServiceImplTest {
         when(repository.save(any())).thenAnswer(call -> call.getArgument(0));
 
         service.save(templateId, "1", TemplateStorage.ABSENT, false, requester, TOKEN);
-        verify(versions, never()).record(any(), any(), any(), eq(TemplateVersions.BASELINE), any());
+        verify(versions, never()).append(any(), any(), any(), eq(TemplateVersions.BASELINE), any());
 
         when(versions.hasAny(templateId)).thenReturn(true);
         String etag = storage.read("a.ftl").orElseThrow().metadata().etag();
         service.save(templateId, "2", etag, false, requester, TOKEN);
-        verify(versions, never()).record(any(), any(), any(), eq(TemplateVersions.BASELINE), any());
+        verify(versions, never()).append(any(), any(), any(), eq(TemplateVersions.BASELINE), any());
     }
 
     @Test
@@ -216,7 +216,7 @@ class TemplateContentServiceImplTest {
 
         TemplateContentResponse saved = service.save(templateId, "uno", TemplateStorage.ABSENT, false, requester, TOKEN);
 
-        verify(versions).record(templateId, "uno", saved.etag(), TemplateVersions.SAVE, requester);
+        verify(versions).append(templateId, "uno", saved.etag(), TemplateVersions.SAVE, requester);
     }
 
     @Test
@@ -242,7 +242,7 @@ class TemplateContentServiceImplTest {
 
         assertThat(storage.read("a.ftl").orElseThrow().text()).isEqualTo("antiguo");
         assertThat(restored.content()).isEqualTo("antiguo");
-        verify(versions).record(templateId, "antiguo", restored.etag(), TemplateVersions.RESTORE, requester);
+        verify(versions).append(templateId, "antiguo", restored.etag(), TemplateVersions.RESTORE, requester);
     }
 
     @Test

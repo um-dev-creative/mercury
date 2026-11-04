@@ -40,7 +40,7 @@ public class LocalTemplateStorage implements TemplateStorage {
         try {
             byte[] content = Files.readAllBytes(file);
             return Optional.of(new StoredTemplate(new TemplateMetadata(name, etagOf(content), Files.getLastModifiedTime(file).toInstant()), content));
-        } catch (IOException e) {
+        } catch (IOException _) {
             return Optional.empty();
         }
     }

@@ -113,9 +113,9 @@ public class TemplateContentServiceImpl implements TemplateContentService {
         Optional<StoredTemplate> before = storage.read(name);
         TemplateMetadata saved = storage.write(name, bytes, expectedEtag);
         if (before.isPresent() && !versions.hasAny(template.getId())) {
-            versions.record(template.getId(), before.get().text(), before.get().metadata().etag(), TemplateVersions.BASELINE, null);
+            versions.append(template.getId(), before.get().text(), before.get().metadata().etag(), TemplateVersions.BASELINE, null);
         }
-        versions.record(template.getId(), content, saved.etag(), reason, requesterId);
+        versions.append(template.getId(), content, saved.etag(), reason, requesterId);
         template.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         templateRepository.save(template);
         logger.info("Template content saved. templateId={}, requesterId={}, etag={}, reason={}", template.getId(), requesterId, saved.etag(), reason);

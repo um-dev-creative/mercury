@@ -55,7 +55,7 @@ class TemplateVersionsTest {
     void theFirstRecordIsVersionOneWithItsSizeInBytes() {
         when(repository.findFirstByTemplateIdOrderByVersionDesc(templateId)).thenReturn(Optional.empty());
 
-        int version = versions.record(templateId, "é", "abc", TemplateVersions.SAVE, user);
+        int version = versions.append(templateId, "é", "abc", TemplateVersions.SAVE, user);
 
         ArgumentCaptor<TemplateVersionEntity> saved = ArgumentCaptor.forClass(TemplateVersionEntity.class);
         verify(repository).save(saved.capture());
@@ -72,14 +72,14 @@ class TemplateVersionsTest {
     void theNextRecordFollowsTheLatest() {
         when(repository.findFirstByTemplateIdOrderByVersionDesc(templateId)).thenReturn(Optional.of(entity(2, "x")));
 
-        assertThat(versions.record(templateId, "y", "e3", TemplateVersions.RESTORE, user)).isEqualTo(3);
+        assertThat(versions.append(templateId, "y", "e3", TemplateVersions.RESTORE, user)).isEqualTo(3);
     }
 
     @Test
     void olderVersionsBeyondTheLimitAreDeleted() {
         when(repository.findFirstByTemplateIdOrderByVersionDesc(templateId)).thenReturn(Optional.of(entity(5, "x")));
 
-        versions.record(templateId, "y", "e6", TemplateVersions.SAVE, user);
+        versions.append(templateId, "y", "e6", TemplateVersions.SAVE, user);
 
         // keeps 6, 5 and 4
         verify(repository).deleteByTemplateIdAndVersionLessThan(templateId, 4);
@@ -90,7 +90,7 @@ class TemplateVersionsTest {
         TemplateVersions tiny = new TemplateVersions(repository, 0);
         when(repository.findFirstByTemplateIdOrderByVersionDesc(templateId)).thenReturn(Optional.of(entity(1, "x")));
 
-        tiny.record(templateId, "y", "e2", TemplateVersions.SAVE, null);
+        tiny.append(templateId, "y", "e2", TemplateVersions.SAVE, null);
 
         verify(repository).deleteByTemplateIdAndVersionLessThan(templateId, 2);
     }

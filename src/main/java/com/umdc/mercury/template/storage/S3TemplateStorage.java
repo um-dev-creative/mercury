@@ -61,7 +61,7 @@ public class S3TemplateStorage implements TemplateStorage {
             ResponseBytes<GetObjectResponse> object = client.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(prefix + name).build());
             GetObjectResponse response = object.response();
             return Optional.of(new StoredTemplate(new TemplateMetadata(name, unquote(response.eTag()), response.lastModified()), object.asByteArray()));
-        } catch (NoSuchKeyException e) {
+        } catch (NoSuchKeyException _) {
             return Optional.empty();
         } catch (S3Exception e) {
             if (e.statusCode() == NOT_FOUND) {
@@ -79,7 +79,7 @@ public class S3TemplateStorage implements TemplateStorage {
         try {
             HeadObjectResponse head = client.headObject(HeadObjectRequest.builder().bucket(bucket).key(prefix + name).build());
             return Optional.of(new TemplateMetadata(name, unquote(head.eTag()), head.lastModified()));
-        } catch (NoSuchKeyException e) {
+        } catch (NoSuchKeyException _) {
             return Optional.empty();
         } catch (S3Exception e) {
             if (e.statusCode() == NOT_FOUND) {

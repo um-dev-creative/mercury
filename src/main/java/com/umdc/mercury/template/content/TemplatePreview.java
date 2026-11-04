@@ -60,7 +60,7 @@ public class TemplatePreview {
             template = new Template(name, new StringReader(MarkdownTemplates.forFreeMarker(name, content)), configuration);
         } catch (ParseException e) {
             return failed(Math.max(0, e.getLineNumber() - MarkdownTemplates.lineOffset(name)), e.getColumnNumber(), e.getEditorMessage());
-        } catch (IOException e) {
+        } catch (IOException _) {
             return failed(0, 0, "The template could not be read");
         }
         try (LimitedWriter out = new LimitedWriter(maxOutputChars, System.nanoTime() + timeoutNanos)) {

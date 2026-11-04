@@ -49,7 +49,7 @@ public class TemplateVersions {
      * @return the recorded version number
      */
     @Transactional
-    public int record(UUID templateId, String content, String etag, String reason, UUID createdBy) {
+    public int append(UUID templateId, String content, String etag, String reason, UUID createdBy) {
         int next = repository.findFirstByTemplateIdOrderByVersionDesc(templateId).map(v -> v.getVersion() + 1).orElse(FIRST_VERSION);
         TemplateVersionEntity entity = new TemplateVersionEntity();
         entity.setTemplateId(templateId);

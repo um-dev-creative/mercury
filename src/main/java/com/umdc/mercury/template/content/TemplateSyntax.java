@@ -24,10 +24,14 @@ public final class TemplateSyntax {
 
     private static final Configuration PARSER = FreeMarkerConfig.hardened(new StringTemplateLoader());
 
-    private static final Pattern INTERPOLATION = Pattern.compile("\\$\\{\\s*([A-Za-z_][A-Za-z0-9_]*)");
-    private static final Pattern DIRECTIVE_USE = Pattern.compile("<#(?:if|elseif|list)\\s+\\(?\\s*([A-Za-z_][A-Za-z0-9_]*)");
-    private static final Pattern DECLARATION =
-            Pattern.compile("<#(?:assign|local|global)\\s+([A-Za-z_][A-Za-z0-9_]*)|<#list\\s+[^>]*?\\sas\\s+([A-Za-z_][A-Za-z0-9_]*)(?:\\s*,\\s*([A-Za-z_][A-Za-z0-9_]*))?|<#macro\\s+[A-Za-z_][A-Za-z0-9_]*\\s+([^>]*)");
+    private static final String NAME = "[A-Za-z_]\\w*";
+    private static final Pattern INTERPOLATION = Pattern.compile("\\$\\{\\s*(" + NAME + ")");
+    private static final Pattern DIRECTIVE_USE = Pattern.compile("<#(?:if|elseif|list)\\s+\\(?\\s*(" + NAME + ")");
+    private static final Pattern ASSIGNMENT = Pattern.compile("<#(?:assign|local|global)\\s+(" + NAME + ")");
+    private static final Pattern LIST_HEADER = Pattern.compile("<#list\\s+([^>]*)>");
+    private static final Pattern MACRO_HEADER = Pattern.compile("<#macro\\s+\\w+\\s+([^>]*)>");
+    private static final Pattern IDENTIFIER = Pattern.compile(NAME);
+    private static final String AS = " as ";
     private static final Set<String> RESERVED = Set.of("true", "false", "null", "as", "in", "gt", "gte", "lt", "lte", "using");
 
     private TemplateSyntax() {
@@ -45,7 +49,7 @@ public final class TemplateSyntax {
         } catch (ParseException e) {
             int line = Math.max(0, e.getLineNumber() - MarkdownTemplates.lineOffset(name));
             return List.of(new TemplateProblem(line, Math.max(0, e.getColumnNumber()), e.getEditorMessage()));
-        } catch (IOException e) {
+        } catch (IOException _) {
             return List.of(new TemplateProblem(0, 0, "The template could not be read"));
         }
     }
@@ -60,19 +64,25 @@ public final class TemplateSyntax {
      */
     public static List<String> parameters(String content) {
         Set<String> declared = new LinkedHashSet<>();
-        Matcher declarations = DECLARATION.matcher(content);
-        while (declarations.find()) {
-            for (int group = 1; group <= 3; group++) {
-                if (declarations.group(group) != null) {
-                    declared.add(declarations.group(group));
+        Matcher assignments = ASSIGNMENT.matcher(content);
+        while (assignments.find()) {
+            declared.add(assignments.group(1));
+        }
+        Matcher lists = LIST_HEADER.matcher(content);
+        while (lists.find()) {
+            // `<#list items as item>` or `<#list rows as row, index>`: what follows ` as ` is declared by the loop
+            String header = lists.group(1);
+            int as = header.lastIndexOf(AS);
+            if (as >= 0) {
+                for (String name : header.substring(as + AS.length()).split("[\\s,]+")) {
+                    addIfIdentifier(declared, name);
                 }
             }
-            if (declarations.group(4) != null) {
-                for (String argument : declarations.group(4).split("[\\s=]+")) {
-                    if (argument.matches("[A-Za-z_][A-Za-z0-9_]*")) {
-                        declared.add(argument);
-                    }
-                }
+        }
+        Matcher macros = MACRO_HEADER.matcher(content);
+        while (macros.find()) {
+            for (String argument : macros.group(1).split("[\\s=]+")) {
+                addIfIdentifier(declared, argument);
             }
         }
         java.util.TreeMap<Integer, String> byPosition = new java.util.TreeMap<>();
@@ -82,6 +92,12 @@ public final class TemplateSyntax {
         used.removeAll(declared);
         used.removeAll(RESERVED);
         return new ArrayList<>(used);
+    }
+
+    private static void addIfIdentifier(Set<String> into, String candidate) {
+        if (IDENTIFIER.matcher(candidate).matches()) {
+            into.add(candidate);
+        }
     }
 
     private static void collect(Matcher matcher, java.util.Map<Integer, String> byPosition) {
