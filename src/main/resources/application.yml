@@ -121,6 +121,20 @@ umdc:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
   templates:
+    # where the content of the templates lives: `local` (the folder at spring.freemarker.template-loader-path) or `s3`
+    # (a bucket of S3 or of an S3-compatible service such as MinIO; with several Mercury instances use `s3`)
+    storage: ${TEMPLATE_STORAGE:local}
+    s3:
+      bucket: ${TEMPLATE_S3_BUCKET:}
+      prefix: ${TEMPLATE_S3_PREFIX:templates/}
+      region: ${TEMPLATE_S3_REGION:us-east-1}
+      # endpoint of an S3-compatible service; empty for AWS
+      endpoint: ${TEMPLATE_S3_ENDPOINT:}
+      # true for services that address buckets as host/bucket/key (MinIO)
+      path-style: ${TEMPLATE_S3_PATH_STYLE:false}
+      # secrets: leave empty to use the AWS default credentials chain (instance role, environment, profile)
+      access-key: ${TEMPLATE_S3_ACCESS_KEY:}
+      secret-key: ${TEMPLATE_S3_SECRET_KEY:}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
     max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
     # system templates other services depend on: their content cannot be changed from the API (comma-separated file-name prefixes)

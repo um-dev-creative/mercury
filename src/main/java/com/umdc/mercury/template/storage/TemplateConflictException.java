@@ -8,4 +8,8 @@ public class TemplateConflictException extends RuntimeException {
     public TemplateConflictException(String name) {
         super("The template changed since it was read: " + name);
     }
+
+    public TemplateConflictException(String name, Throwable cause) {
+        super("The template changed since it was read: " + name, cause);
+    }
 }
