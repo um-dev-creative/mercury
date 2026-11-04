@@ -25,4 +25,4 @@ Tiene el mismo formato que el de backbone-rest, así que al depurar una integrac
 - Comprobar que Mercury y backbone-rest usan la misma versión de las librerías UMDC.
 - Adjuntar la línea a un reporte de error.
 
-Si una versión aparece como `${...}` o `@...@`, el build está mal: repórtalo. Las versiones no se configuran en tiempo de ejecución.
+Si una versión aparece como `n/a`, la aplicación se arrancó desde un build del IDE sin Maven; ejecuta `mvn compile` (o arráncala con Maven) para ver las versiones reales. Si una versión aparece como `${...}` o `@...@`, el build está mal: repórtalo. Las versiones no se configuran en tiempo de ejecución.
