@@ -5,6 +5,7 @@ import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.PreviewTemplateRequest;
 import com.umdc.mercury.api.v1.to.PreviewTemplateResponse;
 import com.umdc.mercury.api.v1.to.TemplateContentResponse;
+import com.umdc.mercury.api.v1.to.TemplateVersionResponse;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.template.content.ContentTooLargeException;
@@ -42,9 +43,11 @@ public class TemplateContentServiceImpl implements TemplateContentService {
     private final String templateManagePermission;
     private final int maxContentBytes;
     private final List<String> protectedPrefixes;
+    private final TemplateVersions versions;
 
     public TemplateContentServiceImpl(TemplateRepository templateRepository,
                                       TemplateStorage storage,
+                                      TemplateVersions versions,
                                       ApplicationAuthorizationService authorization,
                                       @Value("${umdc.security.permissions.template-manage:TEMPLATE_MANAGE}") String templateManagePermission,
                                       @Value("${umdc.templates.max-content-bytes:262144}") int maxContentBytes,
@@ -53,6 +56,7 @@ public class TemplateContentServiceImpl implements TemplateContentService {
                                       @Value("${umdc.templates.preview.timeout-ms:3000}") long previewTimeoutMs) {
         this.templateRepository = templateRepository;
         this.storage = storage;
+        this.versions = versions;
         this.authorization = authorization;
         this.templateManagePermission = templateManagePermission;
         this.maxContentBytes = maxContentBytes;
@@ -69,11 +73,33 @@ public class TemplateContentServiceImpl implements TemplateContentService {
     }
 
     @Override
-    public TemplateContentResponse save(UUID templateId, String content, String expectedEtag, UUID requesterId, String sessionToken) {
+    public TemplateContentResponse save(UUID templateId, String content, String expectedEtag, boolean confirmSystem, UUID requesterId, String sessionToken) {
+        return write(authorized(templateId, sessionToken), content, expectedEtag, confirmSystem, TemplateVersions.SAVE, requesterId);
+    }
+
+    @Override
+    public List<TemplateVersionResponse> versions(UUID templateId, String sessionToken) {
+        authorized(templateId, sessionToken);
+        return versions.list(templateId);
+    }
+
+    @Override
+    public TemplateVersionResponse version(UUID templateId, int version, String sessionToken) {
+        authorized(templateId, sessionToken);
+        return versions.get(templateId, version);
+    }
+
+    @Override
+    public TemplateContentResponse restore(UUID templateId, int version, String expectedEtag, boolean confirmSystem, UUID requesterId, String sessionToken) {
         TemplateEntity template = authorized(templateId, sessionToken);
+        TemplateVersionResponse old = versions.get(templateId, version);
+        return write(template, old.content(), expectedEtag, confirmSystem, TemplateVersions.RESTORE, requesterId);
+    }
+
+    private TemplateContentResponse write(TemplateEntity template, String content, String expectedEtag, boolean confirmSystem, String reason, UUID requesterId) {
         String name = fileName(template);
-        if (isProtected(name)) {
-            throw new ForbiddenException("System templates are read-only");
+        if (isProtected(name) && !confirmSystem) {
+            throw new ForbiddenException("This is a system template other services depend on: confirm the change to save it");
         }
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         if (bytes.length > maxContentBytes) {
@@ -83,10 +109,16 @@ public class TemplateContentServiceImpl implements TemplateContentService {
         if (!problems.isEmpty()) {
             throw new TemplateSyntaxException(problems);
         }
+        // the content the template had before the API first changed it stays restorable
+        Optional<StoredTemplate> before = storage.read(name);
         TemplateMetadata saved = storage.write(name, bytes, expectedEtag);
+        if (before.isPresent() && !versions.hasAny(template.getId())) {
+            versions.record(template.getId(), before.get().text(), before.get().metadata().etag(), TemplateVersions.BASELINE, null);
+        }
+        versions.record(template.getId(), content, saved.etag(), reason, requesterId);
         template.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         templateRepository.save(template);
-        logger.info("Template content saved. templateId={}, requesterId={}, etag={}", templateId, requesterId, saved.etag());
+        logger.info("Template content saved. templateId={}, requesterId={}, etag={}, reason={}", template.getId(), requesterId, saved.etag(), reason);
         return response(template, name, content, saved);
     }
 

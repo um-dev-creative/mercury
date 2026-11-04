@@ -24,7 +24,8 @@ Una plantilla es **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) o **Markdown** (
 - Una plantilla Markdown se escribe en Markdown (`# Título`, `**negrita**`, `- lista`, `[texto](https://…)`) y Mercury la convierte en HTML al enviar el mensaje. El HTML escrito dentro de Markdown se muestra como texto, no se ejecuta; usa una plantilla `.html` si necesitas HTML.
 - Una plantilla con un error no se puede guardar; el error indica la línea y la columna.
 - Si dos personas editan la misma plantilla, el segundo guardado se rechaza hasta que recargue, para que nadie pierda el trabajo del otro.
-- Las plantillas de las que dependen otros sistemas (nombres que empiezan por `zb_`, `sk_`, `iris_`, `ds_`) son de solo lectura desde la API.
+- Cada guardado se conserva como una versión, así que puedes volver atrás. Restaurar una versión antigua la guarda como una nueva; no se borra nada (se conservan las últimas 50).
+- Las plantillas de las que dependen otros sistemas (nombres que empiezan por `zb_`, `sk_`, `iris_`, `ds_`) piden una confirmación explícita para guardar, y se conserva el original para poder restaurarlo siempre.
 
 ## Ediciones seguras
 

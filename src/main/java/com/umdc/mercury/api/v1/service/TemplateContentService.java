@@ -3,7 +3,9 @@ package com.umdc.mercury.api.v1.service;
 import com.umdc.mercury.api.v1.to.PreviewTemplateRequest;
 import com.umdc.mercury.api.v1.to.PreviewTemplateResponse;
 import com.umdc.mercury.api.v1.to.TemplateContentResponse;
+import com.umdc.mercury.api.v1.to.TemplateVersionResponse;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -27,6 +29,7 @@ public interface TemplateContentService {
      *
      * @param templateId   an active template.
      * @param content      the whole template as written.
+     * @param confirmSystem whether the caller confirmed changing a system template (without it, a system template is {@code 403}).
      * @param expectedEtag etag the caller read, or {@link com.umdc.mercury.template.storage.TemplateStorage#ABSENT} to
      *                     create the file.
      * @param requesterId  verified id of the caller, for the log.
@@ -38,7 +41,32 @@ public interface TemplateContentService {
      * @throws com.umdc.mercury.api.v1.exception.ForbiddenException        if the caller lacks the permission or the
      *         template is a system template.
      */
-    TemplateContentResponse save(UUID templateId, String content, String expectedEtag, UUID requesterId, String sessionToken);
+    TemplateContentResponse save(UUID templateId, String content, String expectedEtag, boolean confirmSystem, UUID requesterId, String sessionToken);
+
+    /**
+     * @param templateId an active template.
+     * @param sessionToken the caller's session token.
+     * @return the recorded versions of the content, newest first, without the content itself.
+     */
+    List<TemplateVersionResponse> versions(UUID templateId, String sessionToken);
+
+    /**
+     * @param templateId an active template.
+     * @param version    version number.
+     * @param sessionToken the caller's session token.
+     * @return that version with its content.
+     * @throws com.umdc.mercury.api.v1.exception.TemplateNotFoundException if there is no such version.
+     */
+    TemplateVersionResponse version(UUID templateId, int version, String sessionToken);
+
+    /**
+     * Saves an older version's content as a new version (the history keeps going forward; nothing is erased).
+     *
+     * @param expectedEtag etag of the current content the caller saw.
+     * @param confirmSystem whether the caller confirmed changing a system template.
+     * @return the content after the restore.
+     */
+    TemplateContentResponse restore(UUID templateId, int version, String expectedEtag, boolean confirmSystem, UUID requesterId, String sessionToken);
 
     /**
      * Renders content with sample parameters. Nothing is stored or sent.

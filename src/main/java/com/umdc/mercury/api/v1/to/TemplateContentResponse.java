@@ -14,9 +14,9 @@ import java.util.UUID;
  * @param etag         Fingerprint to send back as {@code If-Match} when saving; empty if there is no file yet.
  * @param exists       Whether the file exists in the storage.
  * @param lastModified Last change; {@code null} if there is no file yet.
- * @param readOnly     {@code true} for system templates, which cannot be changed from the API.
+ * @param system       {@code true} for system templates, which other services depend on: saving one needs an explicit confirmation.
  * @param parameters   Parameters the template reads, from a reading of its text.
  */
 public record TemplateContentResponse(UUID templateId, String name, String format, String content, String etag,
-                                      boolean exists, Instant lastModified, boolean readOnly, List<String> parameters) {
+                                      boolean exists, Instant lastModified, boolean system, List<String> parameters) {
 }

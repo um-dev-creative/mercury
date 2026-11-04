@@ -137,7 +137,9 @@ umdc:
       secret-key: ${TEMPLATE_S3_SECRET_KEY:}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
     max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
-    # system templates other services depend on: their content cannot be changed from the API (comma-separated file-name prefixes)
+    # versions of the content kept per template (older ones are deleted); needs mercury.template_versions (V2032)
+    max-versions: ${TEMPLATE_MAX_VERSIONS:50}
+    # system templates other services depend on: saving one needs confirmSystem=true (comma-separated file-name prefixes)
     protected-prefixes: ${TEMPLATE_PROTECTED_PREFIXES:zb_,sk_,iris_,ds_}
     preview:
       max-output-chars: ${TEMPLATE_PREVIEW_MAX_CHARS:524288}
