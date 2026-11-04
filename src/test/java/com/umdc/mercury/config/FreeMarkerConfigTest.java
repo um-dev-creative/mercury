@@ -34,6 +34,23 @@ class FreeMarkerConfigTest {
         assertEquals("hello.ftl", config.getFreeMarkerConfiguration().getTemplate("hello.ftl").getName());
     }
 
+    @Test
+    void failsFastWhenTheTemplateDirectoryDoesNotExist() {
+        FreeMarkerConfig config = new FreeMarkerConfig();
+        ReflectionTestUtils.setField(config, "templateLoaderPath", dir.resolve("missing").toString());
+
+        assertThrows(IOException.class, config::getFreeMarkerConfiguration);
+    }
+
+    @Test
+    void exposesTheStorageOverTheSameFolder() throws IOException {
+        Files.writeString(dir.resolve("shared.ftl"), "x");
+        FreeMarkerConfig config = new FreeMarkerConfig();
+        ReflectionTestUtils.setField(config, "templateLoaderPath", dir.toString());
+
+        assertEquals("x", config.templateStorage().read("shared.ftl").orElseThrow().text());
+    }
+
     private Configuration configuration() throws IOException {
         FreeMarkerConfig config = new FreeMarkerConfig();
         ReflectionTestUtils.setField(config, "templateLoaderPath", dir.toString());
