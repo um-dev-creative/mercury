@@ -681,6 +681,60 @@ paths:
         '500':
           description: Unexpected internal error.
 
+  /api/v1/templates/types:
+    get:
+      tags: [templates]
+      summary: List the active template types
+      operationId: listTemplateTypes
+      responses:
+        '200':
+          description: Template types, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReferenceItemResponse'
+  /api/v1/templates/severities:
+    get:
+      tags: [templates]
+      summary: List the active severity types
+      operationId: listSeverityTypes
+      responses:
+        '200':
+          description: Severity types, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReferenceItemResponse'
+  /api/v1/templates/defined:
+    get:
+      tags: [templates]
+      summary: List the templates an application can use in a campaign
+      description: Needs the permission in `umdc.security.permissions.template-read` (default TEMPLATE_MANAGE) for the application; 403 otherwise.
+      operationId: listDefinedTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Active template definitions, by description.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateDefinedItemResponse'
+        '400':
+          description: applicationId missing or malformed.
+        '403':
+          description: The caller may not use the application's templates.
   /api/v1/templates/{id}:
     get:
       tags:
@@ -1364,6 +1418,38 @@ components:
       example:
         description: "Updated welcome email"
         fileFormat: "HTML"
+
+    ReferenceItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    TemplateDefinedItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: What a campaign takes as templateId.
+        templateId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        location:
+          type: string
+        fileFormat:
+          type: string
+        templateTypeName:
+          type: string
+          nullable: true
 
     TemplateDetailResponse:
       type: object

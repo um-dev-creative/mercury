@@ -38,6 +38,9 @@ history — see [Soft-delete & history retention](#-soft-delete--history-retenti
 | Deactivate | `DELETE /api/v1/templates/{id}` | `204 No Content` | `400`, `401`, `403`, `404`, `500` |
 | Get one | `GET /api/v1/templates/{id}` | `200 OK` | `400`, `401`, `403`, `404`, `500` |
 | Search | `GET /api/v1/templates` | `200 OK` | `400`, `401`, `403`, `500` |
+| Template types | `GET /api/v1/templates/types` | `200 OK` | `401` |
+| Severity types | `GET /api/v1/templates/severities` | `200 OK` | `401` |
+| Templates usable in a campaign | `GET /api/v1/templates/defined?applicationId=` | `200 OK` | `400`, `401`, `403` |
 
 OpenAPI annotations live on `TemplateApi` only (`src/main/java/com/umdc/mercury/api/v1/controller/TemplateApi.java`);
 `TemplateController` is a thin implementation. The machine-readable contract is mirrored in
@@ -256,6 +259,28 @@ page never contains rows from another `applicationId`.
   "totalPages": 1
 }
 ```
+
+---
+
+## 📋 Reference lists
+
+Small read-only lists that fill the selectors of a client (Iris uses them in the template and campaign forms).
+
+```mermaid
+flowchart LR
+    F["Iris form"] -->|"types, severities"| L1["Active rows, by name"]
+    F -->|"defined?applicationId="| P{"template-read permission<br/>for the application"}
+    P -->|"granted"| L2["Active template_defined rows<br/>with their base template"]
+    P -->|"denied"| X["403"]
+```
+
+| Endpoint | Returns | Access |
+|---|---|---|
+| `GET /api/v1/templates/types` | `[{id, name, description}]` of the active template types | Bearer `mercury:message:read` + `session-token` |
+| `GET /api/v1/templates/severities` | same, for the active severity types | same |
+| `GET /api/v1/templates/defined?applicationId=` | `[{id, templateId, description, location, fileFormat, templateTypeName}]`; `id` is what a campaign takes as `templateId` | same, plus the permission `umdc.security.permissions.template-read` for the application |
+
+`template-read` defaults to `TEMPLATE_MANAGE`; set `TEMPLATE_READ_PERMISSION` to a broader role or feature so campaign authors can pick templates without being able to edit them. The list is fail-closed like the rest: a denied or failed check is `403`.
 
 ---
 
