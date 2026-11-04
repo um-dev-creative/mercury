@@ -170,7 +170,7 @@ AOT-enabled JVM run.
 
 None of these were guessed — each is the *exact* class/type GraalVM's own
 `MissingReflectionRegistrationError` named, found by running the binary and
-reading the crash. All three are registered in
+reading the crash. All of them are registered in
 `ThirdPartyNativeRuntimeHints.java`:
 
 1. **`org.springframework.cloud.vault.config.VaultProperties`** —
@@ -208,6 +208,34 @@ reading the crash. All three are registered in
    `requestBodyInterceptor` bean autowires a request-scoped
    `HttpServletRequest` into a singleton, which Spring resolves via a JDK
    dynamic proxy that also needs explicit native-image registration.
+
+4. **jjwt (`io.jsonwebtoken`) classes loaded by name** — found in the QA
+   container: `GET /api/v1/campaigns/application/{id}` answered 500 with
+   `InstantiationException: Unable to instantiate class
+   [io.jsonwebtoken.impl.DefaultJwtBuilder$Supplier]` caused by
+   `NoSuchMethodException: ...DefaultJwtBuilder$Supplier.<init>()` inside
+   `Jwts.<clinit>`. jjwt's `Jwts`, `Jwks` and `Keys` create their builders and
+   algorithm registries with `Classes.newInstance("<class name>")`; native-image
+   cannot see a class that is only named in a string, so it removed the
+   constructors. Every request that builds or parses a session token hits
+   `Jwts`, so they all failed. `ThirdPartyNativeRuntimeHints.JJWT_LOADED_BY_NAME`
+   lists the 19 classes (read from the constant pool of `jjwt-api` 0.13.0) and
+   registers them with full reflective access, plus the
+   `META-INF/services/io.jsonwebtoken.*` resources (ServiceLoader files).
+   `ThirdPartyNativeRuntimeHintsTest` loads each name, so a jjwt upgrade that
+   renames one fails the build instead of failing in production.
+
+```mermaid
+flowchart LR
+    R["request with a session token"] --> J["Jwts.&lt;clinit&gt;"]
+    J --> N["Classes.newInstance('...DefaultJwtBuilder$Supplier')"]
+    N -->|"no hint: constructor removed"| E["NoSuchMethodException, HTTP 500"]
+    N -->|"JJWT_LOADED_BY_NAME registered"| OK["builder created, request continues"]
+```
+
+When upgrading jjwt, regenerate the list: extract the strings starting with
+`io.jsonwebtoken.impl` from the classes of `jjwt-api` (`Jwts`, `Jwks`, `Keys` and their
+nested classes) and compare with `JJWT_LOADED_BY_NAME`.
 
 The GraalVM tracing agent (`-agentlib:native-image-agent`) that the ticket's
 technical notes mention was not needed — every failure above was fully
