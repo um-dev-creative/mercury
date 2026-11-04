@@ -378,6 +378,18 @@ spring:
     password: ${MERCURY_DB_PASSWORD}  # Password for the database
     url: jdbc:postgresql://${MERCURY_DB_URI}:${MERCURY_DB_PORT}/${MERCURY_DB_NAME}?prepareThreshold=0  # JDBC URL for the database
     driver-class-name: org.postgresql.Driver  # Driver class name for PostgresSQL
+  # Flyway: applies src/main/resources/db/migration (V2026 onwards) when the application starts. See docs/tec/en/09-flyway-migrations.md.
+  # The schema that existed before Flyway (V2025 and earlier) was never versioned: baseline-on-migrate marks a database that already has
+  # tables as being at baseline-version and applies only what comes after; an EMPTY schema is not baselined, so V2026 would run on it and fail.
+  flyway:
+    enabled: ${MERCURY_FLYWAY_ENABLED:true}  # false = migrations are applied by hand, as before
+    locations: classpath:db/migration
+    schemas: mercury  # where the migrations create and alter tables, and where flyway_schema_history lives
+    default-schema: mercury
+    baseline-on-migrate: true
+    baseline-version: 2025
+    validate-on-migrate: true  # an applied migration that was edited afterwards stops the start (checksum), instead of drifting silently
+    out-of-order: false
   # JPA (Java Persistence API) settings
   jpa:
     hibernate.ddl-auto: none  # Hibernate DDL auto setting
