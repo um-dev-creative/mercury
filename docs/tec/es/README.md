@@ -20,6 +20,7 @@
 | ☁️ | [**06 · Configuración de Entornos**](06-configuracion-entornos.md) | Desarrollo local, prueba/QA (Docker), producción — certificados, secretos, precedencia de propiedades, troubleshooting real |
 | 🚀 | [**07 · Guía de Desarrollo**](07-guia-desarrollo.md) | Setup, comandos de build, estrategia de ramas, cómo agregar un canal nuevo, checklist de PR |
 | 🏷️ | [**08 · Banner de arranque**](08-banner-de-arranque.md) | De dónde salen las versiones del banner (filtrado Maven → `build-versions.properties`) |
+| 🗃️ | [**09 · Migraciones con Flyway**](09-migraciones-flyway.md) | Cómo se aplican los scripts SQL al arrancar, el baseline para bases existentes y cómo añadir uno |
 | 📖 | [**Guía de usuario · Canales de mensajería**](../../user-guide/es/canales-de-mensajeria.md) | Cómo enviar por SMS, Telegram, WhatsApp y Push |
 
 ---
