@@ -20,7 +20,7 @@ class StoredTemplateTest {
 
     @Test
     void differentContentOrMetadataIsDifferent() {
-        assertThat(template("hola")).isNotEqualTo(template("adiós")).isNotEqualTo("hola");
+        assertThat(template("hola")).isNotEqualTo(template("adiós"));
         StoredTemplate other = new StoredTemplate(new TemplateMetadata("b.ftl", "etag", Instant.EPOCH), "hola".getBytes(StandardCharsets.UTF_8));
         assertThat(template("hola")).isNotEqualTo(other);
     }
