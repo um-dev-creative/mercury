@@ -69,6 +69,7 @@ GET /api/v1/campaigns/{id}
 | `createdAt` | string (date-time) | Creation timestamp |
 | `updatedAt` | string (date-time) | Last update timestamp |
 | `metadata` | object | Free-form metadata stored with the campaign |
+| `enabled` | boolean | `false` while the campaign is paused with `PATCH /api/v1/campaigns/{id}/toggle`; a campaign without the flag counts as enabled. Also returned by the list and the update |
 
 ### Payload
 ```json
@@ -82,7 +83,8 @@ GET /api/v1/campaigns/{id}
   "scheduledAt": null,
   "createdAt": "2026-03-14T10:00:00",
   "updatedAt": "2026-03-14T10:00:00",
-  "metadata": { "owner": "user-123" }
+  "metadata": { "owner": "user-123" },
+  "enabled": true
 }
 ```
 

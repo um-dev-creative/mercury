@@ -1227,6 +1227,9 @@ components:
         metadata:
           type: object
           additionalProperties: true
+        enabled:
+          type: boolean
+          description: false while the campaign is paused (PATCH /campaigns/{id}/toggle); a campaign without the flag counts as enabled.
 
     CampaignProgressTO:
       type: object
