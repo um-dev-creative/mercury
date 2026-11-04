@@ -120,6 +120,30 @@ umdc:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
+  templates:
+    # where the content of the templates lives: `local` (the folder at spring.freemarker.template-loader-path) or `s3`
+    # (a bucket of S3 or of an S3-compatible service such as MinIO; with several Mercury instances use `s3`)
+    storage: ${TEMPLATE_STORAGE:local}
+    s3:
+      bucket: ${TEMPLATE_S3_BUCKET:}
+      prefix: ${TEMPLATE_S3_PREFIX:templates/}
+      region: ${TEMPLATE_S3_REGION:us-east-1}
+      # endpoint of an S3-compatible service; empty for AWS
+      endpoint: ${TEMPLATE_S3_ENDPOINT:}
+      # true for services that address buckets as host/bucket/key (MinIO)
+      path-style: ${TEMPLATE_S3_PATH_STYLE:false}
+      # secrets: leave empty to use the AWS default credentials chain (instance role, environment, profile)
+      access-key: ${TEMPLATE_S3_ACCESS_KEY:}
+      secret-key: ${TEMPLATE_S3_SECRET_KEY:}
+    # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
+    max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
+    # versions of the content kept per template (older ones are deleted); needs mercury.template_versions (V2032)
+    max-versions: ${TEMPLATE_MAX_VERSIONS:50}
+    # system templates other services depend on: saving one needs confirmSystem=true (comma-separated file-name prefixes)
+    protected-prefixes: ${TEMPLATE_PROTECTED_PREFIXES:zb_,sk_,iris_,ds_}
+    preview:
+      max-output-chars: ${TEMPLATE_PREVIEW_MAX_CHARS:524288}
+      timeout-ms: ${TEMPLATE_PREVIEW_TIMEOUT_MS:3000}
   security:
     jwt:
       # No default on purpose: a default committed here would let anyone with the repo forge a
@@ -157,6 +181,8 @@ umdc:
       # TemplateServiceImpl's ApplicationAuthorizationService check to pass. Must match a
       # seeded role or feature name in backbone-rest for the relevant application(s).
       template-manage: ${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}
+      # lists the templates an application can use in a campaign; point it at a broader role or feature so campaign authors do not need TEMPLATE_MANAGE
+      template-read: ${TEMPLATE_READ_PERMISSION:${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}}
       # Permission a user needs to administer the login clients (/api/v1/login-clients); checked in the application below.
       login-client-manage: ${LOGIN_CLIENT_MANAGE_PERMISSION:LOGIN_CLIENT_MANAGE}
     login-clients:

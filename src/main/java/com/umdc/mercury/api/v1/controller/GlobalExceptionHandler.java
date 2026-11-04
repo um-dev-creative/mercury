@@ -17,6 +17,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import com.umdc.mercury.template.content.ContentTooLargeException;
+import com.umdc.mercury.template.storage.TemplateConflictException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
@@ -131,6 +133,22 @@ public class GlobalExceptionHandler {
      * Handles a missing required query parameter (e.g. {@code applicationId} on a search
      * endpoint), returning {@code 400 Bad Request}.
      */
+    @ExceptionHandler(TemplateConflictException.class)
+    public ResponseEntity<ApiError> handleTemplateConflict(TemplateConflictException ex, HttpServletRequest request) {
+        logger.warn("Template conflict for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.PRECONDITION_FAILED)
+                .body(buildError(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request.getRequestURI()));
+    }
+
+    @ExceptionHandler(ContentTooLargeException.class)
+    public ResponseEntity<ApiError> handleContentTooLarge(ContentTooLargeException ex, HttpServletRequest request) {
+        logger.warn("Template content too large for '{}'", request.getRequestURI());
+        return ResponseEntity
+                .status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(buildError(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request.getRequestURI()));
+    }
+
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiError> handleMissingParameter(MissingServletRequestParameterException ex,
                                                            HttpServletRequest request) {

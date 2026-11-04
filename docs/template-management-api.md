@@ -38,6 +38,15 @@ history — see [Soft-delete & history retention](#-soft-delete--history-retenti
 | Deactivate | `DELETE /api/v1/templates/{id}` | `204 No Content` | `400`, `401`, `403`, `404`, `500` |
 | Get one | `GET /api/v1/templates/{id}` | `200 OK` | `400`, `401`, `403`, `404`, `500` |
 | Search | `GET /api/v1/templates` | `200 OK` | `400`, `401`, `403`, `500` |
+| Template types | `GET /api/v1/templates/types` | `200 OK` | `401` |
+| Severity types | `GET /api/v1/templates/severities` | `200 OK` | `401` |
+| Templates usable in a campaign | `GET /api/v1/templates/defined?applicationId=` | `200 OK` | `400`, `401`, `403` |
+| Read the content | `GET /api/v1/templates/{id}/content` | `200 OK` + `ETag` | `401`, `403`, `404` |
+| Save the content | `PUT /api/v1/templates/{id}/content` | `200 OK` + `ETag` | `401`, `403`, `404`, `412`, `413`, `422`, `428` |
+| Preview | `POST /api/v1/templates/preview` | `200 OK` | `401`, `403`, `413` |
+| List versions | `GET /api/v1/templates/{id}/versions` | `200 OK` | `401`, `403`, `404` |
+| Read a version | `GET /api/v1/templates/{id}/versions/{version}` | `200 OK` | `401`, `403`, `404` |
+| Restore a version | `POST /api/v1/templates/{id}/versions/{version}/restore` | `200 OK` + `ETag` | `403`, `404`, `412`, `422`, `428` |
 
 OpenAPI annotations live on `TemplateApi` only (`src/main/java/com/umdc/mercury/api/v1/controller/TemplateApi.java`);
 `TemplateController` is a thin implementation. The machine-readable contract is mirrored in
@@ -256,6 +265,100 @@ page never contains rows from another `applicationId`.
   "totalPages": 1
 }
 ```
+
+---
+
+## 📋 Reference lists
+
+Small read-only lists that fill the selectors of a client (Iris uses them in the template and campaign forms).
+
+```mermaid
+flowchart LR
+    F["Iris form"] -->|"types, severities"| L1["Active rows, by name"]
+    F -->|"defined?applicationId="| P{"template-read permission<br/>for the application"}
+    P -->|"granted"| L2["Active template_defined rows<br/>with their base template"]
+    P -->|"denied"| X["403"]
+```
+
+| Endpoint | Returns | Access |
+|---|---|---|
+| `GET /api/v1/templates/types` | `[{id, name, description}]` of the active template types | Bearer `mercury:message:read` + `session-token` |
+| `GET /api/v1/templates/severities` | same, for the active severity types | same |
+| `GET /api/v1/templates/defined?applicationId=` | `[{id, templateId, description, location, fileFormat, templateTypeName}]`; `id` is what a campaign takes as `templateId` | same, plus the permission `umdc.security.permissions.template-read` for the application |
+
+`template-read` defaults to `TEMPLATE_MANAGE`; set `TEMPLATE_READ_PERMISSION` to a broader role or feature so campaign authors can pick templates without being able to edit them. The list is fail-closed like the rest: a denied or failed check is `403`.
+
+---
+
+## ✍️ Template content
+
+The metadata above says *which* file a template is (`location`); these endpoints read and write the file itself, through `TemplateStorage` (see `docs/architecture/template-storage.md`). `GET` needs the Bearer scope `mercury:message:read`; `PUT` and `POST /preview` need `mercury:message:write`. All need the `session-token` and the template permission on the template's application.
+
+```mermaid
+sequenceDiagram
+    actor Editor
+    participant API as TemplateContentController
+    participant S as TemplateContentServiceImpl
+    participant FS as TemplateStorage
+    Editor->>API: GET /templates/{id}/content
+    API-->>Editor: content + ETag "abc"
+    Editor->>API: POST /templates/preview (unsaved text, sample params)
+    API-->>Editor: output or problems with line and column
+    Editor->>API: PUT /templates/{id}/content, If-Match "abc"
+    API->>S: save
+    S->>S: size limit, system-template check, syntax check
+    S->>FS: write(name, bytes, "abc")
+    alt the file is still "abc"
+        FS-->>Editor: 200 + new ETag
+    else someone saved first
+        FS-->>Editor: 412 Precondition Failed
+    end
+```
+
+| Rule | Result |
+|---|---|
+| `location` is not a file name (for example `s3://…`) | `404`: the template has no editable file |
+| File not written yet | `GET` answers `exists=false`, empty content; create it with `If-None-Match: *` |
+| `PUT` without `If-Match` or `If-None-Match` | `428`: a save never overwrites blindly |
+| `If-Match` no longer matches | `412` |
+| FreeMarker cannot read the text | `422` with `problems[{line, column, message}]` (Markdown lines count from the author's first line) |
+| Larger than `umdc.templates.max-content-bytes` (256 KB) | `413` |
+| Name starts with a `umdc.templates.protected-prefixes` entry (`zb_`, `sk_`, `iris_`, `ds_`) | `system=true` in the `GET`; saving needs `?confirmSystem=true`, otherwise `403` |
+| `.md` | Markdown source: FreeMarker fills in the parameters, then the result is read as Markdown and written as HTML. Raw HTML is escaped and `javascript:` links dropped |
+| Anything else (`.ftl`, `.ftlh`, `.html`) | FreeMarker/HTML source |
+
+The preview never stores or sends anything. It renders with the same restricted engine as production (`?new` and `?api` are refused, see `docs/security/template-security.md`), stops after `umdc.templates.preview.max-output-chars` characters or `timeout-ms`, and answers `200` with `ok=false` and the problems when the text does not parse or fails to render. `parameters` lists the names the template reads (a reading of the text, not an execution).
+
+### Version history
+
+Every save is recorded in `mercury.template_versions` (apply `V2032__template_versions.sql` by hand first). The first time a template is changed from the API, the content it had is kept as a `BASELINE` version, so the original of a system template can always be restored. A restore saves the old content as a **new** version; nothing is erased. Mercury keeps the latest `umdc.templates.max-versions` (50) per template.
+
+```mermaid
+flowchart LR
+    S["PUT content"] --> B{"first change and a file already exists?"}
+    B -->|"yes"| BL["record BASELINE (the original)"]
+    B -->|"no"| W["write the file"]
+    BL --> W
+    W --> V["record SAVE version"]
+    R["POST restore version N, If-Match"] --> W2["write version N's content"]
+    W2 --> V2["record RESTORE version"]
+```
+
+| Endpoint | Returns |
+|---|---|
+| `GET /templates/{id}/versions` | `[{version, etag, sizeBytes, reason, createdBy, createdAt}]`, newest first, no content |
+| `GET /templates/{id}/versions/{n}` | the same plus `content` |
+| `POST /templates/{id}/versions/{n}/restore` | the content after the restore; needs `If-Match` (428 without it, 412 if it changed) and, for a system template, `?confirmSystem=true` |
+
+### Configuration
+
+| Property (environment variable) | Default | Use |
+|---|---|---|
+| `umdc.templates.max-content-bytes` (`TEMPLATE_MAX_CONTENT_BYTES`) | `262144` | Largest template accepted |
+| `umdc.templates.protected-prefixes` (`TEMPLATE_PROTECTED_PREFIXES`) | `zb_,sk_,iris_,ds_` | System templates: saving one needs `confirmSystem=true` |
+| `umdc.templates.max-versions` (`TEMPLATE_MAX_VERSIONS`) | `50` | Versions kept per template |
+| `umdc.templates.preview.max-output-chars` (`TEMPLATE_PREVIEW_MAX_CHARS`) | `524288` | Longest preview |
+| `umdc.templates.preview.timeout-ms` (`TEMPLATE_PREVIEW_TIMEOUT_MS`) | `3000` | Longest a preview may write for |
 
 ---
 

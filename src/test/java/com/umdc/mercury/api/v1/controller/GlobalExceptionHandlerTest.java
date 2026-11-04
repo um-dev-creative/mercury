@@ -299,6 +299,36 @@ class GlobalExceptionHandlerTest {
                 () -> assertThat(response.getBody().message()).isEqualTo("Mail not found"));
     }
 
+    // ── Template content (412 and 413) ────────────────────────────────────────
+
+    @Nested
+    @DisplayName("template content errors")
+    class TemplateContentErrors {
+
+        @Test
+        @DisplayName("a changed template is 412 Precondition Failed")
+        void conflictIs412() {
+            ResponseEntity<ApiError> response = handler.handleTemplateConflict(
+                    new com.umdc.mercury.template.storage.TemplateConflictException("a.ftl"), request);
+
+            assertAll("conflict",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PRECONDITION_FAILED),
+                    () -> assertThat(response.getBody().status()).isEqualTo(412),
+                    () -> assertThat(response.getBody().message()).contains("a.ftl"));
+        }
+
+        @Test
+        @DisplayName("content over the limit is 413 Payload Too Large")
+        void tooLargeIs413() {
+            ResponseEntity<ApiError> response = handler.handleContentTooLarge(
+                    new com.umdc.mercury.template.content.ContentTooLargeException(200), request);
+
+            assertAll("too large",
+                    () -> assertThat(response.getStatusCode()).isEqualTo(HttpStatus.PAYLOAD_TOO_LARGE),
+                    () -> assertThat(response.getBody().message()).contains("200"));
+        }
+    }
+
     // ── TemplateNotFoundException (404) ───────────────────────────────────────
 
     @Nested
