@@ -41,6 +41,9 @@ history — see [Soft-delete & history retention](#-soft-delete--history-retenti
 | Template types | `GET /api/v1/templates/types` | `200 OK` | `401` |
 | Severity types | `GET /api/v1/templates/severities` | `200 OK` | `401` |
 | Templates usable in a campaign | `GET /api/v1/templates/defined?applicationId=` | `200 OK` | `400`, `401`, `403` |
+| Read the content | `GET /api/v1/templates/{id}/content` | `200 OK` + `ETag` | `401`, `403`, `404` |
+| Save the content | `PUT /api/v1/templates/{id}/content` | `200 OK` + `ETag` | `401`, `403`, `404`, `412`, `413`, `422`, `428` |
+| Preview | `POST /api/v1/templates/preview` | `200 OK` | `401`, `403`, `413` |
 
 OpenAPI annotations live on `TemplateApi` only (`src/main/java/com/umdc/mercury/api/v1/controller/TemplateApi.java`);
 `TemplateController` is a thin implementation. The machine-readable contract is mirrored in
@@ -281,6 +284,56 @@ flowchart LR
 | `GET /api/v1/templates/defined?applicationId=` | `[{id, templateId, description, location, fileFormat, templateTypeName}]`; `id` is what a campaign takes as `templateId` | same, plus the permission `umdc.security.permissions.template-read` for the application |
 
 `template-read` defaults to `TEMPLATE_MANAGE`; set `TEMPLATE_READ_PERMISSION` to a broader role or feature so campaign authors can pick templates without being able to edit them. The list is fail-closed like the rest: a denied or failed check is `403`.
+
+---
+
+## ✍️ Template content
+
+The metadata above says *which* file a template is (`location`); these endpoints read and write the file itself, through `TemplateStorage` (see `docs/architecture/template-storage.md`). `GET` needs the Bearer scope `mercury:message:read`; `PUT` and `POST /preview` need `mercury:message:write`. All need the `session-token` and the template permission on the template's application.
+
+```mermaid
+sequenceDiagram
+    actor Editor
+    participant API as TemplateContentController
+    participant S as TemplateContentServiceImpl
+    participant FS as TemplateStorage
+    Editor->>API: GET /templates/{id}/content
+    API-->>Editor: content + ETag "abc"
+    Editor->>API: POST /templates/preview (unsaved text, sample params)
+    API-->>Editor: output or problems with line and column
+    Editor->>API: PUT /templates/{id}/content, If-Match "abc"
+    API->>S: save
+    S->>S: size limit, system-template check, syntax check
+    S->>FS: write(name, bytes, "abc")
+    alt the file is still "abc"
+        FS-->>Editor: 200 + new ETag
+    else someone saved first
+        FS-->>Editor: 412 Precondition Failed
+    end
+```
+
+| Rule | Result |
+|---|---|
+| `location` is not a file name (for example `s3://…`) | `404`: the template has no editable file |
+| File not written yet | `GET` answers `exists=false`, empty content; create it with `If-None-Match: *` |
+| `PUT` without `If-Match` or `If-None-Match` | `428`: a save never overwrites blindly |
+| `If-Match` no longer matches | `412` |
+| FreeMarker cannot read the text | `422` with `problems[{line, column, message}]` (Markdown lines count from the author's first line) |
+| Larger than `umdc.templates.max-content-bytes` (256 KB) | `413` |
+| Name starts with a `umdc.templates.protected-prefixes` entry (`zb_`, `sk_`, `iris_`, `ds_`) | `403`; `readOnly=true` in the `GET` |
+| `.md` | Markdown source: FreeMarker fills in the parameters, then the result is read as Markdown and written as HTML. Raw HTML is escaped and `javascript:` links dropped |
+| Anything else (`.ftl`, `.ftlh`, `.html`) | FreeMarker/HTML source |
+
+The preview never stores or sends anything. It renders with the same restricted engine as production (`?new` and `?api` are refused, see `docs/security/template-security.md`), stops after `umdc.templates.preview.max-output-chars` characters or `timeout-ms`, and answers `200` with `ok=false` and the problems when the text does not parse or fails to render. `parameters` lists the names the template reads (a reading of the text, not an execution).
+
+### Configuration
+
+| Property (environment variable) | Default | Use |
+|---|---|---|
+| `umdc.templates.max-content-bytes` (`TEMPLATE_MAX_CONTENT_BYTES`) | `262144` | Largest template accepted |
+| `umdc.templates.protected-prefixes` (`TEMPLATE_PROTECTED_PREFIXES`) | `zb_,sk_,iris_,ds_` | System templates that cannot be changed from the API |
+| `umdc.templates.preview.max-output-chars` (`TEMPLATE_PREVIEW_MAX_CHARS`) | `524288` | Longest preview |
+| `umdc.templates.preview.timeout-ms` (`TEMPLATE_PREVIEW_TIMEOUT_MS`) | `3000` | Longest a preview may write for |
 
 ---
 

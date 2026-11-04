@@ -12,6 +12,16 @@ El texto de cada mensaje que envía Mercury (el correo de verificación, el mens
 - Si la carpeta no existe al arrancar, Mercury se detiene con un error que nombra la carpeta. Créala o corrige `TEMPLATE_PATH`.
 - Una plantilla que no se encuentra, o con un nombre no permitido, se omite y el mensaje usa el texto plano de la campaña.
 
+## Cómo escribir una plantilla
+
+Una plantilla es **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) o **Markdown** (`.md`).
+
+- En ambas, `${nombre}` se sustituye por el valor del parámetro `nombre`; `<#if nombre??>…</#if>` muestra una parte solo si se envió; `<#list items as item>…</#list>` repite una parte.
+- Una plantilla Markdown se escribe en Markdown (`# Título`, `**negrita**`, `- lista`, `[texto](https://…)`) y Mercury la convierte en HTML al enviar el mensaje. El HTML escrito dentro de Markdown se muestra como texto, no se ejecuta; usa una plantilla `.html` si necesitas HTML.
+- Una plantilla con un error no se puede guardar; el error indica la línea y la columna.
+- Si dos personas editan la misma plantilla, el segundo guardado se rechaza hasta que recargue, para que nadie pierda el trabajo del otro.
+- Las plantillas de las que dependen otros sistemas (nombres que empiezan por `zb_`, `sk_`, `iris_`, `ds_`) son de solo lectura desde la API.
+
 ## Ediciones seguras
 
 Las plantillas no pueden crear objetos Java ni usar la API de Java (ver `docs/security/template-security.md`): `?new` y `?api` se rechazan.

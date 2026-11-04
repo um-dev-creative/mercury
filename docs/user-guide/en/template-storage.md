@@ -12,6 +12,16 @@ The text of every message Mercury sends (the verification e-mail, a campaign mes
 - If the folder does not exist when Mercury starts, Mercury stops with an error that names the folder. Create it or fix `TEMPLATE_PATH`.
 - A template that is not found, or has a name that is not allowed, is skipped and the message falls back to the plain text of the campaign.
 
+## Writing a template
+
+A template is either **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) or **Markdown** (`.md`).
+
+- In both, `${name}` is replaced by the value of the parameter `name`; `<#if name??>…</#if>` shows a part only if it was given; `<#list items as item>…</#list>` repeats a part.
+- A Markdown template is written as Markdown (`# Title`, `**bold**`, `- list`, `[text](https://…)`) and Mercury turns it into HTML when it sends the message. HTML written inside Markdown is shown as text, not run; use an `.html` template if you need HTML.
+- A template cannot be saved if it has a mistake; the error says the line and column.
+- Two people editing the same template: the second save is refused until they reload, so nobody loses the other's work.
+- Templates that other systems depend on (names starting with `zb_`, `sk_`, `iris_`, `ds_`) are read-only from the API.
+
 ## Safe edits
 
 Templates cannot create Java objects or call the Java API (see `docs/security/template-security.md`): `?new` and `?api` are refused.

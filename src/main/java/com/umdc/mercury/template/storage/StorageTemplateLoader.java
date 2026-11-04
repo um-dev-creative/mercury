@@ -1,5 +1,6 @@
 package com.umdc.mercury.template.storage;
 
+import com.umdc.mercury.template.markdown.MarkdownTemplates;
 import freemarker.cache.TemplateLoader;
 
 import java.io.IOException;
@@ -37,7 +38,8 @@ public class StorageTemplateLoader implements TemplateLoader {
     @Override
     public Reader getReader(Object templateSource, String encoding) throws IOException {
         Source source = (Source) templateSource;
-        return new StringReader(new String(source.content, Charset.forName(encoding)));
+        String text = new String(source.content, Charset.forName(encoding));
+        return new StringReader(MarkdownTemplates.forFreeMarker(source.name, text));
     }
 
     @Override

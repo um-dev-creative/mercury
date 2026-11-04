@@ -735,6 +735,96 @@ paths:
           description: applicationId missing or malformed.
         '403':
           description: The caller may not use the application's templates.
+  /api/v1/templates/{id}/content:
+    get:
+      tags: [templates]
+      summary: Read the content of a template
+      description: >
+        Returns the template as written, an ETag to save over, and the parameters it reads. A template whose file has not been
+        written yet answers `exists=false` and empty content. Needs the template permission on the template's application.
+      operationId: getTemplateContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The content. The ETag header carries the etag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: The caller lacks the template permission.}
+        '404': {description: Unknown or inactive template, or its location is not a file name.}
+    put:
+      tags: [templates]
+      summary: Save the content of a template
+      description: >
+        Needs `If-Match: "<etag>"` (save over the version that was read) or `If-None-Match: *` (create the file). Without either,
+        428. A stale etag is 412; content FreeMarker cannot read is 422 with the problems and line numbers; over the size limit is
+        413; system templates (prefixes in `umdc.templates.protected-prefixes`) are 403.
+      operationId: putTemplateContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {name: If-Match, in: header, required: false, schema: {type: string}}
+        - {name: If-None-Match, in: header, required: false, schema: {type: string}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: {type: string}
+      responses:
+        '200':
+          description: Saved. The ETag header carries the new etag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: No permission, or a system template.}
+        '412': {description: The template changed since it was read.}
+        '413': {description: Content larger than the limit.}
+        '422':
+          description: FreeMarker cannot read the content.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateProblemsResponse'
+        '428': {description: No If-Match or If-None-Match.}
+  /api/v1/templates/preview:
+    post:
+      tags: [templates]
+      summary: Render a template that is not saved yet
+      description: Nothing is stored or sent. Output and time are limited. A template that does not parse or fails to render answers 200 with `ok=false` and the problems.
+      operationId: previewTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicationId, name, content]
+              properties:
+                applicationId: {type: string, format: uuid}
+                name: {type: string, description: "File name; `.md` is Markdown, anything else FreeMarker."}
+                content: {type: string}
+                params: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: The result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewTemplateResponse'
+        '403': {description: No template permission on the application.}
+        '413': {description: Content larger than the limit.}
   /api/v1/templates/{id}:
     get:
       tags:
@@ -1450,6 +1540,51 @@ components:
         templateTypeName:
           type: string
           nullable: true
+
+    TemplateProblem:
+      type: object
+      properties:
+        line: {type: integer}
+        column: {type: integer}
+        message: {type: string}
+
+    TemplateProblemsResponse:
+      type: object
+      properties:
+        message: {type: string}
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateProblem'
+
+    TemplateContentResponse:
+      type: object
+      properties:
+        templateId: {type: string, format: uuid}
+        name: {type: string}
+        format: {type: string, enum: [FREEMARKER, MARKDOWN]}
+        content: {type: string}
+        etag: {type: string}
+        exists: {type: boolean}
+        lastModified: {type: string, format: date-time, nullable: true}
+        readOnly: {type: boolean}
+        parameters:
+          type: array
+          items: {type: string}
+
+    PreviewTemplateResponse:
+      type: object
+      properties:
+        ok: {type: boolean}
+        format: {type: string, enum: [FREEMARKER, MARKDOWN]}
+        output: {type: string}
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateProblem'
+        parameters:
+          type: array
+          items: {type: string}
 
     TemplateDetailResponse:
       type: object
