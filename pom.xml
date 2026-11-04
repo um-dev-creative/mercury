@@ -419,6 +419,17 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>build-versions.properties</exclude>
+                </excludes>
+            </resource>
+            <!-- Versions printed in the startup banner (Spring Cloud and the UMDC libraries); only this file is filtered (@..@) -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>build-versions.properties</include>
+                </includes>
             </resource>
             <!-- com.umdc.security's KeystoreUtil (closed-source security-oauth dependency) loads
                  the umdc.security.keystore/truststore "location" properties via a raw
