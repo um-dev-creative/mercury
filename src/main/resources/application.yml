@@ -120,6 +120,14 @@ umdc:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
+  templates:
+    # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
+    max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
+    # system templates other services depend on: their content cannot be changed from the API (comma-separated file-name prefixes)
+    protected-prefixes: ${TEMPLATE_PROTECTED_PREFIXES:zb_,sk_,iris_,ds_}
+    preview:
+      max-output-chars: ${TEMPLATE_PREVIEW_MAX_CHARS:524288}
+      timeout-ms: ${TEMPLATE_PREVIEW_TIMEOUT_MS:3000}
   security:
     jwt:
       # No default on purpose: a default committed here would let anyone with the repo forge a
