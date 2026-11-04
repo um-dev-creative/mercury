@@ -22,6 +22,8 @@ import java.util.UUID;
  * @param createdAt        Timestamp when the campaign record was created.
  * @param updatedAt        Timestamp of the last update to the campaign record.
  * @param metadata         Optional free-form metadata stored with the campaign.
+ * @param enabled          {@code false} while the campaign is paused through {@code PATCH /{id}/toggle}; a campaign
+ *                         without the flag counts as enabled.
  */
 public record CampaignDetailResponse(
         UUID id,
@@ -36,6 +38,16 @@ public record CampaignDetailResponse(
         LocalDateTime createdAt,
         @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime updatedAt,
-        Map<String, Object> metadata
+        Map<String, Object> metadata,
+        Boolean enabled
 ) {
+
+    /**
+     * Builds a response for an enabled campaign. Kept so callers written before {@code enabled} existed still compile.
+     */
+    public CampaignDetailResponse(UUID id, String name, String channelType, UUID templateId, String status,
+                                  Integer totalRecipients, LocalDateTime scheduledAt, LocalDateTime createdAt,
+                                  LocalDateTime updatedAt, Map<String, Object> metadata) {
+        this(id, name, channelType, templateId, status, totalRecipients, scheduledAt, createdAt, updatedAt, metadata, Boolean.TRUE);
+    }
 }

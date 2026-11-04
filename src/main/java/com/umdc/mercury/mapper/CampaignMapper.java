@@ -30,6 +30,7 @@ public interface CampaignMapper {
      */
     @Mapping(target = "channelType", source = "channelType.code")
     @Mapping(target = "templateId", source = "templateDefined.id")
+    @Mapping(target = "enabled", expression = "java(!Boolean.FALSE.equals(entity.getEnabled()))")
     CampaignDetailResponse toCampaignDetailResponse(CampaignEntity entity);
 
     @Mapping(target = "id", ignore = true)

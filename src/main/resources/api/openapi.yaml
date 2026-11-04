@@ -681,6 +681,209 @@ paths:
         '500':
           description: Unexpected internal error.
 
+  /api/v1/templates/types:
+    get:
+      tags: [templates]
+      summary: List the active template types
+      operationId: listTemplateTypes
+      responses:
+        '200':
+          description: Template types, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReferenceItemResponse'
+  /api/v1/templates/severities:
+    get:
+      tags: [templates]
+      summary: List the active severity types
+      operationId: listSeverityTypes
+      responses:
+        '200':
+          description: Severity types, by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReferenceItemResponse'
+  /api/v1/templates/defined:
+    get:
+      tags: [templates]
+      summary: List the templates an application can use in a campaign
+      description: Needs the permission in `umdc.security.permissions.template-read` (default TEMPLATE_MANAGE) for the application; 403 otherwise.
+      operationId: listDefinedTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Active template definitions, by description.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateDefinedItemResponse'
+        '400':
+          description: applicationId missing or malformed.
+        '403':
+          description: The caller may not use the application's templates.
+  /api/v1/templates/{id}/content:
+    get:
+      tags: [templates]
+      summary: Read the content of a template
+      description: >
+        Returns the template as written, an ETag to save over, and the parameters it reads. A template whose file has not been
+        written yet answers `exists=false` and empty content. Needs the template permission on the template's application.
+      operationId: getTemplateContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The content. The ETag header carries the etag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: The caller lacks the template permission.}
+        '404': {description: Unknown or inactive template, or its location is not a file name.}
+    put:
+      tags: [templates]
+      summary: Save the content of a template
+      description: >
+        Needs `If-Match: "<etag>"` (save over the version that was read) or `If-None-Match: *` (create the file). Without either,
+        428. A stale etag is 412; content FreeMarker cannot read is 422 with the problems and line numbers; over the size limit is
+        413; system templates (prefixes in `umdc.templates.protected-prefixes`) need `confirmSystem=true` or they are 403. Every save is recorded as a version.
+      operationId: putTemplateContent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+        - {name: If-Match, in: header, required: false, schema: {type: string}}
+        - {name: If-None-Match, in: header, required: false, schema: {type: string}}
+        - {name: confirmSystem, in: query, required: false, schema: {type: boolean, default: false}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content]
+              properties:
+                content: {type: string}
+      responses:
+        '200':
+          description: Saved. The ETag header carries the new etag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: No permission, or a system template.}
+        '412': {description: The template changed since it was read.}
+        '413': {description: Content larger than the limit.}
+        '422':
+          description: FreeMarker cannot read the content.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateProblemsResponse'
+        '428': {description: No If-Match or If-None-Match.}
+  /api/v1/templates/{id}/versions:
+    get:
+      tags: [templates]
+      summary: List the saved versions of a template's content
+      description: Newest first, without the content. Needs the template permission.
+      operationId: listTemplateVersions
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+      responses:
+        '200':
+          description: The versions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateVersionResponse'
+  /api/v1/templates/{id}/versions/{version}:
+    get:
+      tags: [templates]
+      summary: Read one saved version, with its content
+      operationId: getTemplateVersion
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: version, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200':
+          description: The version.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateVersionResponse'
+        '404': {description: No such template or version.}
+  /api/v1/templates/{id}/versions/{version}/restore:
+    post:
+      tags: [templates]
+      summary: Restore an older version
+      description: >
+        Saves that version's content as a new version (nothing is erased). Needs `If-Match` with the etag of the current content (428
+        without it, 412 if it changed). System templates need `confirmSystem=true`.
+      operationId: restoreTemplateVersion
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+        - {name: version, in: path, required: true, schema: {type: integer}}
+        - {name: If-Match, in: header, required: true, schema: {type: string}}
+        - {name: confirmSystem, in: query, required: false, schema: {type: boolean, default: false}}
+      responses:
+        '200':
+          description: The content after the restore.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TemplateContentResponse'
+        '403': {description: No permission, or a system template without confirmSystem.}
+        '404': {description: No such template or version.}
+        '412': {description: The content changed since it was read.}
+        '422': {description: The old content no longer parses.}
+        '428': {description: No If-Match.}
+  /api/v1/templates/preview:
+    post:
+      tags: [templates]
+      summary: Render a template that is not saved yet
+      description: Nothing is stored or sent. Output and time are limited. A template that does not parse or fails to render answers 200 with `ok=false` and the problems.
+      operationId: previewTemplate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [applicationId, name, content]
+              properties:
+                applicationId: {type: string, format: uuid}
+                name: {type: string, description: "File name; `.md` is Markdown, anything else FreeMarker."}
+                content: {type: string}
+                params: {type: object, additionalProperties: true}
+      responses:
+        '200':
+          description: The result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PreviewTemplateResponse'
+        '403': {description: No template permission on the application.}
+        '413': {description: Content larger than the limit.}
   /api/v1/templates/{id}:
     get:
       tags:
@@ -1227,6 +1430,9 @@ components:
         metadata:
           type: object
           additionalProperties: true
+        enabled:
+          type: boolean
+          description: false while the campaign is paused (PATCH /campaigns/{id}/toggle); a campaign without the flag counts as enabled.
 
     CampaignProgressTO:
       type: object
@@ -1361,6 +1567,94 @@ components:
       example:
         description: "Updated welcome email"
         fileFormat: "HTML"
+
+    ReferenceItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    TemplateDefinedItemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: What a campaign takes as templateId.
+        templateId:
+          type: string
+          format: uuid
+        description:
+          type: string
+        location:
+          type: string
+        fileFormat:
+          type: string
+        templateTypeName:
+          type: string
+          nullable: true
+
+    TemplateProblem:
+      type: object
+      properties:
+        line: {type: integer}
+        column: {type: integer}
+        message: {type: string}
+
+    TemplateProblemsResponse:
+      type: object
+      properties:
+        message: {type: string}
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateProblem'
+
+    TemplateVersionResponse:
+      type: object
+      properties:
+        version: {type: integer}
+        etag: {type: string}
+        sizeBytes: {type: integer}
+        reason: {type: string, enum: [SAVE, RESTORE, BASELINE]}
+        createdBy: {type: string, format: uuid, nullable: true}
+        createdAt: {type: string, format: date-time}
+        content: {type: string, nullable: true, description: Present when one version is read, not in the list.}
+
+    TemplateContentResponse:
+      type: object
+      properties:
+        templateId: {type: string, format: uuid}
+        name: {type: string}
+        format: {type: string, enum: [FREEMARKER, MARKDOWN]}
+        content: {type: string}
+        etag: {type: string}
+        exists: {type: boolean}
+        lastModified: {type: string, format: date-time, nullable: true}
+        system: {type: boolean, description: "A system template other services depend on: saving it needs confirmSystem=true."}
+        parameters:
+          type: array
+          items: {type: string}
+
+    PreviewTemplateResponse:
+      type: object
+      properties:
+        ok: {type: boolean}
+        format: {type: string, enum: [FREEMARKER, MARKDOWN]}
+        output: {type: string}
+        problems:
+          type: array
+          items:
+            $ref: '#/components/schemas/TemplateProblem'
+        parameters:
+          type: array
+          items: {type: string}
 
     TemplateDetailResponse:
       type: object

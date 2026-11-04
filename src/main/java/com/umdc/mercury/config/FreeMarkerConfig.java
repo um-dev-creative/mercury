@@ -1,11 +1,19 @@
 package com.umdc.mercury.config;
 
+import com.umdc.mercury.template.storage.LocalTemplateStorage;
+import com.umdc.mercury.template.storage.StorageTemplateLoader;
+import com.umdc.mercury.template.storage.TemplateStorage;
+import com.umdc.mercury.template.markdown.MarkdownDirective;
+import freemarker.cache.TemplateLoader;
+import freemarker.core.TemplateClassResolver;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 /**
  * Configuration class for FreeMarker template engine.
@@ -24,6 +32,22 @@ public class FreeMarkerConfig {
     private String templateLoaderPath;
 
     /**
+     * Where the content of the templates lives: the folder at {@code spring.freemarker.template-loader-path}. Every
+     * reader and writer of template content goes through this bean.
+     *
+     * @return the template storage
+     */
+    @Bean
+    @ConditionalOnProperty(name = "umdc.templates.storage", havingValue = "local", matchIfMissing = true)
+    public TemplateStorage templateStorage() {
+        // fail at startup, as the folder loader always did, instead of at the first message
+        if (!Files.isDirectory(Path.of(templateLoaderPath))) {
+            throw new IllegalStateException("Template directory does not exist: " + templateLoaderPath);
+        }
+        return new LocalTemplateStorage(Path.of(templateLoaderPath));
+    }
+
+    /**
      * Creates and configures a FreeMarker Configuration instance.
      * Sets up template loading from the configured template directory.
      *
@@ -31,10 +55,40 @@ public class FreeMarkerConfig {
      * @throws IOException If there is an error accessing the template directory
      */
     @Bean
+    public freemarker.template.Configuration getFreeMarkerConfiguration(TemplateStorage storage) {
+        return hardened(new StorageTemplateLoader(storage));
+    }
+
+    /**
+     * The configuration over the template folder, for callers that have no Spring context.
+     *
+     * @return A configured FreeMarker Configuration object
+     * @throws IOException if the template directory does not exist
+     */
     public freemarker.template.Configuration getFreeMarkerConfiguration() throws IOException {
-        File file = new File(templateLoaderPath);
+        if (!Files.isDirectory(Path.of(templateLoaderPath))) {
+            throw new IOException("Template directory does not exist: " + templateLoaderPath);
+        }
+        return getFreeMarkerConfiguration(templateStorage());
+    }
+
+    /**
+     * A FreeMarker configuration with the engine restricted to what a message needs, over {@code loader}. The editor's
+     * syntax check and preview build theirs with this too, so they refuse what production refuses.
+     *
+     * @param loader where the templates are read from
+     * @return the configuration
+     */
+    public static freemarker.template.Configuration hardened(TemplateLoader loader) {
         freemarker.template.Configuration config = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30);
-        config.setDirectoryForTemplateLoading(file);
+        config.setTemplateLoader(loader);
+        // A template is code. Once people can edit them, a template must not be able to instantiate arbitrary classes
+        // (`?new` with freemarker.template.utility.Execute or ObjectConstructor runs commands on the server) nor reach the
+        // Java API of the objects it is given (`?api`). Both are refused here, for every channel that renders.
+        config.setNewBuiltinClassResolver(TemplateClassResolver.ALLOWS_NOTHING_RESOLVER);
+        config.setAPIBuiltinEnabled(false);
+        // `.md` templates are wrapped in this directive by the loader
+        config.setSharedVariable("markdown", new MarkdownDirective());
         return config;
     }
 }

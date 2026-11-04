@@ -72,7 +72,8 @@ Array of CampaignDetailResponse objects (see GET by id schema).
     "scheduledAt": null,
     "createdAt": null,
     "updatedAt": null,
-    "metadata": null
+    "metadata": null,
+    "enabled": true
   }
 ]
 ```
