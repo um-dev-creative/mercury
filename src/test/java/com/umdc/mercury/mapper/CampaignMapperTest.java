@@ -117,6 +117,33 @@ class CampaignMapperTest {
         }
 
         @Test
+        @DisplayName("enabled is true for an active campaign")
+        void enabledForActiveCampaign() {
+            CampaignEntity entity = buildEntity(false);
+            entity.setEnabled(true);
+
+            assertThat(mapper.toCampaignDetailResponse(entity).enabled()).isTrue();
+        }
+
+        @Test
+        @DisplayName("enabled is false once the campaign is paused")
+        void disabledForPausedCampaign() {
+            CampaignEntity entity = buildEntity(false);
+            entity.setEnabled(false);
+
+            assertThat(mapper.toCampaignDetailResponse(entity).enabled()).isFalse();
+        }
+
+        @Test
+        @DisplayName("a campaign without the flag counts as enabled, as the toggle does")
+        void enabledWhenFlagIsMissing() {
+            CampaignEntity entity = buildEntity(false);
+            entity.setEnabled(null);
+
+            assertThat(mapper.toCampaignDetailResponse(entity).enabled()).isTrue();
+        }
+
+        @Test
         @DisplayName("returns null when entity is null")
         void returnsNullForNullEntity() {
             CampaignDetailResponse result = mapper.toCampaignDetailResponse(null);

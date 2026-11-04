@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-10-06
 
 ### Added
+- **`enabled` in the campaign detail.** `CampaignDetailResponse` (get by id, list by application, update) now carries `enabled`, `false` while the campaign is paused through `PATCH /api/v1/campaigns/{id}/toggle`; a campaign without the flag counts as enabled, as the toggle already assumed. Until now a client could pause a campaign but not tell that it was paused. Additive: the record keeps its previous constructor and the rest of the contract is unchanged. Iris uses it to show Pause/Resume. See `docs/get-campaign-by-id.md`.
 - **Iris verification e-mail:** `iris_verification_{es,en}` templates and `scripts/iris/seed-templates.sql`, used by the sign-up in Iris.
 
 - **Telegram campaigns are delivered for real, and non-email channels render their template.** `MultiChannelScheduler` sends queued messages through the bot in `TELEGRAM_BOT_TOKEN` and updates the campaign metrics. Without a token they stay `OPENED`.
