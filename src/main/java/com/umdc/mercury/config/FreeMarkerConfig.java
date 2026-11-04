@@ -7,6 +7,7 @@ import com.umdc.mercury.template.markdown.MarkdownDirective;
 import freemarker.cache.TemplateLoader;
 import freemarker.core.TemplateClassResolver;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -37,7 +38,12 @@ public class FreeMarkerConfig {
      * @return the template storage
      */
     @Bean
+    @ConditionalOnProperty(name = "umdc.templates.storage", havingValue = "local", matchIfMissing = true)
     public TemplateStorage templateStorage() {
+        // fail at startup, as the folder loader always did, instead of at the first message
+        if (!Files.isDirectory(Path.of(templateLoaderPath))) {
+            throw new IllegalStateException("Template directory does not exist: " + templateLoaderPath);
+        }
         return new LocalTemplateStorage(Path.of(templateLoaderPath));
     }
 
@@ -49,11 +55,21 @@ public class FreeMarkerConfig {
      * @throws IOException If there is an error accessing the template directory
      */
     @Bean
+    public freemarker.template.Configuration getFreeMarkerConfiguration(TemplateStorage storage) {
+        return hardened(new StorageTemplateLoader(storage));
+    }
+
+    /**
+     * The configuration over the template folder, for callers that have no Spring context.
+     *
+     * @return A configured FreeMarker Configuration object
+     * @throws IOException if the template directory does not exist
+     */
     public freemarker.template.Configuration getFreeMarkerConfiguration() throws IOException {
         if (!Files.isDirectory(Path.of(templateLoaderPath))) {
             throw new IOException("Template directory does not exist: " + templateLoaderPath);
         }
-        return hardened(new StorageTemplateLoader(templateStorage()));
+        return getFreeMarkerConfiguration(templateStorage());
     }
 
     /**

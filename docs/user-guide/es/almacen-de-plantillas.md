@@ -12,6 +12,10 @@ El texto de cada mensaje que envía Mercury (el correo de verificación, el mens
 - Si la carpeta no existe al arrancar, Mercury se detiene con un error que nombra la carpeta. Créala o corrige `TEMPLATE_PATH`.
 - Una plantilla que no se encuentra, o con un nombre no permitido, se omite y el mensaje usa el texto plano de la campaña.
 
+## Usar un bucket en lugar de una carpeta
+
+Si ejecutas varias instancias de Mercury, o no quieres las plantillas dentro del servidor, guárdalas en un bucket de Amazon S3 o de un servicio compatible con S3 (MinIO, por ejemplo): define `TEMPLATE_STORAGE=s3` y `TEMPLATE_S3_BUCKET` (y `TEMPLATE_S3_ENDPOINT` con `TEMPLATE_S3_PATH_STYLE=true` para MinIO). Sube los archivos de plantilla al bucket bajo `TEMPLATE_S3_PREFIX` antes de reiniciar Mercury. Desde entonces, las plantillas que edites desde Iris se escriben en el bucket y todas las instancias las usan en pocos segundos. La clave de acceso y el secreto son secretos: guárdalos en Vault, o déjalos vacíos para usar el rol de AWS del servidor.
+
 ## Cómo escribir una plantilla
 
 Una plantilla es **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) o **Markdown** (`.md`).
