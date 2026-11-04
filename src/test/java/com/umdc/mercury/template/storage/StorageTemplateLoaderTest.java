@@ -87,6 +87,19 @@ class StorageTemplateLoaderTest {
     }
 
     @Test
+    void anEditInsideTheSameClockTickIsStillPickedUp() throws Exception {
+        String etag = storage.write("t.ftl", "uno".getBytes(StandardCharsets.UTF_8), null).etag();
+        java.nio.file.attribute.FileTime tick = java.nio.file.Files.getLastModifiedTime(dir.resolve("t.ftl"));
+        assertThat(render("t.ftl", Map.of())).isEqualTo("uno");
+
+        storage.write("t.ftl", "dos".getBytes(StandardCharsets.UTF_8), etag);
+        // a file system with a coarse clock gives both edits the same modification time
+        java.nio.file.Files.setLastModifiedTime(dir.resolve("t.ftl"), tick);
+
+        assertThat(render("t.ftl", Map.of())).isEqualTo("dos");
+    }
+
+    @Test
     void aDeletedTemplateIsNoLongerServed() throws Exception {
         storage.write("d.ftl", "x".getBytes(StandardCharsets.UTF_8), null);
         assertThat(render("d.ftl", Map.of())).isEqualTo("x");

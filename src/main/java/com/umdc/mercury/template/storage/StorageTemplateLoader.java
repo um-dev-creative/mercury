@@ -29,10 +29,8 @@ public class StorageTemplateLoader implements TemplateLoader {
 
     @Override
     public long getLastModified(Object templateSource) {
-        Source source = (Source) templateSource;
-        // asked again by FreeMarker on every refresh: a changed etag is a changed template, whatever the clock says
-        return storage.stat(source.name).map(meta -> meta.etag().equals(source.etag) ? source.lastModified : Math.max(meta.lastModified().toEpochMilli(), source.lastModified + 1))
-                .orElse(Long.MAX_VALUE);
+        // asked again by FreeMarker on every refresh
+        return storage.stat(((Source) templateSource).name).map(StorageTemplateLoader::stamp).orElse(Long.MAX_VALUE);
     }
 
     @Override
@@ -47,17 +45,21 @@ public class StorageTemplateLoader implements TemplateLoader {
         // nothing to release: the content is held in memory
     }
 
+    /**
+     * What FreeMarker compares to know a template changed. It mixes the content fingerprint into the modification time, so two
+     * edits inside the clock's resolution (coarse on some file systems) still look different.
+     */
+    private static long stamp(TemplateMetadata metadata) {
+        return metadata.lastModified().toEpochMilli() * 31 + metadata.etag().hashCode();
+    }
+
     /** A template as it was when FreeMarker found it. Two sources are the same if they name the same file. */
     private static final class Source {
         private final String name;
-        private final String etag;
-        private final long lastModified;
         private final byte[] content;
 
         private Source(StoredTemplate template) {
             this.name = template.metadata().name();
-            this.etag = template.metadata().etag();
-            this.lastModified = template.metadata().lastModified().toEpochMilli();
             this.content = template.content();
         }
 
