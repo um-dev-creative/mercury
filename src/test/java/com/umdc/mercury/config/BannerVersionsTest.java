@@ -42,8 +42,8 @@ class BannerVersionsTest {
     @Test
     void theBannerPrintsBothVersionsAndTheApplicationLoadsTheFile() throws IOException {
         String banner = Files.readString(Path.of("src/main/resources/banner.txt"));
-        assertTrue(banner.contains("${umdc.build.spring-cloud-version}"));
-        assertTrue(banner.contains("${umdc.build.umdc-libs-version}"));
-        assertTrue(Files.readString(Path.of("src/main/resources/application.yml")).contains("classpath:build-versions.properties"));
+        assertTrue(banner.contains("${umdc.build.spring-cloud-version:n/a}"));
+        assertTrue(banner.contains("${umdc.build.umdc-libs-version:n/a}"));
+        assertTrue(Files.readString(Path.of("src/main/resources/application.yml")).contains("optional:classpath:build-versions.properties"));
     }
 }

@@ -4,4 +4,4 @@ ${Ansi.BLUE}  / __  (   //   ) ) //   ) ) //\ \     //   ) ) //   ) ) //   ) ) /
 ${Ansi.BLUE} //    ) ) //   / / //       //  \ \   //   / / //   / / //   / / //             //   | |  //         \ \     / /     
 ${Ansi.RED} //____/ / ((___( ( ((____   //    \ \ ((___/ / ((___/ / //   / / ((____         //    | | ((____   //   ) )  / /  
 ${Ansi.RED}${umdc.app.title}::${umdc.app.version}
-${Ansi.GREEN}Powered by Spring Boot ${spring-boot.version} | Spring Cloud ${umdc.build.spring-cloud-version} | UMDC libraries ${umdc.build.umdc-libs-version}
+${Ansi.GREEN}Powered by Spring Boot ${spring-boot.version} | Spring Cloud ${umdc.build.spring-cloud-version:n/a} | UMDC libraries ${umdc.build.umdc-libs-version:n/a}

@@ -25,4 +25,4 @@ The banner uses the same format as backbone-rest, so you can compare the version
 - Checking that Mercury and backbone-rest use the same UMDC libraries version.
 - Attaching the line to a bug report.
 
-If a version shows as `${...}` or as `@...@`, the build is broken: report it. The versions are not configurable at runtime.
+If a version shows `n/a`, the application was started from an IDE build without Maven; run `mvn compile` (or start it with Maven) to see the real versions. If a version shows as `${...}` or as `@...@`, the build is broken: report it. The versions are not configurable at runtime.

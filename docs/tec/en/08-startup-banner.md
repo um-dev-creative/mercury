@@ -24,8 +24,10 @@ flowchart LR
 
 - **Only `build-versions.properties` is filtered.** `pom.xml` declares two `<resource>` blocks over `src/main/resources`: one excludes that file, the other filters only that file. Filtering the whole folder would corrupt other files that contain `@` or `${...}` (`application.yml`, FreeMarker templates).
 - **The file holds no secrets** and nothing else should be added to it.
-- **`spring.config.import` loads it first** (`classpath:build-versions.properties,optional:vault://,optional:configserver:`), so the properties exist when the banner is printed. Vault and Config Server stay optional.
+- **`spring.config.import` loads it first** (`classpath:build-versions.properties,optional:vault://,optional:configserver:`), so the properties exist when the banner is printed. Vault and Config Server stay optional, and so is the import itself (`optional:classpath:…`).
 - `umdc.build.umdc-libs-version` follows `com.umdc.commons.version`; the other UMDC libraries have their own properties and today share the same value. If they diverge, the banner shows the `commons` one.
+
+- **Missing file is not fatal.** An IDE that builds without Maven (it copies resources but does not filter them, and this file is excluded from the plain copy) leaves no `build-versions.properties` in `target/classes`. The import is `optional:` and the banner placeholders carry a default (`${umdc.build.spring-cloud-version:n/a}`), so Mercury starts and the banner shows `n/a`. Build with Maven (`mvn compile`) to see the real versions.
 
 ## Tests
 
