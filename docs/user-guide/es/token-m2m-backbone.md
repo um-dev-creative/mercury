@@ -25,8 +25,7 @@ La petición ahora es JSON (`clientId`, `clientSecret`, `scopes`) y la respuesta
 
 | Variable | Valor |
 |---|---|
-| `AUTH_URI` | Gateway de Backbone, p. ej. `https://api.umdc-qa.tst/backbone` |
-| `AUTH_TOKEN_URI` | `/api/v1/managed-clients/token` (**no** `/introspect`) |
+| `BACKBONE_BASE_URL` | Gateway de Backbone, p. ej. `https://api.umdc-qa.tst/backbone` (ya lo usan las demás llamadas a Backbone). El endpoint `/api/v1/managed-clients/token` es fijo, como en ZeroBound; `AUTH_URI` / `AUTH_TOKEN_URI` ya no se usan para esto |
 | `BACKBONE_CLIENT_ID` / `BACKBONE_CLIENT_SECRET` | Un cliente gestionado **activo** de Backbone y su secreto |
 | `BACKBONE_SCOPE` | Scopes de ese cliente, separados por espacios o comas. Backbone rechaza (`400 invalid_scope`) los que el cliente no tiene |
 

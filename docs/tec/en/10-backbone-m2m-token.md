@@ -20,7 +20,7 @@ sequenceDiagram
 - Answer: record `ManagedClientToken(accessToken)` (other fields ignored). It is **camelCase**; the shared `TokenResponse` of the commons library reads `access_token` (Keycloak) and cannot be used.
 - Both records are registered for native-image reflection with `@RegisterReflectionForBinding`.
 - A missing or blank `accessToken` raises `StandardException`.
-- `redirect-uri` of the `backbone` client (`AUTH_URI` + `AUTH_TOKEN_URI`) must be `…/api/v1/managed-clients/token`; `/introspect` only validates tokens and answers `415` to a form.
+- The URL is `umdc.backbone.base-url` (`BACKBONE_BASE_URL`) + the fixed path `/api/v1/managed-clients/token`, like zerobound-rest's `BackboneTokens`. The `redirect-uri` (`AUTH_URI` + `AUTH_TOKEN_URI`) of the `backbone` client is no longer read, so a wrong value there (QA had `/introspect`) cannot break it.
 - Pinned by `BackendFeignClientInterceptorTest`.
 
 User guide: [`token-m2m-backbone`](../../user-guide/en/backbone-m2m-token.md).

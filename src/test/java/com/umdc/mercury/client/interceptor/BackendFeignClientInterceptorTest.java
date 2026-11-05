@@ -48,4 +48,10 @@ class BackendFeignClientInterceptorTest {
         assertThrows(StandardException.class, () -> BackendFeignClientInterceptor.accessToken(new BackendFeignClientInterceptor.ManagedClientToken(null)));
         assertThrows(StandardException.class, () -> BackendFeignClientInterceptor.accessToken(new BackendFeignClientInterceptor.ManagedClientToken(" ")));
     }
+
+    @Test
+    void tokenUrlIsAFixedPathUnderTheBaseUrl() {
+        assertEquals("https://h/backbone/api/v1/managed-clients/token", BackendFeignClientInterceptor.tokenUrl("https://h/backbone"));
+        assertEquals("https://h/backbone/api/v1/managed-clients/token", BackendFeignClientInterceptor.tokenUrl("https://h/backbone//"));
+    }
 }

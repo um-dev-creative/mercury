@@ -56,6 +56,12 @@ public class BackendFeignClientInterceptor {
     @Value("${umdc.logging.trace.enabled}")
     private boolean isTraceEnabled;
 
+    /** Same Backbone gateway the Feign clients call; the token endpoint is a fixed path below it, as in zerobound-rest. */
+    @Value("${umdc.backbone.base-url:https://api.umdc-qa.tst/backbone}")
+    private String backboneBaseUrl;
+
+    static final String TOKEN_PATH = "/api/v1/managed-clients/token";
+
     private final ClientProperties clientProperties;
 
     public BackendFeignClientInterceptor(AuthProperties authProperties) {
@@ -89,8 +95,13 @@ public class BackendFeignClientInterceptor {
 
     private String getToken() {
         RestTemplate client = new RestTemplate(new HttpComponentsClientHttpRequestFactory(trustedHttpClient()));
-        var response = client.postForObject(clientProperties.getRedirectUri(), tokenRequest(clientProperties), ManagedClientToken.class);
+        var response = client.postForObject(tokenUrl(backboneBaseUrl), tokenRequest(clientProperties), ManagedClientToken.class);
         return accessToken(response);
+    }
+
+    /** The M2M token endpoint under the Backbone base URL, whatever trailing slash the base has. */
+    static String tokenUrl(String baseUrl) {
+        return baseUrl.replaceAll("/+$", "").concat(TOKEN_PATH);
     }
 
     /**
