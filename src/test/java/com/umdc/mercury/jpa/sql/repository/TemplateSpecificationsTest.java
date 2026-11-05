@@ -38,7 +38,7 @@ class TemplateSpecificationsTest {
 
         Path<Object> applicationPath = mock(Path.class);
         Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("application")).thenReturn(applicationPath);
+        when(root.get("applicationEntity")).thenReturn(applicationPath);
         when(applicationPath.get("id")).thenReturn(applicationIdPath);
 
         Path<Object> activePath = mock(Path.class);
@@ -46,12 +46,12 @@ class TemplateSpecificationsTest {
 
         Path<Object> templateTypePath = mock(Path.class);
         Path<Object> templateTypeIdPath = mock(Path.class);
-        when(root.get("templateType")).thenReturn(templateTypePath);
+        when(root.get("templateTypeEntity")).thenReturn(templateTypePath);
         when(templateTypePath.get("id")).thenReturn(templateTypeIdPath);
 
         Path<Object> severityTypePath = mock(Path.class);
         Path<Object> severityTypeIdPath = mock(Path.class);
-        when(root.get("severityType")).thenReturn(severityTypePath);
+        when(root.get("severityTypeEntity")).thenReturn(severityTypePath);
         when(severityTypePath.get("id")).thenReturn(severityTypeIdPath);
 
         Path<Object> descriptionPath = mock(Path.class);
@@ -103,7 +103,7 @@ class TemplateSpecificationsTest {
 
         Path<Object> applicationPath = mock(Path.class);
         Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("application")).thenReturn(applicationPath);
+        when(root.get("applicationEntity")).thenReturn(applicationPath);
         when(applicationPath.get("id")).thenReturn(applicationIdPath);
 
         UUID applicationId = UUID.randomUUID();
@@ -129,7 +129,7 @@ class TemplateSpecificationsTest {
 
         Path<Object> applicationPath = mock(Path.class);
         Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("application")).thenReturn(applicationPath);
+        when(root.get("applicationEntity")).thenReturn(applicationPath);
         when(applicationPath.get("id")).thenReturn(applicationIdPath);
 
         UUID applicationId = UUID.randomUUID();
@@ -142,5 +142,14 @@ class TemplateSpecificationsTest {
         spec.toPredicate(root, query, cb);
 
         verify(cb).and(new Predicate[]{appPred});
+    }
+
+    @Test
+    @DisplayName("the attribute names used by the search are fields of TemplateEntity (a wrong name is a 500 at runtime)")
+    void searchAttributesExistOnTheEntity() throws NoSuchFieldException {
+        for (String name : new String[]{TemplateSpecifications.APPLICATION, TemplateSpecifications.TEMPLATE_TYPE,
+                TemplateSpecifications.SEVERITY_TYPE, "active", "description", "location"}) {
+            assertThat(TemplateEntity.class.getDeclaredField(name)).isNotNull();
+        }
     }
 }

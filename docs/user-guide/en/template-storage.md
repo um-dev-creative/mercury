@@ -30,3 +30,8 @@ A template is either **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) or **Markdow
 ## Safe edits
 
 Templates cannot create Java objects or call the Java API (see `docs/security/template-security.md`): `?new` and `?api` are refused.
+
+## Listing templates
+
+`GET /api/v1/templates` lists the templates of one application, optionally filtered by type, severity, active state or text. If it answers `500 An unexpected error occurred` with `Could not resolve attribute 'application'` in the log, the running image predates the fix; deploy the current version. Nothing needs to be configured.
+
