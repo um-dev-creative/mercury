@@ -2,11 +2,10 @@ package com.umdc.mercury.client.interceptor;
 
 import com.umdc.commons.constants.httpstatus.type.MessageType;
 import com.umdc.commons.exception.StandardException;
-import com.umdc.commons.general.pojo.UserSession;
-import com.umdc.commons.general.to.TokenResponse;
 import com.umdc.mercury.constant.MercuryKey;
 import com.umdc.security.properties.AuthProperties;
 import com.umdc.security.properties.ClientProperties;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import feign.RequestInterceptor;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -16,22 +15,20 @@ import org.apache.hc.client5.http.ssl.DefaultClientTlsStrategy;
 import org.apache.hc.client5.http.ssl.TlsSocketStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aot.hint.annotation.RegisterReflectionForBinding;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import javax.net.ssl.SSLContext;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 
-import static com.umdc.commons.constants.keys.ManagementAuthKey.*;
 import static com.umdc.mercury.constant.MercuryMessage.RUNTIME_EXCEPTION;
 import static jakarta.ws.rs.core.HttpHeaders.AUTHORIZATION;
 import static org.springframework.cloud.openfeign.security.OAuth2AccessTokenInterceptor.BEARER;
@@ -50,6 +47,7 @@ import static org.springframework.cloud.openfeign.security.OAuth2AccessTokenInte
  * {@link AuthProperties} from the parent context as usual.
  * </p>
  */
+@RegisterReflectionForBinding({BackendFeignClientInterceptor.ManagedClientTokenRequest.class, BackendFeignClientInterceptor.ManagedClientToken.class})
 public class BackendFeignClientInterceptor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BackendFeignClientInterceptor.class);
@@ -57,6 +55,20 @@ public class BackendFeignClientInterceptor {
 
     @Value("${umdc.logging.trace.enabled}")
     private boolean isTraceEnabled;
+
+    /** Same Backbone gateway the Feign clients call; the token endpoint is a fixed path below it, as in zerobound-rest. */
+    @Value("${umdc.backbone.base-url:https://api.umdc-qa.tst/backbone}")
+    private String backboneBaseUrl;
+
+    /**
+     * Scope Mercury asks for. Backbone requires at least one and refuses (400 {@code invalid_scope}) any the client does not
+     * hold; the permission check itself needs no particular scope. Not {@code BACKBONE_SCOPE}: that is the legacy
+     * Keycloak-style value, which is not a Backbone scope.
+     */
+    @Value("${umdc.backbone.m2m.scope:mercury:message:read}")
+    private String m2mScope;
+
+    static final String TOKEN_PATH = "/api/v1/managed-clients/token";
 
     private final ClientProperties clientProperties;
 
@@ -91,27 +103,43 @@ public class BackendFeignClientInterceptor {
 
     private String getToken() {
         RestTemplate client = new RestTemplate(new HttpComponentsClientHttpRequestFactory(trustedHttpClient()));
+        var response = client.postForObject(tokenUrl(backboneBaseUrl), tokenRequest(clientProperties, m2mScope), ManagedClientToken.class);
+        return accessToken(response);
+    }
+
+    /** The M2M token endpoint under the Backbone base URL, whatever trailing slash the base has. */
+    static String tokenUrl(String baseUrl) {
+        return baseUrl.replaceAll("/+$", "").concat(TOKEN_PATH);
+    }
+
+    /**
+     * Builds the request backbone-rest's {@code POST /api/v1/managed-clients/token} accepts: a JSON body (it answers
+     * {@code 415} to a form) with the client id, its secret and the scopes asked for.
+     */
+    static HttpEntity<ManagedClientTokenRequest> tokenRequest(ClientProperties properties, String scope) {
         HttpHeaders headers = new HttpHeaders();
-        MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        List<String> scopes = Objects.isNull(scope) || scope.isBlank()
+                ? List.of()
+                : List.of(scope.trim().split("[\\s,]+"));
+        return new HttpEntity<>(new ManagedClientTokenRequest(properties.getClientId(), properties.getClientSecret(), scopes), headers);
+    }
 
-        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        parameters.add(GRANT_TYPE.value, clientProperties.getAuthorizationGrantType());
-        parameters.add(CLIENT_ID.value, clientProperties.getClientId());
-        parameters.add(USERNAME.value, clientProperties.getUsername());
-        parameters.add(PASSWORD.value, clientProperties.getPassword());
-        parameters.add(CLIENT_SECRET.value, clientProperties.getClientSecret());
-
-        var response = client.postForObject(clientProperties.getRedirectUri(), new HttpEntity<>(parameters, headers), TokenResponse.class);
-        if (Objects.isNull(response)) {
+    /** Extracts the bearer token from backbone-rest's answer, failing when there is none. */
+    static String accessToken(ManagedClientToken response) {
+        if (Objects.isNull(response) || Objects.isNull(response.accessToken()) || response.accessToken().isBlank()) {
             LOGGER.error("Error occurred while connect with the Manager authenticator");
             throw new StandardException("Error occurred while connect with the Manager authenticator", MessageType.DEFAULT_MESSAGE);
         }
-        return create(response, UUID.randomUUID()).token();
+        return response.accessToken();
     }
 
-    public static UserSession create(TokenResponse tokenResponse, UUID id) {
-        return new UserSession(id, "", tokenResponse.accessToken());
-    }
+    /** Body of backbone-rest's M2M token request. */
+    record ManagedClientTokenRequest(String clientId, String clientSecret, List<String> scopes) { }
+
+    /** The part of backbone-rest's M2M token answer Mercury uses. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ManagedClientToken(String accessToken) { }
 
     /**
      * Builds an Apache HttpClient5 client whose TLS strategy is wired explicitly from
