@@ -268,6 +268,14 @@ page never contains rows from another `applicationId`.
 
 ---
 
+> **Technical note (search attributes).** `TemplateSpecifications` builds the search with the JPA *attribute* names, which are the **field** names of `TemplateEntity` (`applicationEntity`, `templateTypeEntity`, `severityTypeEntity`), not the getter names. A wrong name only fails at runtime (`Could not resolve attribute ...`, HTTP 500), so `TemplateSpecificationsTest` checks that each name is a declared field.
+>
+> ```mermaid
+> flowchart LR
+>   Q[GET /api/v1/templates] --> S[TemplateSpecifications.search]
+>   S -->|applicationEntity.id, templateTypeEntity.id, severityTypeEntity.id| E[(TemplateEntity)]
+> ```
+
 ## 📋 Reference lists
 
 Small read-only lists that fill the selectors of a client (Iris uses them in the template and campaign forms).

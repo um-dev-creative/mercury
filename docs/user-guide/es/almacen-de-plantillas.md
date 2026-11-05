@@ -30,3 +30,8 @@ Una plantilla es **FreeMarker/HTML** (`.ftl`, `.ftlh`, `.html`) o **Markdown** (
 ## Ediciones seguras
 
 Las plantillas no pueden crear objetos Java ni usar la API de Java (ver `docs/security/template-security.md`): `?new` y `?api` se rechazan.
+
+## Listar plantillas
+
+`GET /api/v1/templates` lista las plantillas de una aplicación, con filtros opcionales por tipo, severidad, estado activo o texto. Si responde `500 An unexpected error occurred` y el log dice `Could not resolve attribute 'application'`, la imagen en ejecución es anterior a la corrección; despliega la versión actual. No hay nada que configurar.
+

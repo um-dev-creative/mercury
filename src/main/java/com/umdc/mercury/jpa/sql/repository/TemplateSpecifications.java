@@ -18,6 +18,11 @@ import java.util.UUID;
  */
 public final class TemplateSpecifications {
 
+    /** JPA attribute names are the field names of {@link TemplateEntity} (field access), not its getter names. */
+    static final String APPLICATION = "applicationEntity";
+    static final String TEMPLATE_TYPE = "templateTypeEntity";
+    static final String SEVERITY_TYPE = "severityTypeEntity";
+
     private TemplateSpecifications() {
         // Utility class
     }
@@ -36,16 +41,16 @@ public final class TemplateSpecifications {
                                                          UUID severityTypeId, Boolean active) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get("application").get("id"), applicationId));
+            predicates.add(cb.equal(root.get(APPLICATION).get("id"), applicationId));
 
             if (Objects.nonNull(active)) {
                 predicates.add(cb.equal(root.get("active"), active));
             }
             if (Objects.nonNull(templateTypeId)) {
-                predicates.add(cb.equal(root.get("templateType").get("id"), templateTypeId));
+                predicates.add(cb.equal(root.get(TEMPLATE_TYPE).get("id"), templateTypeId));
             }
             if (Objects.nonNull(severityTypeId)) {
-                predicates.add(cb.equal(root.get("severityType").get("id"), severityTypeId));
+                predicates.add(cb.equal(root.get(SEVERITY_TYPE).get("id"), severityTypeId));
             }
             if (Objects.nonNull(q) && !q.isBlank()) {
                 String pattern = "%" + q.trim().toLowerCase(Locale.ROOT) + "%";

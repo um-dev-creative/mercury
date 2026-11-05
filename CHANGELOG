@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FreeMarker no longer lets a template instantiate classes or reach the Java API.** `FreeMarkerConfig` sets `TemplateClassResolver.ALLOWS_NOTHING_RESOLVER` and disables `?api`, so `?new` with `freemarker.template.utility.Execute` or `ObjectConstructor` is refused for every channel that renders. Needed before templates can be edited from Iris; the shipped templates render as before. See `docs/security/template-security.md`.
 
 ### Fixed
+- **`GET /api/v1/templates` no longer answers 500 (`Could not resolve attribute 'application' of TemplateEntity`).** `TemplateSpecifications` used the getter names (`application`, `templateType`, `severityType`) as JPA attributes; with field access they are `applicationEntity`, `templateTypeEntity` and `severityTypeEntity`. A test now checks that every attribute the search uses is a field of the entity. No configuration change is needed. See `docs/template-management-api.md`.
 - **The native image no longer answers 500 on every request that builds or parses a session token** (`NoSuchMethodException: io.jsonwebtoken.impl.DefaultJwtBuilder$Supplier.<init>()` from `Jwts.<clinit>`, seen in the QA container). `ThirdPartyNativeRuntimeHints` registers the jjwt classes that `Jwts`, `Jwks` and `Keys` load by name and the `META-INF/services/io.jsonwebtoken.*` resources. Needs a new native image build. See `docs/architecture/graalvm-native-image.md` and `docs/user-guide/en/native-image-errors.md`.
 
 ### Added
