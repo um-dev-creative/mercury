@@ -60,6 +60,14 @@ public class BackendFeignClientInterceptor {
     @Value("${umdc.backbone.base-url:https://api.umdc-qa.tst/backbone}")
     private String backboneBaseUrl;
 
+    /**
+     * Scope Mercury asks for. Backbone requires at least one and refuses (400 {@code invalid_scope}) any the client does not
+     * hold; the permission check itself needs no particular scope. Not {@code BACKBONE_SCOPE}: that is the legacy
+     * Keycloak-style value, which is not a Backbone scope.
+     */
+    @Value("${umdc.backbone.m2m.scope:mercury:message:read}")
+    private String m2mScope;
+
     static final String TOKEN_PATH = "/api/v1/managed-clients/token";
 
     private final ClientProperties clientProperties;
@@ -95,7 +103,7 @@ public class BackendFeignClientInterceptor {
 
     private String getToken() {
         RestTemplate client = new RestTemplate(new HttpComponentsClientHttpRequestFactory(trustedHttpClient()));
-        var response = client.postForObject(tokenUrl(backboneBaseUrl), tokenRequest(clientProperties), ManagedClientToken.class);
+        var response = client.postForObject(tokenUrl(backboneBaseUrl), tokenRequest(clientProperties, m2mScope), ManagedClientToken.class);
         return accessToken(response);
     }
 
@@ -108,12 +116,12 @@ public class BackendFeignClientInterceptor {
      * Builds the request backbone-rest's {@code POST /api/v1/managed-clients/token} accepts: a JSON body (it answers
      * {@code 415} to a form) with the client id, its secret and the scopes asked for.
      */
-    static HttpEntity<ManagedClientTokenRequest> tokenRequest(ClientProperties properties) {
+    static HttpEntity<ManagedClientTokenRequest> tokenRequest(ClientProperties properties, String scope) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        List<String> scopes = Objects.isNull(properties.getScope()) || properties.getScope().isBlank()
+        List<String> scopes = Objects.isNull(scope) || scope.isBlank()
                 ? List.of()
-                : List.of(properties.getScope().trim().split("[\\s,]+"));
+                : List.of(scope.trim().split("[\\s,]+"));
         return new HttpEntity<>(new ManagedClientTokenRequest(properties.getClientId(), properties.getClientSecret(), scopes), headers);
     }
 

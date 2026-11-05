@@ -16,7 +16,7 @@ sequenceDiagram
     I->>P: Authorization: Bearer accessToken
 ```
 
-- Request: record `ManagedClientTokenRequest(clientId, clientSecret, scopes)`; `scopes` comes from `BACKBONE_SCOPE`, split on spaces and commas.
+- Request: record `ManagedClientTokenRequest(clientId, clientSecret, scopes)`; `scopes` comes from `umdc.backbone.m2m.scope` (`BACKBONE_M2M_SCOPE`, default `mercury:message:read`), split on spaces and commas. Backbone requires at least one (`@NotEmpty`) that the client holds (`400 invalid_scope` otherwise); `/iam/permissions/check` needs no particular scope. `BACKBONE_SCOPE` is a legacy Keycloak value (`dummy` in `config/native.env`) and is ignored.
 - Answer: record `ManagedClientToken(accessToken)` (other fields ignored). It is **camelCase**; the shared `TokenResponse` of the commons library reads `access_token` (Keycloak) and cannot be used.
 - Both records are registered for native-image reflection with `@RegisterReflectionForBinding`.
 - A missing or blank `accessToken` raises `StandardException`.

@@ -27,6 +27,6 @@ La petición ahora es JSON (`clientId`, `clientSecret`, `scopes`) y la respuesta
 |---|---|
 | `BACKBONE_BASE_URL` | Gateway de Backbone, p. ej. `https://api.umdc-qa.tst/backbone` (ya lo usan las demás llamadas a Backbone). El endpoint `/api/v1/managed-clients/token` es fijo, como en ZeroBound; `AUTH_URI` / `AUTH_TOKEN_URI` ya no se usan para esto |
 | `BACKBONE_CLIENT_ID` / `BACKBONE_CLIENT_SECRET` | Un cliente gestionado **activo** de Backbone y su secreto |
-| `BACKBONE_SCOPE` | Scopes de ese cliente, separados por espacios o comas. Backbone rechaza (`400 invalid_scope`) los que el cliente no tiene |
+| `BACKBONE_M2M_SCOPE` (opcional) | Scope que Mercury pide, por defecto `mercury:message:read`. El cliente debe tenerlo; si no, Backbone responde `400 invalid_scope` ("Requested scopes exceed registered scopes"). El antiguo `BACKBONE_SCOPE` ya no se usa |
 
 Reinicia Mercury tras cambiarlas (y, en imagen nativa, reconstruye y vuelve a desplegar).

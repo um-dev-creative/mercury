@@ -13,17 +13,17 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /** Pins the contract with backbone-rest's {@code POST /api/v1/managed-clients/token}: JSON body, camelCase answer. */
 class BackendFeignClientInterceptorTest {
 
-    private static ClientProperties client(String scope) {
+    private static ClientProperties client() {
         ClientProperties properties = new ClientProperties();
         properties.setClientId("cid");
         properties.setClientSecret("sec");
-        properties.setScope(scope);
+        properties.setScope("legacy-keycloak-scope");
         return properties;
     }
 
     @Test
     void tokenRequestIsJsonWithClientCredentialsAndScopes() {
-        var entity = BackendFeignClientInterceptor.tokenRequest(client("a:read, b:write  c:manage"));
+        var entity = BackendFeignClientInterceptor.tokenRequest(client(), "a:read, b:write  c:manage");
 
         assertEquals(MediaType.APPLICATION_JSON, entity.getHeaders().getContentType());
         assertEquals("cid", entity.getBody().clientId());
@@ -32,9 +32,15 @@ class BackendFeignClientInterceptorTest {
     }
 
     @Test
+    void theLegacyClientScopeIsNotSent() {
+        assertEquals(List.of("mercury:message:read"),
+                BackendFeignClientInterceptor.tokenRequest(client(), "mercury:message:read").getBody().scopes());
+    }
+
+    @Test
     void blankOrMissingScopeSendsNoScopes() {
-        assertEquals(List.of(), BackendFeignClientInterceptor.tokenRequest(client(null)).getBody().scopes());
-        assertEquals(List.of(), BackendFeignClientInterceptor.tokenRequest(client("  ")).getBody().scopes());
+        assertEquals(List.of(), BackendFeignClientInterceptor.tokenRequest(client(), null).getBody().scopes());
+        assertEquals(List.of(), BackendFeignClientInterceptor.tokenRequest(client(), "  ").getBody().scopes());
     }
 
     @Test
