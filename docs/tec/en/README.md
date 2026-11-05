@@ -21,6 +21,7 @@
 | 🚀 | [**07 · Development Guide**](07-development-guide.md) | Setup, build commands, branch strategy, how to add a new channel, PR checklist |
 | 🏷️ | [**08 · Startup banner**](08-startup-banner.md) | Where the banner versions come from (Maven filtering → `build-versions.properties`) |
 | 🗃️ | [**09 · Flyway migrations**](09-flyway-migrations.md) | How the SQL scripts are applied at startup, the baseline for existing databases, how to add one |
+| 🔑 | [**10 · Backbone M2M token**](10-backbone-m2m-token.md) | How Mercury obtains the token it sends to Backbone, and the endpoint it must point at |
 | 📖 | [**User guide · Messaging channels**](../../user-guide/en/messaging-channels.md) | How to send by SMS, Telegram, WhatsApp and Push |
 
 ---
