@@ -1,0 +1,26 @@
+# 10 · Backbone M2M token (outbound)
+
+⬅️ [Back to index](README.md)
+
+`BackendFeignClientInterceptor` attaches a Bearer token to every call of `BackboneClient` and `BackbonePermissionClient`. The token is a Backbone **managed-client** token obtained with the client-credentials flow of `POST /api/v1/managed-clients/token` (`ManagedClientApi`, `consumes = application/json`).
+
+```mermaid
+sequenceDiagram
+    participant F as Feign call
+    participant I as BackendFeignClientInterceptor
+    participant B as Backbone /managed-clients/token
+    participant P as Backbone /iam/permissions/check
+    F->>I: apply(template)
+    I->>B: POST JSON {clientId, clientSecret, scopes}
+    B-->>I: {accessToken, tokenType, expiresIn, scopes, issuedAt}
+    I->>P: Authorization: Bearer accessToken
+```
+
+- Request: record `ManagedClientTokenRequest(clientId, clientSecret, scopes)`; `scopes` comes from `BACKBONE_SCOPE`, split on spaces and commas.
+- Answer: record `ManagedClientToken(accessToken)` (other fields ignored). It is **camelCase**; the shared `TokenResponse` of the commons library reads `access_token` (Keycloak) and cannot be used.
+- Both records are registered for native-image reflection with `@RegisterReflectionForBinding`.
+- A missing or blank `accessToken` raises `StandardException`.
+- `redirect-uri` of the `backbone` client (`AUTH_URI` + `AUTH_TOKEN_URI`) must be `…/api/v1/managed-clients/token`; `/introspect` only validates tokens and answers `415` to a form.
+- Pinned by `BackendFeignClientInterceptorTest`.
+
+User guide: [`token-m2m-backbone`](../../user-guide/en/backbone-m2m-token.md).
