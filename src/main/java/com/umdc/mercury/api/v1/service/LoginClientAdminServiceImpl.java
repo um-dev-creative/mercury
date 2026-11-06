@@ -8,7 +8,9 @@ import com.umdc.mercury.api.v1.to.LoginClientResponse;
 import com.umdc.mercury.api.v1.to.LoginClientSecretResponse;
 import com.umdc.mercury.api.v1.to.RotateLoginClientPasswordRequest;
 import com.umdc.mercury.api.v1.to.UpdateLoginClientRequest;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.LoginClientEntity;
+import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import com.umdc.mercury.jpa.sql.repository.LoginClientRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,20 +35,27 @@ public class LoginClientAdminServiceImpl implements LoginClientAdminService {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginClientAdminServiceImpl.class);
     private static final String NOT_CONFIGURED = "Login clients administration is not configured";
     private static final int GENERATED_PASSWORD_BYTES = 24;
+    private static final int EXACTLY_ONE = 1;
 
     private final LoginClientRepository repository;
     private final ApplicationAuthorizationService authorization;
+    private final ApplicationRepository applications;
     private final String adminApplicationId;
+    private final String adminApplication;
     private final String manageLoginClientsPermission;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
 
     public LoginClientAdminServiceImpl(LoginClientRepository repository, ApplicationAuthorizationService authorization,
+                                       ApplicationRepository applications,
                                        @Value("${umdc.security.login-clients.admin-application-id:}") String adminApplicationId,
+                                       @Value("${umdc.security.login-clients.admin-application:iris}") String adminApplication,
                                        @Value("${umdc.security.permissions.login-client-manage:LOGIN_CLIENT_MANAGE}") String manageLoginClientsPermission) {
         this.repository = repository;
         this.authorization = authorization;
+        this.applications = applications;
         this.adminApplicationId = adminApplicationId;
+        this.adminApplication = adminApplication;
         this.manageLoginClientsPermission = manageLoginClientsPermission;
     }
 
@@ -123,21 +132,33 @@ public class LoginClientAdminServiceImpl implements LoginClientAdminService {
         LOGGER.info("Login client deleted. alias={}, by={}", entity.getAlias(), actorId);
     }
 
-    /// The caller must hold the login-client-manage permission in the configured application. Without a configured application nobody can
-    /// administer the clients (fail closed).
+    /// The caller must hold the login-client-manage permission in the administering application: the one whose `code_name` is
+    /// `admin-application` (default `iris`), or the id forced in `admin-application-id`. If it cannot be resolved to exactly one
+    /// application nobody can administer the clients (fail closed).
     private void authorize(String sessionToken) {
-        if (Objects.isNull(adminApplicationId) || adminApplicationId.isBlank()) {
-            LOGGER.warn("Login clients administration refused: umdc.security.login-clients.admin-application-id is not set");
+        authorization.assertPermission(sessionToken, administeringApplication(), manageLoginClientsPermission);
+    }
+
+    private UUID administeringApplication() {
+        if (Objects.nonNull(adminApplicationId) && !adminApplicationId.isBlank()) {
+            try {
+                return UUID.fromString(adminApplicationId.trim());
+            } catch (IllegalArgumentException e) {
+                LOGGER.error("umdc.security.login-clients.admin-application-id is not a UUID (value '{}'): remove LOGIN_CLIENTS_ADMIN_APPLICATION_ID so the application is found by code_name, or set the application's UUID", adminApplicationId.trim());
+                throw new ForbiddenException(NOT_CONFIGURED, e);
+            }
+        }
+        if (Objects.isNull(adminApplication) || adminApplication.isBlank()) {
+            LOGGER.warn("Login clients administration refused: umdc.security.login-clients.admin-application is empty");
             throw new ForbiddenException(NOT_CONFIGURED);
         }
-        UUID applicationId;
-        try {
-            applicationId = UUID.fromString(adminApplicationId.trim());
-        } catch (IllegalArgumentException e) {
-            LOGGER.error("umdc.security.login-clients.admin-application-id is not a UUID");
-            throw new ForbiddenException(NOT_CONFIGURED, e);
+        List<ApplicationEntity> found = applications.findAllByCodeNameIgnoreCase(adminApplication.trim());
+        if (found.size() != EXACTLY_ONE) {
+            LOGGER.warn("Login clients administration refused: {} applications have the code_name '{}' (exactly one is needed)",
+                    found.size(), adminApplication.trim());
+            throw new ForbiddenException(NOT_CONFIGURED);
         }
-        authorization.assertPermission(sessionToken, applicationId, manageLoginClientsPermission);
+        return found.get(0).getId();
     }
 
     private LoginClientEntity find(UUID id) {

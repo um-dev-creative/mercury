@@ -6,7 +6,9 @@ import com.umdc.mercury.api.v1.exception.LoginClientNotFoundException;
 import com.umdc.mercury.api.v1.to.CreateLoginClientRequest;
 import com.umdc.mercury.api.v1.to.RotateLoginClientPasswordRequest;
 import com.umdc.mercury.api.v1.to.UpdateLoginClientRequest;
+import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.LoginClientEntity;
+import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import com.umdc.mercury.jpa.sql.repository.LoginClientRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,7 @@ class LoginClientAdminServiceImplTest {
 
     private final LoginClientRepository repository = mock(LoginClientRepository.class);
     private final ApplicationAuthorizationService authorization = mock(ApplicationAuthorizationService.class);
+    private final ApplicationRepository applications = mock(ApplicationRepository.class);
     private LoginClientAdminServiceImpl service;
 
     private static LoginClientEntity row(String alias, boolean active) {
@@ -56,7 +59,7 @@ class LoginClientAdminServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new LoginClientAdminServiceImpl(repository, authorization, APPLICATION.toString(), PERMISSION);
+        service = new LoginClientAdminServiceImpl(repository, authorization, applications, APPLICATION.toString(), "iris", PERMISSION);
         when(repository.save(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
         when(repository.saveAndFlush(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
     }
@@ -89,11 +92,48 @@ class LoginClientAdminServiceImplTest {
     }
 
     @Test
-    void withoutAConfiguredApplicationNobodyCanAdminister() {
-        for (String configured : new String[] {"", "  ", null, "not-a-uuid"}) {
-            var unconfigured = new LoginClientAdminServiceImpl(repository, authorization, configured, PERMISSION);
+    void anIdThatIsNotAUuidLeavesNobodyAbleToAdminister() {
+        var broken = new LoginClientAdminServiceImpl(repository, authorization, applications, "not-a-uuid", "iris", PERMISSION);
+
+        assertThrows(ForbiddenException.class, () -> broken.list(TOKEN));
+        verifyNoInteractions(authorization, repository, applications);
+    }
+
+    @Test
+    void withoutIdOrCodeNameNobodyCanAdminister() {
+        for (String codeName : new String[] {"", "  ", null}) {
+            var unconfigured = new LoginClientAdminServiceImpl(repository, authorization, applications, null, codeName, PERMISSION);
 
             assertThrows(ForbiddenException.class, () -> unconfigured.list(TOKEN));
+        }
+        verifyNoInteractions(authorization, repository, applications);
+    }
+
+    @Test
+    void theApplicationIsFoundByItsCodeNameWhenNoIdIsForced() {
+        var irisId = UUID.randomUUID();
+        var iris = mock(ApplicationEntity.class);
+        when(iris.getId()).thenReturn(irisId);
+        when(applications.findAllByCodeNameIgnoreCase("iris")).thenReturn(List.of(iris));
+        when(repository.findAll()).thenReturn(List.of());
+        var byCodeName = new LoginClientAdminServiceImpl(repository, authorization, applications, " ", " iris ", PERMISSION);
+
+        byCodeName.list(TOKEN);
+
+        verify(authorization).assertPermission(TOKEN, irisId, PERMISSION);
+    }
+
+    @Test
+    void aCodeNameThatMatchesNoneOrSeveralApplicationsRefusesEveryone() {
+        var first = mock(ApplicationEntity.class);
+        var second = mock(ApplicationEntity.class);
+        when(applications.findAllByCodeNameIgnoreCase("iris")).thenReturn(List.of());
+        when(applications.findAllByCodeNameIgnoreCase("lucky_le")).thenReturn(List.of(first, second));
+
+        for (String codeName : new String[] {"iris", "lucky_le"}) {
+            var ambiguous = new LoginClientAdminServiceImpl(repository, authorization, applications, "", codeName, PERMISSION);
+
+            assertThrows(ForbiddenException.class, () -> ambiguous.list(TOKEN));
         }
         verifyNoInteractions(authorization, repository);
     }
