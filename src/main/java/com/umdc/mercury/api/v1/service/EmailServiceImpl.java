@@ -9,6 +9,7 @@ import com.umdc.mercury.api.v1.to.TemplateTO;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.umdc.mercury.jpa.nosql.repository.EmailMessageNSRepository;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import jakarta.mail.MessagingException;
@@ -48,6 +49,7 @@ public class EmailServiceImpl implements EmailService {
     private final EmailMessageNSRepository emailMessageNSRepository;
     private final JavaMailSender mailSender;
     private final MailTrackingService mailTracking;
+    private final ApplicationTemplateFolders templateFolders;
 
     /**
      * Constructs an EmailServiceImpl with required dependencies.
@@ -56,9 +58,11 @@ public class EmailServiceImpl implements EmailService {
      * @param emailMessageNSRepository The repository for email message document persistence
      * @param mailSender               The JavaMailSender used to send emails
      * @param mailTracking             Accepts mail from backend callers and keeps its delivery log
+     * @param templateFolders          Application folder of each template in the template storage
      */
     public EmailServiceImpl(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig, EmailMessageNSRepository emailMessageNSRepository, JavaMailSender mailSender,
-                            MailTrackingService mailTracking) {
+                            MailTrackingService mailTracking, ApplicationTemplateFolders templateFolders) {
+        this.templateFolders = templateFolders;
         this.mailTracking = mailTracking;
         this.freemarkerConfig = freemarkerConfig;
         this.emailMessageNSRepository = emailMessageNSRepository;
@@ -175,7 +179,7 @@ public class EmailServiceImpl implements EmailService {
 
         try {
             var body = FreeMarkerTemplateUtils.processTemplateIntoString(
-                    freemarkerConfig.getTemplate(templateTO.location()), params);
+                    freemarkerConfig.getTemplate(templateFolders.nameOf(templateTO.application(), templateTO.location())), params);
             final var mimeMessageHelper = new MimeMessageHelper(mimeMessage, MULTIPART_MODE_MIXED_RELATED, UTF_8.name());
             mimeMessageHelper.setText(body, true);
             mimeMessageHelper.setSubject(subject);

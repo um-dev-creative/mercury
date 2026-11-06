@@ -14,6 +14,10 @@ public class ApplicationEntity {
     @Column(name = "id", nullable = false)
     private UUID id;
 
+    /** Short code of the application ({@code iris}, {@code MRCY}...); read-only here, backbone-rest owns the table. */
+    @Column(name = "code_name", insertable = false, updatable = false)
+    private String codeName;
+
     /**
      * Default constructor.
      */
@@ -27,6 +31,10 @@ public class ApplicationEntity {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public String getCodeName() {
+        return codeName;
     }
 
 }

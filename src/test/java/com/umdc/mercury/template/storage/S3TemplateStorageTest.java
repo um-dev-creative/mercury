@@ -107,7 +107,7 @@ class S3TemplateStorageTest {
     @Test
     void invalidNamesNeverReachTheService() {
         assertThat(storage.read("../x.ftl")).isEmpty();
-        assertThat(storage.stat("a/b.ftl")).isEmpty();
+        assertThat(storage.stat("a/b/c.ftl")).isEmpty();
         storage.delete("../x.ftl");
         assertThrows(IllegalArgumentException.class, () -> storage.write("../x.ftl", bytes("x"), null));
 
@@ -201,16 +201,18 @@ class S3TemplateStorageTest {
     void listFollowsPagesKeepsOnlyTemplateNamesAndSorts() {
         when(client.listObjectsV2(any(ListObjectsV2Request.class)))
                 .thenReturn(ListObjectsV2Response.builder().isTruncated(true).nextContinuationToken("next")
-                        .contents(S3Object.builder().key("templates/b.ftl").build(), S3Object.builder().key("templates/").build()).build())
+                        .contents(S3Object.builder().key("templates/b.ftl").build(), S3Object.builder().key("templates/").build(), S3Object.builder().key("templates/iris/z.ftl").build(),
+                                S3Object.builder().key("templates/iris/deeper/x.ftl").build()).build())
                 .thenReturn(ListObjectsV2Response.builder().isTruncated(false)
                         .contents(S3Object.builder().key("templates/a.md").build(), S3Object.builder().key("templates/readme.txt").build()).build());
 
-        assertThat(storage.list()).isEqualTo(List.of("a.md", "b.ftl"));
+        assertThat(storage.list()).isEqualTo(List.of("a.md", "b.ftl", "iris/z.ftl"));
 
         ArgumentCaptor<ListObjectsV2Request> request = ArgumentCaptor.forClass(ListObjectsV2Request.class);
         verify(client, org.mockito.Mockito.times(2)).listObjectsV2(request.capture());
         assertThat(request.getAllValues().get(0).prefix()).isEqualTo("templates/");
-        assertThat(request.getAllValues().get(0).delimiter()).isEqualTo("/");
+        // no delimiter: the application folders are listed too
+        assertThat(request.getAllValues().get(0).delimiter()).isNull();
         assertThat(request.getAllValues().get(1).continuationToken()).isEqualTo("next");
     }
 
@@ -234,5 +236,17 @@ class S3TemplateStorageTest {
         when(client.headObject(any(HeadObjectRequest.class))).thenReturn(HeadObjectResponse.builder().lastModified(Instant.EPOCH).build());
 
         assertThat(storage.stat("a.ftl").orElseThrow().etag()).isEmpty();
+    }
+
+    @Test
+    void aTemplateInAnApplicationFolderIsStoredUnderThePrefixAndTheFolder() {
+        when(client.getObjectAsBytes(any(GetObjectRequest.class)))
+                .thenReturn(ResponseBytes.fromByteArray(GetObjectResponse.builder().eTag("\"abc\"").lastModified(Instant.EPOCH).build(), bytes("hola")));
+
+        assertThat(storage.read("iris/iris_welcome.ftl").orElseThrow().text()).isEqualTo("hola");
+
+        ArgumentCaptor<GetObjectRequest> request = ArgumentCaptor.forClass(GetObjectRequest.class);
+        verify(client).getObjectAsBytes(request.capture());
+        assertThat(request.getValue().key()).isEqualTo("templates/iris/iris_welcome.ftl");
     }
 }

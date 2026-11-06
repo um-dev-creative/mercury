@@ -1,6 +1,7 @@
 package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import org.slf4j.Logger;
@@ -28,8 +29,12 @@ public class ChannelTemplateRenderer {
 
     private final Configuration freemarkerConfig;
 
-    public ChannelTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig) {
+    private final ApplicationTemplateFolders templateFolders;
+
+    public ChannelTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig,
+                                   ApplicationTemplateFolders templateFolders) {
         this.freemarkerConfig = freemarkerConfig;
+        this.templateFolders = templateFolders;
     }
 
     /**
@@ -65,6 +70,6 @@ public class ChannelTemplateRenderer {
             return null;
         }
         String location = template.template().location();
-        return Objects.isNull(location) || location.isBlank() ? null : location;
+        return Objects.isNull(location) || location.isBlank() ? null : templateFolders.nameOf(template.template().application(), location);
     }
 }

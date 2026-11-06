@@ -35,7 +35,7 @@ class ZeroboundTelegramTemplatesTest {
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
-        return new TelegramTemplateRenderer(config);
+        return new TelegramTemplateRenderer(config, "");
     }
 
     @Test

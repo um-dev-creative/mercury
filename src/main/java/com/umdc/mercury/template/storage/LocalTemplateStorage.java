@@ -9,6 +9,7 @@ import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -62,7 +63,8 @@ public class LocalTemplateStorage implements TemplateStorage {
             }
             Path target = resolve(name);
             try {
-                Path temporary = Files.createTempFile(root, ".tmp-", ".part");
+                Files.createDirectories(target.getParent());
+                Path temporary = Files.createTempFile(target.getParent(), ".tmp-", ".part");
                 try {
                     Files.write(temporary, content);
                     move(temporary, target);
@@ -93,24 +95,30 @@ public class LocalTemplateStorage implements TemplateStorage {
 
     @Override
     public List<String> list() {
-        try (Stream<Path> files = Files.list(root)) {
-            return files.filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
-                    .filter(TemplateNames::isValid)
-                    .sorted()
-                    .toList();
+        try (Stream<Path> entries = Files.list(root)) {
+            List<String> names = new ArrayList<>();
+            for (Path entry : entries.toList()) {
+                String fileName = entry.getFileName().toString();
+                if (Files.isRegularFile(entry)) {
+                    names.add(fileName);
+                } else if (Files.isDirectory(entry) && TemplateNames.isFolder(fileName)) {
+                    try (Stream<Path> inside = Files.list(entry)) {
+                        inside.filter(Files::isRegularFile).forEach(file -> names.add(fileName + "/" + file.getFileName()));
+                    }
+                }
+            }
+            return names.stream().filter(TemplateNames::isValid).sorted().toList();
         } catch (IOException e) {
             throw new UncheckedIOException("The templates could not be listed", e);
         }
     }
 
-    /** @return the file of a valid name inside the root, or {@code null}. */
     private Path resolve(String name) {
         if (!TemplateNames.isValid(name)) {
             return null;
         }
         Path file = root.resolve(name).normalize();
-        return file.startsWith(root) && root.equals(file.getParent()) ? file : null;
+        return file.startsWith(root) ? file : null;
     }
 
     private static void move(Path from, Path to) throws IOException {

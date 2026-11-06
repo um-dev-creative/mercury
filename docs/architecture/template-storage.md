@@ -40,12 +40,12 @@ flowchart LR
 | `TEMPLATE_PATH` | Folder of the local storage (default `/usr/local/runme/templates`). It must exist at startup: Mercury fails fast if not, as before. |
 | `TEMPLATE_SUFFIX` | Unchanged. |
 | `TEMPLATE_STORAGE` | `local` (default) or `s3`. |
-| `TEMPLATE_S3_BUCKET` | Bucket that holds the templates (required with `s3`). |
+| `CLOUDFLARE_R2_BUCKET_NAME` | Bucket that holds the templates (required with `s3`). |
 | `TEMPLATE_S3_PREFIX` | Key prefix inside the bucket (default `templates/`). |
 | `TEMPLATE_S3_REGION` | Region (default `us-east-1`; any value for MinIO). |
-| `TEMPLATE_S3_ENDPOINT` | Endpoint of an S3-compatible service; empty for AWS. |
+| `CLOUDFLARE_R2_ENDPOINT` | Endpoint of an S3-compatible service; empty for AWS. |
 | `TEMPLATE_S3_PATH_STYLE` | `true` for MinIO and similar (`host/bucket/key`). |
-| `TEMPLATE_S3_ACCESS_KEY`, `TEMPLATE_S3_SECRET_KEY` | **Secrets** (keep them in Vault). Empty: the AWS default credentials chain (instance role, environment, profile). |
+| `CLOUDFLARE_R2_ACCESS_KEY`, `CLOUDFLARE_R2_SECRET_KEY` | **Secrets** (keep them in Vault). Empty: the AWS default credentials chain (instance role, environment, profile). |
 
 ### Moving from the folder to a bucket
 

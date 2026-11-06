@@ -20,7 +20,7 @@ import java.net.URI;
  * Template storage in S3 or an S3-compatible service, chosen with {@code umdc.templates.storage=s3}. Without it the
  * templates are read from the folder (see {@link FreeMarkerConfig#templateStorage()}).
  *
- * <p>Credentials: {@code TEMPLATE_S3_ACCESS_KEY} and {@code TEMPLATE_S3_SECRET_KEY} (secrets, normally from Vault);
+ * <p>Credentials: {@code CLOUDFLARE_R2_ACCESS_KEY} and {@code CLOUDFLARE_R2_SECRET_KEY} (secrets, normally from Vault);
  * when they are empty the AWS default chain is used (instance role, environment, profile).</p>
  */
 @Configuration

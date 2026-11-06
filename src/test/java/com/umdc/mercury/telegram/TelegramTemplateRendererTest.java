@@ -28,7 +28,7 @@ class TelegramTemplateRendererTest {
         Files.writeString(dir.resolve("zb_debt_due_tg_es.ftl"), "Tu deuda <b>${name?html}</b> vence ${date}.");
         final var config = new Configuration(Configuration.VERSION_2_3_30);
         config.setDirectoryForTemplateLoading(dir.toFile());
-        renderer = new TelegramTemplateRenderer(config);
+        renderer = new TelegramTemplateRenderer(config, "");
     }
 
     @Test
@@ -52,5 +52,20 @@ class TelegramTemplateRendererTest {
         assertThrows(IllegalStateException.class, () -> renderer.render("nope", "es", Map.of()));
         final var e = assertThrows(IllegalStateException.class, () -> renderer.render("debt_due", "es", Map.of("secret", "1")));
         assertFalse(e.getMessage().contains("secret"));
+    }
+
+    @Test
+    void theTemplateIsLookedUpInTheConfiguredApplicationFolder() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("tg");
+        java.nio.file.Files.createDirectories(dir.resolve("zerobound"));
+        java.nio.file.Files.writeString(dir.resolve("zerobound/zb_hello_tg_es.ftl"), "Hola ${name}");
+        java.nio.file.Files.writeString(dir.resolve("zb_other_tg_es.ftl"), "root");
+        var cfg = new freemarker.template.Configuration(freemarker.template.Configuration.VERSION_2_3_30);
+        cfg.setDirectoryForTemplateLoading(dir.toFile());
+        var inFolder = new TelegramTemplateRenderer(cfg, "zerobound");
+
+        org.junit.jupiter.api.Assertions.assertTrue(inFolder.exists("hello", "es"));
+        org.junit.jupiter.api.Assertions.assertFalse(inFolder.exists("other", "es"));
+        org.junit.jupiter.api.Assertions.assertEquals("Hola Ana", inFolder.render("hello", "es", java.util.Map.of("name", "Ana")));
     }
 }

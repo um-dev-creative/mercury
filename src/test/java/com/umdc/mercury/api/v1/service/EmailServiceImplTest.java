@@ -43,8 +43,17 @@ class EmailServiceImplTest {
     @Mock
     com.umdc.mercury.api.v1.service.MailTrackingService mailTracking;
 
+    @Mock
+    com.umdc.mercury.template.ApplicationTemplateFolders templateFolders;
+
     @InjectMocks
     EmailServiceImpl emailServiceImpl;
+
+    @org.junit.jupiter.api.BeforeEach
+    void bareTemplateNames() {
+        org.mockito.Mockito.lenient().when(templateFolders.nameOf(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+    }
 
     @Test
     @DisplayName("Find by delivery status with valid status")
