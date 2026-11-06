@@ -6,13 +6,13 @@ El texto de cada mensaje que envía Mercury (el correo de verificación, el mens
 
 ## Una carpeta por aplicación
 
-Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o TEMPLATE_S3_PREFIX>/<carpeta>/<archivo>`. Por ejemplo, con `TEMPLATE_S3_PREFIX=lth/mercury/templates/` las plantillas de Iris son `lth/mercury/templates/iris/iris_welcome.ftl`, y las demás están en `smartkind/`, `zerobound/` y `latinhub/`.
+Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o TEMPLATE_S3_PREFIX>/<carpeta>/<archivo>`. Por ejemplo, con `TEMPLATE_S3_PREFIX=lth/mercury/templates/` las plantillas de Iris son `lth/mercury/templates/iris/iris_welcome.ftl`, y las demás están en `sakn/`, `zeronbou/`, `latinhub/` y `lucky_le/`.
 
 - El `location` de una plantilla sigue siendo el nombre del archivo (`iris_welcome.ftl`). Mercury añade la carpeta de la aplicación de la plantilla, tanto al enviar un mensaje como al editarla desde Iris, así que ambos usan el mismo archivo.
-- La carpeta de una aplicación es su `code_name` en minúsculas (`general.application.code_name`). Si una carpeta se llama distinto, indícalo con `TEMPLATE_APPLICATION_FOLDERS=<code_name o id de la aplicación>=<carpeta>,...` (el code_name no distingue mayúsculas y vale para todas las aplicaciones que lo tengan). Para las aplicaciones actuales ese es el valor por defecto (`TEMPLATE_APPLICATION_FOLDERS=SAKN=smartkind,zeronbou=zerobound`), así que no hace falta definirlo; `iris` y `latinhub` ya coinciden con sus carpetas, y `lucky_le` (Lucky Leaf y Lucky Leaf REST) usa la carpeta `lucky_le`.
-- Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zerobound`).
+- La carpeta de una aplicación es su `code_name` en minúsculas (`general.application.code_name`), sin mapeos: las carpetas del bucket se llaman como los code names (por ejemplo `iris`, `latinhub`, `sakn`, `zeronbou`, `lucky_le`). Las aplicaciones que comparten `code_name` comparten carpeta.
+- Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zeronbou`, el `code_name` de ZeroBound REST).
 - Una carpeta usa minúsculas, dígitos, `_` y `-`, hasta 64 caracteres. Solo hay un nivel de carpetas.
-- Una aplicación sin carpeta (sin `code_name` ni entrada en `TEMPLATE_APPLICATION_FOLDERS`) sigue funcionando con archivos en la raíz, y Mercury registra un aviso con su nombre.
+- Una aplicación sin un `code_name` utilizable sigue funcionando con archivos en la raíz, y Mercury registra un aviso con su nombre.
 - Cloudflare R2: `TEMPLATE_STORAGE=s3` más `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<id de cuenta>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` y `CLOUDFLARE_R2_SECRET_KEY` (secretos, guárdalos en Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (ruta base de las plantillas), `TEMPLATE_S3_REGION=auto` y `TEMPLATE_S3_PATH_STYLE=true`.
 
 Para comprobar que cada aplicación encuentra su carpeta, ejecuta `SELECT id, name, code_name FROM general.application;` y compara `lower(code_name)` con las carpetas del bucket.

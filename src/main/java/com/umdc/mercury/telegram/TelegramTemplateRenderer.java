@@ -29,7 +29,7 @@ public class TelegramTemplateRenderer {
 
     /** @param folder application folder of the ZeroBound templates in the storage ({@code umdc.templates.telegram-folder}) */
     public TelegramTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarker,
-                                    @Value("${umdc.templates.telegram-folder:zerobound}") String folder) {
+                                    @Value("${umdc.templates.telegram-folder:zeronbou}") String folder) {
         this.freemarker = freemarker;
         this.folder = folder;
     }
