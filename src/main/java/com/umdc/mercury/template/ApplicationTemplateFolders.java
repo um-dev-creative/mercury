@@ -18,10 +18,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * Tells in which application folder of the template storage the templates of an application live
  * ({@code <prefix>/<folder>/<file>}, for example {@code lth/mercury/templates/iris/iris_welcome.ftl}).
  *
- * <p>The folder is, in this order: the one configured for the application in
- * {@code umdc.templates.application-folders} ({@code <application id>=<folder>,...}), or the lower-cased
- * {@code code_name} of the application. When neither gives a valid folder the template is looked for at the root of
- * the storage, as before folders existed, and a warning says so.</p>
+ * <p>The folder is, in this order: the one configured for the application id in
+ * {@code umdc.templates.application-folders} ({@code <application id or code_name>=<folder>,...}), the one configured
+ * for its {@code code_name} (case-insensitive), or the lower-cased {@code code_name} itself. When none gives a valid
+ * folder the template is looked for at the root of the storage, as before folders existed, and a warning says so.</p>
  */
 @Component
 public class ApplicationTemplateFolders {
@@ -30,7 +30,7 @@ public class ApplicationTemplateFolders {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationTemplateFolders.class);
 
     private final ApplicationRepository applications;
-    private final Map<UUID, String> configured;
+    private final Map<String, String> configured;
     private final Map<UUID, Optional<String>> resolved = new ConcurrentHashMap<>();
 
     public ApplicationTemplateFolders(ApplicationRepository applications,
@@ -64,15 +64,15 @@ public class ApplicationTemplateFolders {
     }
 
     private Optional<String> lookUp(UUID applicationId) {
-        String explicit = configured.get(applicationId);
+        String explicit = configured.get(key(applicationId.toString()));
         if (Objects.nonNull(explicit)) {
             return Optional.of(explicit);
         }
-        Optional<String> fromCode = applications.findById(applicationId)
+        Optional<String> code = applications.findById(applicationId)
                 .map(application -> application.getCodeName())
                 .filter(Objects::nonNull)
-                .map(code -> code.trim().toLowerCase(Locale.ROOT))
-                .filter(TemplateNames::isFolder);
+                .map(value -> key(value));
+        Optional<String> fromCode = code.map(value -> configured.getOrDefault(value, value)).filter(TemplateNames::isFolder);
         if (fromCode.isEmpty()) {
             logger.warn("Application {} has no template folder (no entry in umdc.templates.application-folders and no usable code_name): "
                     + "its templates are looked for at the root of the storage", applicationId);
@@ -80,21 +80,29 @@ public class ApplicationTemplateFolders {
         return fromCode;
     }
 
-    static Map<UUID, String> parse(String value) {
-        Map<UUID, String> map = new ConcurrentHashMap<>();
+    private static String key(String value) {
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    static Map<String, String> parse(String value) {
+        Map<String, String> map = new ConcurrentHashMap<>();
         if (Objects.isNull(value) || value.isBlank()) {
             return map;
         }
         for (String entry : value.split(",")) {
             String[] parts = entry.trim().split("=", ENTRY_PARTS);
             if (parts.length != ENTRY_PARTS) {
-                throw new IllegalArgumentException("umdc.templates.application-folders: expected <application id>=<folder>, got '" + entry.trim() + "'");
+                throw new IllegalArgumentException("umdc.templates.application-folders: expected <application id or code_name>=<folder>, got '" + entry.trim() + "'");
             }
             String folder = parts[1].trim();
             if (!TemplateNames.isFolder(folder)) {
                 throw new IllegalArgumentException("umdc.templates.application-folders: '" + folder + "' is not a valid folder name");
             }
-            map.put(UUID.fromString(parts[0].trim()), folder);
+            String owner = key(parts[0]);
+            if (owner.isEmpty()) {
+                throw new IllegalArgumentException("umdc.templates.application-folders: missing application id or code_name in '" + entry.trim() + "'");
+            }
+            map.put(owner, folder);
         }
         return map;
     }

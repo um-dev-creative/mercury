@@ -92,16 +92,42 @@ class ApplicationTemplateFoldersTest {
     @Test
     void aBadConfigurationStopsTheStartupWithAClearMessage() {
         assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, "no-equals"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("<application id>=<folder>");
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("<application id or code_name>=<folder>");
         assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, iris + "=Bad Folder"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not a valid folder");
-        assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, "not-a-uuid=iris"))
-                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, "=iris"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("missing application id or code_name");
     }
 
     @Test
     void emptyConfigurationIsFine() {
         assertThat(ApplicationTemplateFolders.parse(null)).isEmpty();
         assertThat(ApplicationTemplateFolders.parse("  ")).isEmpty();
+    }
+
+    @Test
+    void aFolderConfiguredForTheCodeNameAppliesToEveryApplicationWithThatCode() throws Exception {
+        UUID zerobound = UUID.randomUUID();
+        UUID smartKin = UUID.randomUUID();
+        UUID luckyLeaf = UUID.randomUUID();
+        UUID luckyLeafRest = UUID.randomUUID();
+        when(repository.findById(zerobound)).thenReturn(Optional.of(application(zerobound, "zeronbou")));
+        when(repository.findById(smartKin)).thenReturn(Optional.of(application(smartKin, "SAKN")));
+        when(repository.findById(luckyLeaf)).thenReturn(Optional.of(application(luckyLeaf, "lucky_le")));
+        when(repository.findById(luckyLeafRest)).thenReturn(Optional.of(application(luckyLeafRest, "lucky_le")));
+        var folders = new ApplicationTemplateFolders(repository, "SAKN=smartkind, Zeronbou=zerobound");
+
+        assertThat(folders.nameOf(zerobound, "zb_a.ftl")).isEqualTo("zerobound/zb_a.ftl");
+        assertThat(folders.nameOf(smartKin, "sk_a.ftl")).isEqualTo("smartkind/sk_a.ftl");
+        assertThat(folders.nameOf(luckyLeaf, "a.ftl")).isEqualTo("lucky_le/a.ftl");
+        assertThat(folders.nameOf(luckyLeafRest, "a.ftl")).isEqualTo("lucky_le/a.ftl");
+    }
+
+    @Test
+    void anIdEntryWinsOverACodeEntry() throws Exception {
+        when(repository.findById(iris)).thenReturn(Optional.of(application(iris, "iris")));
+        var folders = new ApplicationTemplateFolders(repository, "iris=by-code, " + iris + "=by-id");
+
+        assertThat(folders.folderOf(iris)).contains("by-id");
     }
 }

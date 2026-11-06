@@ -138,8 +138,8 @@ umdc:
       secret-key: ${CLOUDFLARE_R2_SECRET_KEY:}
     # each application keeps its templates in its own folder: <storage root or s3 prefix>/<folder>/<file>
     # (lth/mercury/templates/iris/iris_welcome.ftl). The folder is the lower-cased code_name of the application; override it
-    # per application with `<application id>=<folder>,<application id>=<folder>`
-    application-folders: ${TEMPLATE_APPLICATION_FOLDERS:}
+    # with `<code_name or application id>=<folder>,...` (e.g. SAKN=smartkind,zeronbou=zerobound)
+    application-folders: ${TEMPLATE_APPLICATION_FOLDERS:SAKN=smartkind,zeronbou=zerobound}
     # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row
     telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zerobound}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
