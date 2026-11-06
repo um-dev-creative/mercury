@@ -3,7 +3,9 @@ package com.umdc.mercury.telegram;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateNotFoundException;
+import com.umdc.mercury.template.storage.TemplateNames;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -23,13 +25,17 @@ public class TelegramTemplateRenderer {
     private static final String SUFFIX = ".ftl";
 
     private final Configuration freemarker;
+    private final String folder;
 
-    public TelegramTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarker) {
+    /** @param folder application folder of the ZeroBound templates in the storage ({@code umdc.templates.telegram-folder}) */
+    public TelegramTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarker,
+                                    @Value("${umdc.templates.telegram-folder:zerobound}") String folder) {
         this.freemarker = freemarker;
+        this.folder = folder;
     }
 
-    static String name(String kind, String language) {
-        return "zb_" + kind + "_tg_" + language + SUFFIX;
+    String name(String kind, String language) {
+        return TemplateNames.inFolder(folder, "zb_" + kind + "_tg_" + language + SUFFIX);
     }
 
     public boolean exists(String kind, String language) {

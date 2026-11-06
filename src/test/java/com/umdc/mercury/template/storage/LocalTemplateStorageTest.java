@@ -61,14 +61,14 @@ class LocalTemplateStorageTest {
     }
 
     @ParameterizedTest(name = "reads of \"{0}\" find nothing")
-    @ValueSource(strings = {"../secret.ftl", "a/b.ftl", "..\\x.ftl", "/etc/passwd", ".hidden.ftl", "no-extension", "x.exe", "a..b.ftl", "%2e%2e/x.ftl", ""})
+    @ValueSource(strings = {"../secret.ftl", "a/b/c.ftl", "../a/b.ftl", "..\\x.ftl", "/etc/passwd", ".hidden.ftl", "no-extension", "x.exe", "a..b.ftl", "%2e%2e/x.ftl", ""})
     void invalidNamesAreNeverFound(String name) {
         assertThat(storage.read(name)).isEmpty();
         assertThat(storage.stat(name)).isEmpty();
     }
 
     @ParameterizedTest(name = "writes of \"{0}\" are refused")
-    @ValueSource(strings = {"../escape.ftl", "a/b.ftl", ".hidden.ftl", "x.exe"})
+    @ValueSource(strings = {"../escape.ftl", "a/b/c.ftl", "A/b.ftl", ".hidden.ftl", "x.exe"})
     void invalidNamesAreNeverWritten(String name) {
         assertThrows(IllegalArgumentException.class, () -> storage.write(name, bytes("x"), null));
     }
@@ -182,5 +182,58 @@ class LocalTemplateStorageTest {
         } finally {
             pool.shutdownNow();
         }
+    }
+
+    @Test
+    void writesAndReadsInsideAnApplicationFolderCreatingIt() {
+        TemplateMetadata saved = storage.write("iris/iris_welcome.ftl", bytes("hola"), TemplateStorage.ABSENT);
+
+        assertThat(saved.name()).isEqualTo("iris/iris_welcome.ftl");
+        assertThat(dir.resolve("iris/iris_welcome.ftl")).hasContent("hola");
+        assertThat(storage.read("iris/iris_welcome.ftl")).isPresent();
+        assertThat(storage.read("zerobound/iris_welcome.ftl")).isEmpty();
+        assertThat(storage.read("iris_welcome.ftl")).isEmpty();
+    }
+
+    @Test
+    void theSameFileNameInTwoFoldersAreTwoTemplates() {
+        storage.write("iris/a.ftl", bytes("iris"), null);
+        storage.write("zerobound/a.ftl", bytes("zb"), null);
+
+        assertThat(storage.read("iris/a.ftl").orElseThrow().text()).isEqualTo("iris");
+        assertThat(storage.read("zerobound/a.ftl").orElseThrow().text()).isEqualTo("zb");
+    }
+
+    @Test
+    void writeInAFolderLeavesNoTemporaryFilesBehind() throws IOException {
+        storage.write("iris/a.ftl", bytes("x"), null);
+
+        try (var files = java.nio.file.Files.list(dir.resolve("iris"))) {
+            assertThat(files.map(p -> p.getFileName().toString())).containsExactly("a.ftl");
+        }
+    }
+
+    @Test
+    void listIncludesTheFilesOfEveryApplicationFolderAndIgnoresOtherDirectories() throws IOException {
+        storage.write("root.ftl", bytes("x"), null);
+        storage.write("iris/b.ftl", bytes("x"), null);
+        storage.write("zerobound/a.md", bytes("x"), null);
+        java.nio.file.Files.createDirectories(dir.resolve("Not_A_Folder"));
+        java.nio.file.Files.writeString(dir.resolve("Not_A_Folder/c.ftl"), "x");
+        java.nio.file.Files.createDirectories(dir.resolve("iris/deeper"));
+        java.nio.file.Files.writeString(dir.resolve("iris/readme.txt"), "x");
+
+        assertThat(storage.list()).containsExactly("iris/b.ftl", "root.ftl", "zerobound/a.md");
+    }
+
+    @Test
+    void deleteInAFolderRemovesOnlyThatFile() {
+        storage.write("iris/a.ftl", bytes("x"), null);
+        storage.write("zerobound/a.ftl", bytes("x"), null);
+
+        storage.delete("iris/a.ftl");
+
+        assertThat(storage.read("iris/a.ftl")).isEmpty();
+        assertThat(storage.read("zerobound/a.ftl")).isPresent();
     }
 }

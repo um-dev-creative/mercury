@@ -126,7 +126,7 @@ public class S3TemplateStorage implements TemplateStorage {
         List<String> names = new ArrayList<>();
         String token = "";
         do {
-            ListObjectsV2Response page = client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).delimiter("/")
+            ListObjectsV2Response page = client.listObjectsV2(ListObjectsV2Request.builder().bucket(bucket).prefix(prefix)
                     .continuationToken(token.isEmpty() ? null : token).build());
             for (S3Object object : page.contents()) {
                 String name = object.key().substring(prefix.length());

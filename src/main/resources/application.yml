@@ -135,6 +135,12 @@ umdc:
       # secrets: leave empty to use the AWS default credentials chain (instance role, environment, profile)
       access-key: ${TEMPLATE_S3_ACCESS_KEY:}
       secret-key: ${TEMPLATE_S3_SECRET_KEY:}
+    # each application keeps its templates in its own folder: <storage root or s3 prefix>/<folder>/<file>
+    # (lth/mercury/templates/iris/iris_welcome.ftl). The folder is the lower-cased code_name of the application; override it
+    # per application with `<application id>=<folder>,<application id>=<folder>`
+    application-folders: ${TEMPLATE_APPLICATION_FOLDERS:}
+    # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row
+    telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zerobound}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
     max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
     # versions of the content kept per template (older ones are deleted); needs mercury.template_versions (V2032)

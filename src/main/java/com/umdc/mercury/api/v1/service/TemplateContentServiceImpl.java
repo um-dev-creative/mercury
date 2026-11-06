@@ -16,6 +16,7 @@ import com.umdc.mercury.template.content.TemplateSyntaxException;
 import com.umdc.mercury.template.markdown.MarkdownTemplates;
 import com.umdc.mercury.template.storage.StoredTemplate;
 import com.umdc.mercury.template.storage.TemplateMetadata;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
 import com.umdc.mercury.template.storage.TemplateNames;
 import com.umdc.mercury.template.storage.TemplateStorage;
 import org.slf4j.Logger;
@@ -44,10 +45,12 @@ public class TemplateContentServiceImpl implements TemplateContentService {
     private final int maxContentBytes;
     private final List<String> protectedPrefixes;
     private final TemplateVersions versions;
+    private final ApplicationTemplateFolders templateFolders;
 
     public TemplateContentServiceImpl(TemplateRepository templateRepository,
                                       TemplateStorage storage,
                                       TemplateVersions versions,
+                                      ApplicationTemplateFolders templateFolders,
                                       ApplicationAuthorizationService authorization,
                                       @Value("${umdc.security.permissions.template-manage:TEMPLATE_MANAGE}") String templateManagePermission,
                                       @Value("${umdc.templates.max-content-bytes:262144}") int maxContentBytes,
@@ -57,6 +60,7 @@ public class TemplateContentServiceImpl implements TemplateContentService {
         this.templateRepository = templateRepository;
         this.storage = storage;
         this.versions = versions;
+        this.templateFolders = templateFolders;
         this.authorization = authorization;
         this.templateManagePermission = templateManagePermission;
         this.maxContentBytes = maxContentBytes;
@@ -68,7 +72,7 @@ public class TemplateContentServiceImpl implements TemplateContentService {
     public TemplateContentResponse read(UUID templateId, String sessionToken) {
         TemplateEntity template = authorized(templateId, sessionToken);
         String name = fileName(template);
-        Optional<StoredTemplate> stored = storage.read(name);
+        Optional<StoredTemplate> stored = storage.read(storageName(template, name));
         return response(template, name, stored.map(StoredTemplate::text).orElse(""), stored.map(StoredTemplate::metadata).orElse(null));
     }
 
@@ -110,8 +114,9 @@ public class TemplateContentServiceImpl implements TemplateContentService {
             throw new TemplateSyntaxException(problems);
         }
         // the content the template had before the API first changed it stays restorable
-        Optional<StoredTemplate> before = storage.read(name);
-        TemplateMetadata saved = storage.write(name, bytes, expectedEtag);
+        String storageName = storageName(template, name);
+        Optional<StoredTemplate> before = storage.read(storageName);
+        TemplateMetadata saved = storage.write(storageName, bytes, expectedEtag);
         if (before.isPresent() && !versions.hasAny(template.getId())) {
             versions.append(template.getId(), before.get().text(), before.get().metadata().etag(), TemplateVersions.BASELINE, null);
         }
@@ -129,7 +134,8 @@ public class TemplateContentServiceImpl implements TemplateContentService {
         if (request.content().getBytes(StandardCharsets.UTF_8).length > maxContentBytes) {
             throw new ContentTooLargeException(maxContentBytes);
         }
-        TemplatePreview.Result result = preview.render(name, request.content(), request.params());
+        // the folder of the application makes a relative <#include> resolve next to the template, as it will when rendered
+        TemplatePreview.Result result = preview.render(templateFolders.nameOf(request.applicationId(), name), request.content(), request.params());
         return new PreviewTemplateResponse(result.ok(), formatOf(name), result.output(), result.problems(),
                 TemplateSyntax.parameters(request.content()));
     }
@@ -144,10 +150,15 @@ public class TemplateContentServiceImpl implements TemplateContentService {
 
     private static String fileName(TemplateEntity template) {
         String location = template.getLocation();
-        if (!TemplateNames.isValid(location)) {
+        if (!TemplateNames.isFileName(location)) {
             throw new TemplateNotFoundException("The template has no editable file: its location is not a file name");
         }
         return location;
+    }
+
+    /** Where the template is in the storage: inside the folder of its application. */
+    private String storageName(TemplateEntity template, String fileName) {
+        return templateFolders.nameOf(template.getApplication().getId(), fileName);
     }
 
     private boolean isProtected(String name) {

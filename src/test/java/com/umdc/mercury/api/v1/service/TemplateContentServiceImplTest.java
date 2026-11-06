@@ -49,6 +49,7 @@ class TemplateContentServiceImplTest {
     @Mock private ApplicationAuthorizationService authorization;
     @Mock private TemplateVersions versions;
 
+    private com.umdc.mercury.template.ApplicationTemplateFolders folders;
     private TemplateStorage storage;
     private TemplateContentServiceImpl service;
     private final UUID templateId = UUID.randomUUID();
@@ -58,7 +59,8 @@ class TemplateContentServiceImplTest {
     @BeforeEach
     void setUp() {
         storage = new LocalTemplateStorage(dir);
-        service = new TemplateContentServiceImpl(repository, storage, versions, authorization, "TEMPLATE_MANAGE", 200,
+        folders = new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class), "");
+        service = new TemplateContentServiceImpl(repository, storage, versions, folders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
     }
 
@@ -326,5 +328,33 @@ class TemplateContentServiceImplTest {
 
         assertThrows(ForbiddenException.class,
                 () -> service.preview(new PreviewTemplateRequest(applicationId, "p.ftl", "x", Map.of()), TOKEN));
+    }
+
+    @Test
+    void contentOfAnApplicationWithAFolderIsReadAndSavedInsideThatFolder() {
+        var repo = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class);
+        var inFolders = new com.umdc.mercury.template.ApplicationTemplateFolders(repo, applicationId + "=iris");
+        var foldered = new TemplateContentServiceImpl(repository, storage, versions, inFolders, authorization, "TEMPLATE_MANAGE", 200,
+                List.of("zb_", " ", "iris_"), 1000, 2000);
+        found("welcome.ftl");
+        storage.write("iris/welcome.ftl", "old ${name}".getBytes(StandardCharsets.UTF_8), null);
+        storage.write("welcome.ftl", "root".getBytes(StandardCharsets.UTF_8), null);
+
+        TemplateContentResponse read = foldered.read(templateId, TOKEN);
+        assertThat(read.content()).isEqualTo("old ${name}");
+        assertThat(read.name()).isEqualTo("welcome.ftl");
+
+        foldered.save(templateId, "new ${name}", read.etag(), false, requester, TOKEN);
+
+        assertThat(storage.read("iris/welcome.ftl").orElseThrow().text()).isEqualTo("new ${name}");
+        assertThat(storage.read("welcome.ftl").orElseThrow().text()).isEqualTo("root");
+    }
+
+    @Test
+    void aLocationThatAlreadyCarriesAFolderIsNotAnEditableFileName() {
+        found("iris/welcome.ftl");
+
+        org.junit.jupiter.api.Assertions.assertThrows(TemplateNotFoundException.class,
+                () -> service.read(templateId, TOKEN));
     }
 }

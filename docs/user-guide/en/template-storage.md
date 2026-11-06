@@ -12,6 +12,19 @@ The text of every message Mercury sends (the verification e-mail, a campaign mes
 - If the folder does not exist when Mercury starts, Mercury stops with an error that names the folder. Create it or fix `TEMPLATE_PATH`.
 - A template that is not found, or has a name that is not allowed, is skipped and the message falls back to the plain text of the campaign.
 
+## One folder per application
+
+Each application keeps its templates in its own folder: `<TEMPLATE_PATH or TEMPLATE_S3_PREFIX>/<folder>/<file>`. For example, with `TEMPLATE_S3_PREFIX=lth/mercury/templates/` the Iris templates are `lth/mercury/templates/iris/iris_welcome.ftl`, and the others live in `smartkind/`, `zerobound/` and `latinhub/`.
+
+- The `location` of a template stays the plain file name (`iris_welcome.ftl`). Mercury adds the folder of the template's application, both when it sends a message and when someone edits the template from Iris, so both use the same file.
+- The folder of an application is its `code_name` in lower case (`general.application.code_name`). If a folder has another name, say so with `TEMPLATE_APPLICATION_FOLDERS=<application id>=<folder>,<application id>=<folder>`; for example `<id of SmartKin>=smartkind`.
+- The Telegram templates of ZeroBound (`zb_<kind>_tg_<language>.ftl`) are read from `TEMPLATE_TELEGRAM_FOLDER` (default `zerobound`).
+- A folder name has lower-case letters, digits, `_` and `-`, up to 64 characters. There is one level of folders only.
+- An application with no folder (no `code_name` and no entry in `TEMPLATE_APPLICATION_FOLDERS`) keeps working with files at the root, and Mercury logs a warning naming the application.
+- Cloudflare R2: use `TEMPLATE_STORAGE=s3`, `TEMPLATE_S3_ENDPOINT=https://<account id>.r2.cloudflarestorage.com`, `TEMPLATE_S3_REGION=auto`, `TEMPLATE_S3_PATH_STYLE=true`, `TEMPLATE_S3_BUCKET=<bucket>` and `TEMPLATE_S3_PREFIX=lth/mercury/templates/`.
+
+To check that each application finds its folder, run `SELECT id, name, code_name FROM general.application;` and compare `lower(code_name)` with the folders of the bucket.
+
 ## Using a bucket instead of a folder
 
 If you run several Mercury instances, or you do not want the templates inside the server, keep them in a bucket of Amazon S3 or of an S3-compatible service (MinIO, for example): set `TEMPLATE_STORAGE=s3` and `TEMPLATE_S3_BUCKET` (and `TEMPLATE_S3_ENDPOINT` plus `TEMPLATE_S3_PATH_STYLE=true` for MinIO). Upload the template files to the bucket under `TEMPLATE_S3_PREFIX` before restarting Mercury. From then on, templates edited from Iris are written to the bucket and every instance uses them within a few seconds. The access key and secret are secrets: keep them in Vault, or leave them empty to use the server's AWS role.

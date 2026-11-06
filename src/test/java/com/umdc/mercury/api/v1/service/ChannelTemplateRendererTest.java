@@ -29,7 +29,7 @@ class ChannelTemplateRendererTest {
     void setUp() throws IOException {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
         configuration.setDirectoryForTemplateLoading(templateDir.toFile());
-        renderer = new ChannelTemplateRenderer(configuration);
+        renderer = new ChannelTemplateRenderer(configuration, new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class), ""));
     }
 
     private TemplateDefinedTO templateAt(String location) {
@@ -86,5 +86,24 @@ class ChannelTemplateRendererTest {
 
         assertThat(renderer.render(templateAt("static.ftl"), null, "texto crudo"))
                 .isEqualTo("Mensaje sin variables.");
+    }
+
+    @Test
+    @DisplayName("looks the template up in the folder of its application")
+    void rendersFromTheApplicationFolder() throws IOException {
+        UUID application = UUID.randomUUID();
+        Files.createDirectories(templateDir.resolve("iris"));
+        Files.writeString(templateDir.resolve("iris/welcome.ftl"), "Hola ${name} desde iris");
+        var repo = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class);
+        var folders = new com.umdc.mercury.template.ApplicationTemplateFolders(repo, application + "=iris");
+        Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
+        configuration.setDirectoryForTemplateLoading(templateDir.toFile());
+        var inFolder = new ChannelTemplateRenderer(configuration, folders);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "welcome.ftl", "TXT", null, application, null, null, true);
+
+        String result = inFolder.render(new TemplateDefinedTO(UUID.randomUUID(), template, null, null, null, null, null, true, null),
+                Map.of("name", "Ana"), "crudo");
+
+        assertThat(result).isEqualTo("Hola Ana desde iris");
     }
 }
