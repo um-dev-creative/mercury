@@ -144,7 +144,7 @@ public class LoginClientAdminServiceImpl implements LoginClientAdminService {
             try {
                 return UUID.fromString(adminApplicationId.trim());
             } catch (IllegalArgumentException e) {
-                LOGGER.error("umdc.security.login-clients.admin-application-id is not a UUID");
+                LOGGER.error("umdc.security.login-clients.admin-application-id is not a UUID (value '{}'): remove LOGIN_CLIENTS_ADMIN_APPLICATION_ID so the application is found by code_name, or set the application's UUID", adminApplicationId.trim());
                 throw new ForbiddenException(NOT_CONFIGURED, e);
             }
         }
