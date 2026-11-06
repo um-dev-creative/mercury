@@ -13,7 +13,7 @@ Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o T
 - Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zerobound`).
 - Una carpeta usa minúsculas, dígitos, `_` y `-`, hasta 64 caracteres. Solo hay un nivel de carpetas.
 - Una aplicación sin carpeta (sin `code_name` ni entrada en `TEMPLATE_APPLICATION_FOLDERS`) sigue funcionando con archivos en la raíz, y Mercury registra un aviso con su nombre.
-- Cloudflare R2: `TEMPLATE_STORAGE=s3`, `TEMPLATE_S3_ENDPOINT=https://<id de cuenta>.r2.cloudflarestorage.com`, `TEMPLATE_S3_REGION=auto`, `TEMPLATE_S3_PATH_STYLE=true`, `TEMPLATE_S3_BUCKET=<bucket>` y `TEMPLATE_S3_PREFIX=lth/mercury/templates/`.
+- Cloudflare R2: `TEMPLATE_STORAGE=s3` más `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<id de cuenta>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` y `CLOUDFLARE_R2_SECRET_KEY` (secretos, guárdalos en Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (ruta base de las plantillas), `TEMPLATE_S3_REGION=auto` y `TEMPLATE_S3_PATH_STYLE=true`.
 
 Para comprobar que cada aplicación encuentra su carpeta, ejecuta `SELECT id, name, code_name FROM general.application;` y compara `lower(code_name)` con las carpetas del bucket.
 
@@ -27,7 +27,7 @@ Para comprobar que cada aplicación encuentra su carpeta, ejecuta `SELECT id, na
 
 ## Usar un bucket en lugar de una carpeta
 
-Si ejecutas varias instancias de Mercury, o no quieres las plantillas dentro del servidor, guárdalas en un bucket de Amazon S3 o de un servicio compatible con S3 (MinIO, por ejemplo): define `TEMPLATE_STORAGE=s3` y `TEMPLATE_S3_BUCKET` (y `TEMPLATE_S3_ENDPOINT` con `TEMPLATE_S3_PATH_STYLE=true` para MinIO). Sube los archivos de plantilla al bucket bajo `TEMPLATE_S3_PREFIX` antes de reiniciar Mercury. Desde entonces, las plantillas que edites desde Iris se escriben en el bucket y todas las instancias las usan en pocos segundos. La clave de acceso y el secreto son secretos: guárdalos en Vault, o déjalos vacíos para usar el rol de AWS del servidor.
+Si ejecutas varias instancias de Mercury, o no quieres las plantillas dentro del servidor, guárdalas en un bucket de Amazon S3 o de un servicio compatible con S3 (MinIO, por ejemplo): define `TEMPLATE_STORAGE=s3` y `CLOUDFLARE_R2_BUCKET_NAME` (y `CLOUDFLARE_R2_ENDPOINT` con `TEMPLATE_S3_PATH_STYLE=true` para MinIO). Sube los archivos de plantilla al bucket bajo `TEMPLATE_S3_PREFIX` antes de reiniciar Mercury. Desde entonces, las plantillas que edites desde Iris se escriben en el bucket y todas las instancias las usan en pocos segundos. La clave de acceso y el secreto son secretos: guárdalos en Vault, o déjalos vacíos para usar el rol de AWS del servidor.
 
 ## Cómo escribir una plantilla
 

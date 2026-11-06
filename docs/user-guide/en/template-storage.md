@@ -21,13 +21,13 @@ Each application keeps its templates in its own folder: `<TEMPLATE_PATH or TEMPL
 - The Telegram templates of ZeroBound (`zb_<kind>_tg_<language>.ftl`) are read from `TEMPLATE_TELEGRAM_FOLDER` (default `zerobound`).
 - A folder name has lower-case letters, digits, `_` and `-`, up to 64 characters. There is one level of folders only.
 - An application with no folder (no `code_name` and no entry in `TEMPLATE_APPLICATION_FOLDERS`) keeps working with files at the root, and Mercury logs a warning naming the application.
-- Cloudflare R2: use `TEMPLATE_STORAGE=s3`, `TEMPLATE_S3_ENDPOINT=https://<account id>.r2.cloudflarestorage.com`, `TEMPLATE_S3_REGION=auto`, `TEMPLATE_S3_PATH_STYLE=true`, `TEMPLATE_S3_BUCKET=<bucket>` and `TEMPLATE_S3_PREFIX=lth/mercury/templates/`.
+- Cloudflare R2: `TEMPLATE_STORAGE=s3` plus `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` and `CLOUDFLARE_R2_SECRET_KEY` (secrets, keep them in Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (base path of the templates), `TEMPLATE_S3_REGION=auto` and `TEMPLATE_S3_PATH_STYLE=true`.
 
 To check that each application finds its folder, run `SELECT id, name, code_name FROM general.application;` and compare `lower(code_name)` with the folders of the bucket.
 
 ## Using a bucket instead of a folder
 
-If you run several Mercury instances, or you do not want the templates inside the server, keep them in a bucket of Amazon S3 or of an S3-compatible service (MinIO, for example): set `TEMPLATE_STORAGE=s3` and `TEMPLATE_S3_BUCKET` (and `TEMPLATE_S3_ENDPOINT` plus `TEMPLATE_S3_PATH_STYLE=true` for MinIO). Upload the template files to the bucket under `TEMPLATE_S3_PREFIX` before restarting Mercury. From then on, templates edited from Iris are written to the bucket and every instance uses them within a few seconds. The access key and secret are secrets: keep them in Vault, or leave them empty to use the server's AWS role.
+If you run several Mercury instances, or you do not want the templates inside the server, keep them in a bucket of Amazon S3 or of an S3-compatible service (MinIO, for example): set `TEMPLATE_STORAGE=s3` and `CLOUDFLARE_R2_BUCKET_NAME` (and `CLOUDFLARE_R2_ENDPOINT` plus `TEMPLATE_S3_PATH_STYLE=true` for MinIO). Upload the template files to the bucket under `TEMPLATE_S3_PREFIX` before restarting Mercury. From then on, templates edited from Iris are written to the bucket and every instance uses them within a few seconds. The access key and secret are secrets: keep them in Vault, or leave them empty to use the server's AWS role.
 
 ## Writing a template
 
