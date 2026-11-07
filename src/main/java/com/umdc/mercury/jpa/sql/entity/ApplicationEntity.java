@@ -18,6 +18,14 @@ public class ApplicationEntity {
     @Column(name = "code_name", insertable = false, updatable = false)
     private String codeName;
 
+    /** Display name; read-only here, backbone-rest owns the table. */
+    @Column(name = "name", insertable = false, updatable = false)
+    private String name;
+
+    /** Whether backbone-rest has the application enabled; read-only here. */
+    @Column(name = "active", insertable = false, updatable = false)
+    private boolean active;
+
     /**
      * Default constructor.
      */
@@ -35,6 +43,14 @@ public class ApplicationEntity {
 
     public String getCodeName() {
         return codeName;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean isActive() {
+        return active;
     }
 
 }
