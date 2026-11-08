@@ -43,6 +43,7 @@ class LoginClientAdminServiceImplTest {
 
     private final LoginClientRepository repository = mock(LoginClientRepository.class);
     private final ApplicationAuthorizationService authorization = mock(ApplicationAuthorizationService.class);
+    private final AdministeringApplication administering = mock(AdministeringApplication.class);
     private LoginClientAdminServiceImpl service;
 
     private static LoginClientEntity row(String alias, boolean active) {
@@ -56,7 +57,8 @@ class LoginClientAdminServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new LoginClientAdminServiceImpl(repository, authorization, APPLICATION.toString(), PERMISSION);
+        service = new LoginClientAdminServiceImpl(repository, authorization, administering, PERMISSION);
+        when(administering.id(any())).thenReturn(APPLICATION);
         when(repository.save(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
         when(repository.saveAndFlush(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
     }
@@ -89,12 +91,10 @@ class LoginClientAdminServiceImplTest {
     }
 
     @Test
-    void withoutAConfiguredApplicationNobodyCanAdminister() {
-        for (String configured : new String[] {"", "  ", null, "not-a-uuid"}) {
-            var unconfigured = new LoginClientAdminServiceImpl(repository, authorization, configured, PERMISSION);
+    void whenTheAdministeringApplicationCannotBeResolvedNobodyCanAdminister() {
+        when(administering.id(any())).thenThrow(new ForbiddenException("not configured"));
 
-            assertThrows(ForbiddenException.class, () -> unconfigured.list(TOKEN));
-        }
+        assertThrows(ForbiddenException.class, () -> service.list(TOKEN));
         verifyNoInteractions(authorization, repository);
     }
 

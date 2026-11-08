@@ -31,22 +31,21 @@ import java.util.UUID;
 public class LoginClientAdminServiceImpl implements LoginClientAdminService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginClientAdminServiceImpl.class);
-    private static final String NOT_CONFIGURED = "Login clients administration is not configured";
     private static final int GENERATED_PASSWORD_BYTES = 24;
 
     private final LoginClientRepository repository;
     private final ApplicationAuthorizationService authorization;
-    private final String adminApplicationId;
+    private final AdministeringApplication administeringApplication;
     private final String manageLoginClientsPermission;
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final SecureRandom random = new SecureRandom();
 
     public LoginClientAdminServiceImpl(LoginClientRepository repository, ApplicationAuthorizationService authorization,
-                                       @Value("${umdc.security.login-clients.admin-application-id:}") String adminApplicationId,
+                                       AdministeringApplication administeringApplication,
                                        @Value("${umdc.security.permissions.login-client-manage:LOGIN_CLIENT_MANAGE}") String manageLoginClientsPermission) {
         this.repository = repository;
         this.authorization = authorization;
-        this.adminApplicationId = adminApplicationId;
+        this.administeringApplication = administeringApplication;
         this.manageLoginClientsPermission = manageLoginClientsPermission;
     }
 
@@ -123,21 +122,9 @@ public class LoginClientAdminServiceImpl implements LoginClientAdminService {
         LOGGER.info("Login client deleted. alias={}, by={}", entity.getAlias(), actorId);
     }
 
-    /// The caller must hold the login-client-manage permission in the configured application. Without a configured application nobody can
-    /// administer the clients (fail closed).
+    /// The caller must hold the login-client-manage permission in the administering application (Iris), or be a platform administrator.
     private void authorize(String sessionToken) {
-        if (Objects.isNull(adminApplicationId) || adminApplicationId.isBlank()) {
-            LOGGER.warn("Login clients administration refused: umdc.security.login-clients.admin-application-id is not set");
-            throw new ForbiddenException(NOT_CONFIGURED);
-        }
-        UUID applicationId;
-        try {
-            applicationId = UUID.fromString(adminApplicationId.trim());
-        } catch (IllegalArgumentException e) {
-            LOGGER.error("umdc.security.login-clients.admin-application-id is not a UUID");
-            throw new ForbiddenException(NOT_CONFIGURED, e);
-        }
-        authorization.assertPermission(sessionToken, applicationId, manageLoginClientsPermission);
+        authorization.assertPermission(sessionToken, administeringApplication.id(sessionToken), manageLoginClientsPermission);
     }
 
     private LoginClientEntity find(UUID id) {

@@ -709,6 +709,23 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ReferenceItemResponse'
+  /api/v1/templates/applications:
+    get:
+      tags: [templates]
+      summary: List the applications whose templates the caller may manage
+      description: >
+        The active applications in which the caller holds the template-manage permission (`umdc.security.permissions.template-manage`).
+        A platform administrator (`PLATFORM_ADMIN` in Iris) gets all of them. Empty when the caller manages none.
+      operationId: listManageableApplications
+      responses:
+        '200':
+          description: Applications by name.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TemplateApplicationResponse'
   /api/v1/templates/defined:
     get:
       tags: [templates]
@@ -1638,6 +1655,18 @@ components:
         description:
           type: string
           nullable: true
+
+    TemplateApplicationResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        codeName:
+          type: string
+          description: Short code of the application; also its template folder.
 
     TemplateDefinedItemResponse:
       type: object

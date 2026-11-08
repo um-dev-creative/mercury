@@ -1,7 +1,6 @@
 package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
-import com.umdc.mercury.api.v1.service.ApplicationAuthorizationServiceImpl;
 import com.umdc.mercury.client.BackbonePermissionClient;
 import com.umdc.mercury.client.to.PermissionCheckRequest;
 import com.umdc.mercury.client.to.PermissionCheckResponse;
@@ -21,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,12 +33,15 @@ class ApplicationAuthorizationServiceImplTest {
     @Mock
     private BackbonePermissionClient backbonePermissionClient;
 
+    @Mock
+    private AdministeringApplication administeringApplication;
+
     private ApplicationAuthorizationServiceImpl service;
     private UUID applicationId;
 
     @BeforeEach
     void setUp() {
-        service = new ApplicationAuthorizationServiceImpl(backbonePermissionClient);
+        service = new ApplicationAuthorizationServiceImpl(backbonePermissionClient, administeringApplication, "PLATFORM_ADMIN");
         applicationId = UUID.randomUUID();
     }
 
@@ -124,6 +127,75 @@ class ApplicationAuthorizationServiceImplTest {
 
             assertThrows(ForbiddenException.class,
                     () -> service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION));
+        }
+    }
+
+    @Nested
+    @DisplayName("platform administrators")
+    class PlatformAdministrators {
+
+        private final UUID irisId = UUID.randomUUID();
+
+        private PermissionCheckResponse answer(boolean granted, String permission) {
+            return new PermissionCheckResponse(granted, permission, granted ? "Permission granted" : "not granted");
+        }
+
+        @Test
+        @DisplayName("a platform administrator passes in an application where the role does not grant the permission")
+        void platformAdminIsGrantedEverywhere() {
+            when(administeringApplication.id(any())).thenReturn(irisId);
+            when(backbonePermissionClient.check(new PermissionCheckRequest(PERMISSION, applicationId, SESSION_TOKEN)))
+                    .thenReturn(answer(false, PERMISSION));
+            when(backbonePermissionClient.check(new PermissionCheckRequest("PLATFORM_ADMIN", irisId, SESSION_TOKEN)))
+                    .thenReturn(answer(true, "PLATFORM_ADMIN"));
+
+            assertThatCode(() -> service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("the platform-admin check is not made when the application itself grants the permission")
+        void applicationGrantSkipsThePlatformCheck() {
+            when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenReturn(answer(true, PERMISSION));
+
+            service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION);
+
+            verifyNoInteractions(administeringApplication);
+        }
+
+        @Test
+        @DisplayName("without the platform-admin permission the denial stands")
+        void notPlatformAdminIsDenied() {
+            when(administeringApplication.id(any())).thenReturn(irisId);
+            when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenReturn(answer(false, PERMISSION));
+
+            assertThrows(ForbiddenException.class, () -> service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION));
+        }
+
+        @Test
+        @DisplayName("an unresolvable administering application means nobody is a platform administrator")
+        void unresolvableAdministeringApplicationFailsClosed() {
+            when(administeringApplication.id(any())).thenThrow(new ForbiddenException("not configured"));
+
+            assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();
+        }
+
+        @Test
+        @DisplayName("a missing session token is never a platform administrator, and holds() refuses it too")
+        void missingTokenFailsClosed() {
+            assertThat(service.isPlatformAdmin(null)).isFalse();
+            assertThat(service.isPlatformAdmin(" ")).isFalse();
+            assertThat(service.holds(null, applicationId, PERMISSION)).isFalse();
+            assertThat(service.holds(SESSION_TOKEN, null, PERMISSION)).isFalse();
+            verifyNoInteractions(backbonePermissionClient);
+        }
+
+        @Test
+        @DisplayName("a backbone failure while checking platform admin fails closed")
+        void backboneFailureFailsClosed() {
+            when(administeringApplication.id(any())).thenReturn(irisId);
+            when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenThrow(new RuntimeException("down"));
+
+            assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();
         }
     }
 }
