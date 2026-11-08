@@ -131,7 +131,7 @@ public class ApplicationTemplateFolders {
 
     /** The folder an application gets when none is chosen: its own id, which is unique and needs no lookup. */
     public static String defaultFolder(UUID applicationId) {
-        return java.util.Objects.requireNonNull(applicationId, "applicationId").toString().toLowerCase(java.util.Locale.ROOT);
+        return Objects.requireNonNull(applicationId, "applicationId").toString().toLowerCase(java.util.Locale.ROOT);
     }
 
     private Optional<String> readThrough(UUID applicationId) {
