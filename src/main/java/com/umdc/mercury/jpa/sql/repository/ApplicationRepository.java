@@ -10,4 +10,7 @@ public interface ApplicationRepository extends JpaRepository<ApplicationEntity, 
 
     /// Applications whose `code_name` equals the given one, ignoring case.
     List<ApplicationEntity> findAllByCodeNameIgnoreCase(String codeName);
+
+    /// The applications backbone-rest has enabled.
+    List<ApplicationEntity> findAllByActiveTrue();
 }

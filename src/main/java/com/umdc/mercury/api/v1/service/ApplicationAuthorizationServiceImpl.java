@@ -6,6 +6,7 @@ import com.umdc.mercury.client.to.PermissionCheckResponse;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
@@ -18,9 +19,15 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
     private static final String DENIED_MESSAGE = "Caller lacks permission to manage this application";
 
     private final BackbonePermissionClient backbonePermissionClient;
+    private final AdministeringApplication administeringApplication;
+    private final String platformAdminPermission;
 
-    public ApplicationAuthorizationServiceImpl(BackbonePermissionClient backbonePermissionClient) {
+    public ApplicationAuthorizationServiceImpl(BackbonePermissionClient backbonePermissionClient,
+                                               AdministeringApplication administeringApplication,
+                                               @Value("${umdc.security.permissions.platform-admin:PLATFORM_ADMIN}") String platformAdminPermission) {
         this.backbonePermissionClient = backbonePermissionClient;
+        this.administeringApplication = administeringApplication;
+        this.platformAdminPermission = platformAdminPermission;
     }
 
     @Override
@@ -29,14 +36,38 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
             logger.warn("Cannot authorize — missing sessionToken or applicationId");
             throw new ForbiddenException(DENIED_MESSAGE);
         }
-
-        PermissionCheckResponse response = callBackbone(sessionToken, applicationId, permission);
-
-        if (Objects.isNull(response) || !response.granted()) {
-            String reason = Objects.nonNull(response) ? response.reason() : "no response from backbone";
-            logger.warn("Permission denied. applicationId={}, permission={}, reason={}", applicationId, permission, reason);
+        if (!holds(sessionToken, applicationId, permission) && !isPlatformAdmin(sessionToken)) {
+            logger.warn("Permission denied. applicationId={}, permission={}", applicationId, permission);
             throw new ForbiddenException(DENIED_MESSAGE);
         }
+    }
+
+    @Override
+    public boolean holds(String sessionToken, UUID applicationId, String permission) {
+        if (Objects.isNull(sessionToken) || sessionToken.isBlank() || Objects.isNull(applicationId)) {
+            return false;
+        }
+        PermissionCheckResponse response = callBackbone(sessionToken, applicationId, permission);
+        if (Objects.isNull(response) || !response.granted()) {
+            logger.debug("Permission not held. applicationId={}, permission={}, reason={}", applicationId, permission,
+                    Objects.nonNull(response) ? response.reason() : "no response from backbone");
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public boolean isPlatformAdmin(String sessionToken) {
+        if (Objects.isNull(sessionToken) || sessionToken.isBlank()) {
+            return false;
+        }
+        UUID administering;
+        try {
+            administering = administeringApplication.id();
+        } catch (ForbiddenException e) {
+            return false;
+        }
+        return holds(sessionToken, administering, platformAdminPermission);
     }
 
     /**
