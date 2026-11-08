@@ -24,6 +24,7 @@ Para ver qué carpeta usa una aplicación, llama a `GET /api/v1/templates/applic
 - Una plantilla es un solo archivo con letras, números, `_`, `-` y `.`, que termina en `.ftl`, `.ftlh`, `.md` o `.html`. No puede estar en una subcarpeta.
 - Puedes agregar o cambiar un archivo en la carpeta y Mercury lo usa en unos 5 segundos, sin reiniciar.
 - El nombre que le das a una plantilla en Mercury (su `location`) es ese nombre de archivo.
+- **La carpeta debe poder escribirla Mercury** (con `TEMPLATE_STORAGE=local`): al guardar una plantilla editada o creada desde Iris se escribe el archivo, y se crea la subcarpeta de la aplicación, ahí. Un montaje de solo lectura (por ejemplo un volumen de Docker con `:ro`) hace que cada guardado responda `500` con `Read-only file system`; monta la carpeta con escritura, da permiso de escritura al usuario del contenedor, o guarda las plantillas en un bucket.
 - Si la carpeta no existe al arrancar, Mercury se detiene con un error que nombra la carpeta. Créala o corrige `TEMPLATE_PATH`.
 - Una plantilla que no se encuentra, o con un nombre no permitido, se omite y el mensaje usa el texto plano de la campaña.
 
