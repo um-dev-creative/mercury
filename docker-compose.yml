@@ -48,7 +48,9 @@ services:
       # without rebuilding the image. Set MERCURY_TEMPLATES_HOST_PATH in config/local.env (see
       # its own comment there) — read via --env-file per the header comment above; defaults to
       # the repo checkout's own templates when Compose falls back to its inline default.
-      - ${MERCURY_TEMPLATES_HOST_PATH:-./src/main/resources/templates}:/usr/local/runme/templates:ro
+      # NOT read-only: Mercury writes here (templates edited or created from Iris, and their folders), so a `:ro` mount answers 500
+      # "Read-only file system" on every save. The user of the container needs write permission on the host directory.
+      - ${MERCURY_TEMPLATES_HOST_PATH:-./src/main/resources/templates}:/usr/local/runme/templates
 
 networks:
   nginx_umdc-net:

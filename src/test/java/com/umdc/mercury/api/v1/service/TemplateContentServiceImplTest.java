@@ -6,7 +6,6 @@ import com.umdc.mercury.api.v1.to.PreviewTemplateRequest;
 import com.umdc.mercury.api.v1.to.PreviewTemplateResponse;
 import com.umdc.mercury.api.v1.to.TemplateContentResponse;
 import com.umdc.mercury.api.v1.to.TemplateVersionResponse;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.template.content.ContentTooLargeException;
@@ -59,19 +58,17 @@ class TemplateContentServiceImplTest {
     @BeforeEach
     void setUp() {
         storage = new LocalTemplateStorage(dir);
-        folders = com.umdc.mercury.template.TemplateFolderFixtures.noFolders();
+        folders = new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class), 60);
         service = new TemplateContentServiceImpl(repository, storage, versions, folders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
     }
 
     private TemplateEntity template(String location, Boolean active) {
-        ApplicationEntity application = new ApplicationEntity();
-        application.setId(applicationId);
         TemplateEntity entity = new TemplateEntity();
         entity.setId(templateId);
         entity.setLocation(location);
         entity.setActive(active);
-        entity.setApplication(application);
+        entity.setApplicationId(applicationId);
         return entity;
     }
 
@@ -332,7 +329,7 @@ class TemplateContentServiceImplTest {
 
     @Test
     void contentOfAnApplicationWithAFolderIsReadAndSavedInsideThatFolder() {
-        var inFolders = com.umdc.mercury.template.TemplateFolderFixtures.folders(applicationId, "IRIS");
+        var inFolders = foldersWith(applicationId, "iris");
         var foldered = new TemplateContentServiceImpl(repository, storage, versions, inFolders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
         found("welcome.ftl");
@@ -355,5 +352,12 @@ class TemplateContentServiceImplTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(TemplateNotFoundException.class,
                 () -> service.read(templateId, TOKEN));
+    }
+
+    private static com.umdc.mercury.template.ApplicationTemplateFolders foldersWith(UUID application, String folder) {
+        var repository = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class);
+        org.mockito.Mockito.when(repository.findById(application)).thenReturn(java.util.Optional.of(
+                new com.umdc.mercury.jpa.sql.entity.ApplicationTemplateFolderEntity(application, folder, java.time.LocalDateTime.now())));
+        return new com.umdc.mercury.template.ApplicationTemplateFolders(repository, 60);
     }
 }

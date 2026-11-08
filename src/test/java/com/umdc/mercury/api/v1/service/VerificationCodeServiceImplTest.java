@@ -3,7 +3,6 @@ package com.umdc.mercury.api.v1.service;
 import com.umdc.mercury.api.v1.service.VerificationCodeServiceImpl;
 import com.umdc.mercury.api.v1.to.VerificationCodeRequest;
 import com.umdc.mercury.api.v1.to.VerificationCodeTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import com.umdc.mercury.jpa.sql.repository.VerificationCodeRepository;
 import com.umdc.mercury.mapper.VerificationCodeMapper;
@@ -57,7 +56,7 @@ class VerificationCodeServiceImplTest {
         VerificationCodeEntity verificationCodeEntity = new VerificationCodeEntity();
         verificationCodeEntity.setId(id);
         verificationCodeEntity.setUserId(UUID.randomUUID());
-        verificationCodeEntity.setApplication(new ApplicationEntity());
+        verificationCodeEntity.setApplicationId(UUID.randomUUID());
         verificationCodeEntity.setVerificationCode("123456");
         verificationCodeEntity.setCreatedAt(LocalDateTime.now());
         verificationCodeEntity.setExpiresAt(LocalDateTime.now().plusDays(1));
@@ -159,7 +158,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity entity = new VerificationCodeEntity();
         entity.setUserId(userId);
-        entity.setApplication(new ApplicationEntity());
+        entity.setApplicationId(UUID.randomUUID());
         entity.setAttempts(3);
         entity.setMaxAttempts(3);
         entity.setIsVerified(false);
@@ -188,7 +187,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity entity = new VerificationCodeEntity();
         entity.setUserId(userId);
-        entity.setApplication(new ApplicationEntity());
+        entity.setApplicationId(UUID.randomUUID());
         entity.setAttempts(0);
         entity.setMaxAttempts(3);
         entity.setIsVerified(false);
@@ -222,7 +221,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity entity = new VerificationCodeEntity();
         entity.setUserId(userId);
-        entity.setApplication(new ApplicationEntity());
+        entity.setApplicationId(UUID.randomUUID());
         entity.setAttempts(0);
         entity.setMaxAttempts(3);
         entity.setIsVerified(false);
@@ -254,7 +253,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity ineligible = new VerificationCodeEntity();
         ineligible.setUserId(userId);
-        ineligible.setApplication(new ApplicationEntity());
+        ineligible.setApplicationId(UUID.randomUUID());
         ineligible.setAttempts(3);
         ineligible.setMaxAttempts(3);
         ineligible.setIsVerified(false);
@@ -262,7 +261,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity eligible = new VerificationCodeEntity();
         eligible.setUserId(userId);
-        eligible.setApplication(new ApplicationEntity());
+        eligible.setApplicationId(UUID.randomUUID());
         eligible.setAttempts(0);
         eligible.setMaxAttempts(3);
         eligible.setIsVerified(false);
@@ -295,7 +294,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity e1 = new VerificationCodeEntity();
         e1.setUserId(userId);
-        e1.setApplication(new ApplicationEntity());
+        e1.setApplicationId(UUID.randomUUID());
         e1.setAttempts(0);
         e1.setMaxAttempts(3);
         e1.setIsVerified(false);
@@ -303,7 +302,7 @@ class VerificationCodeServiceImplTest {
 
         VerificationCodeEntity e2 = new VerificationCodeEntity();
         e2.setUserId(userId);
-        e2.setApplication(new ApplicationEntity());
+        e2.setApplicationId(UUID.randomUUID());
         e2.setAttempts(1);
         e2.setMaxAttempts(3);
         e2.setIsVerified(false);
@@ -334,7 +333,7 @@ class VerificationCodeServiceImplTest {
     private VerificationCodeEntity pending(String code, int attempts, int max) {
         VerificationCodeEntity entity = new VerificationCodeEntity();
         entity.setUserId(UUID.randomUUID());
-        entity.setApplication(new ApplicationEntity());
+        entity.setApplicationId(UUID.randomUUID());
         entity.setAttempts(attempts);
         entity.setMaxAttempts(max);
         entity.setIsVerified(false);

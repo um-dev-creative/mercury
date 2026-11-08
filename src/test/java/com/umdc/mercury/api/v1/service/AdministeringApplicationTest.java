@@ -1,8 +1,7 @@
 package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
-import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
+import com.umdc.mercury.client.to.BackboneApplication;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,19 +15,19 @@ import static org.mockito.Mockito.when;
 
 class AdministeringApplicationTest {
 
-    private final ApplicationRepository applications = mock(ApplicationRepository.class);
+    private static final String TOKEN = "session";
 
-    private static ApplicationEntity application(UUID id) {
-        var entity = new ApplicationEntity();
-        entity.setId(id);
-        return entity;
+    private final ApplicationDirectory applications = mock(ApplicationDirectory.class);
+
+    private static BackboneApplication application(UUID id) {
+        return new BackboneApplication(id, "Iris", "iris", true);
     }
 
     @Test
-    void aForcedIdWinsAndTheTableIsNotConsulted() {
+    void aForcedIdWinsAndBackboneIsNotAsked() {
         var id = UUID.randomUUID();
 
-        assertEquals(id, new AdministeringApplication(applications, " " + id + " ", "iris").id());
+        assertEquals(id, new AdministeringApplication(applications, " " + id + " ", "iris").id(TOKEN));
         verifyNoInteractions(applications);
     }
 
@@ -36,7 +35,7 @@ class AdministeringApplicationTest {
     void anIdThatIsNotAUuidRefusesEveryone() {
         var broken = new AdministeringApplication(applications, "IRIS_CLIENTS_ADMIN", "iris");
 
-        assertThrows(ForbiddenException.class, broken::id);
+        assertThrows(ForbiddenException.class, () -> broken.id(TOKEN));
         verifyNoInteractions(applications);
     }
 
@@ -45,28 +44,37 @@ class AdministeringApplicationTest {
         for (String codeName : new String[] {"", "  ", null}) {
             var unconfigured = new AdministeringApplication(applications, null, codeName);
 
-            assertThrows(ForbiddenException.class, unconfigured::id);
+            assertThrows(ForbiddenException.class, () -> unconfigured.id(TOKEN));
         }
         verifyNoInteractions(applications);
     }
 
     @Test
-    void theApplicationIsFoundByItsCodeName() {
+    void theApplicationIsFoundByItsCodeNameThroughBackbone() {
         var id = UUID.randomUUID();
-        when(applications.findAllByCodeNameIgnoreCase("iris")).thenReturn(List.of(application(id)));
+        when(applications.byCodeName(TOKEN, "iris")).thenReturn(List.of(application(id)));
 
-        assertEquals(id, new AdministeringApplication(applications, " ", " iris ").id());
+        assertEquals(id, new AdministeringApplication(applications, " ", " iris ").id(TOKEN));
     }
 
     @Test
     void aCodeNameThatMatchesNoneOrSeveralApplicationsRefusesEveryone() {
-        when(applications.findAllByCodeNameIgnoreCase("iris")).thenReturn(List.of());
-        when(applications.findAllByCodeNameIgnoreCase("lucky_le")).thenReturn(List.of(application(UUID.randomUUID()), application(UUID.randomUUID())));
+        when(applications.byCodeName(TOKEN, "iris")).thenReturn(List.of());
+        when(applications.byCodeName(TOKEN, "lucky_le")).thenReturn(List.of(application(UUID.randomUUID()), application(UUID.randomUUID())));
 
         for (String codeName : new String[] {"iris", "lucky_le"}) {
             var ambiguous = new AdministeringApplication(applications, "", codeName);
 
-            assertThrows(ForbiddenException.class, ambiguous::id);
+            assertThrows(ForbiddenException.class, () -> ambiguous.id(TOKEN));
         }
+    }
+
+    @Test
+    void whenBackboneCannotAnswerEveryoneIsRefused() {
+        when(applications.byCodeName(TOKEN, "iris")).thenThrow(new ForbiddenException("Applications cannot be listed"));
+
+        var administering = new AdministeringApplication(applications, "", "iris");
+
+        assertThrows(ForbiddenException.class, () -> administering.id(TOKEN));
     }
 }

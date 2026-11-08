@@ -25,10 +25,10 @@ public class TemplateDefinedEntity {
     @Column(name = "user_id", nullable = false)
     private UUID userId;
 
+    /** The application (backbone-rest's): only its id is kept, Mercury never reads the general schema. */
     @NotNull
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "application_id", nullable = false)
-    private ApplicationEntity application;
+    @Column(name = "application_id", nullable = false)
+    private UUID applicationId;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
@@ -82,12 +82,12 @@ public class TemplateDefinedEntity {
         this.userId = userId;
     }
 
-    public ApplicationEntity getApplication() {
-        return application;
+    public UUID getApplicationId() {
+        return applicationId;
     }
 
-    public void setApplication(ApplicationEntity application) {
-        this.application = application;
+    public void setApplicationId(UUID applicationId) {
+        this.applicationId = applicationId;
     }
 
     public LocalDateTime getCreatedAt() {

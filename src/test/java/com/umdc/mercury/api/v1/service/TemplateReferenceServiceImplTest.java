@@ -95,7 +95,7 @@ class TemplateReferenceServiceImplTest {
     @Test
     void definedChecksThePermissionThenListsActiveTemplatesSorted() {
         TemplateTypeEntity verification = type("VERIFICATION", true);
-        when(defined.findByApplication_IdAndIsActiveTrue(applicationId)).thenReturn(List.of(
+        when(defined.findByApplicationIdAndIsActiveTrue(applicationId)).thenReturn(List.of(
                 definition("zeta", true, verification),
                 definition("Alpha", true, null),
                 definition("inactive base", false, verification)));
@@ -113,7 +113,7 @@ class TemplateReferenceServiceImplTest {
     void definedSkipsAnEntryWithoutTemplate() {
         TemplateDefinedEntity orphan = new TemplateDefinedEntity();
         orphan.setId(UUID.randomUUID());
-        when(defined.findByApplication_IdAndIsActiveTrue(applicationId)).thenReturn(List.of(orphan));
+        when(defined.findByApplicationIdAndIsActiveTrue(applicationId)).thenReturn(List.of(orphan));
 
         assertThat(service.listDefined(applicationId, TOKEN)).isEmpty();
     }

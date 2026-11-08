@@ -34,7 +34,7 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
      * @param isVerified     The verification status to filter by
      * @return A list of verification code entities matching the criteria
      */
-    @Query("SELECT vce FROM VerificationCodeEntity vce WHERE vce.userId = :userId AND vce.applicationEntity.id = :applicationId AND vce.expiresAt > :expiresAtAfter AND vce.isVerified = :isVerified")
+    @Query("SELECT vce FROM VerificationCodeEntity vce WHERE vce.userId = :userId AND vce.applicationId = :applicationId AND vce.expiresAt > :expiresAtAfter AND vce.isVerified = :isVerified")
     List<VerificationCodeEntity> findByUserIdAndApplicationIdAndExpiresAtBeforeAndIsVerified(
             @Param("userId") UUID userId,
             @Param("applicationId") UUID applicationId,
@@ -52,7 +52,7 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
      * @return how many codes were expired
      */
     @Modifying
-    @Query("UPDATE VerificationCodeEntity vce SET vce.expiresAt = :now WHERE vce.userId = :userId AND vce.applicationEntity.id = :applicationId AND vce.isVerified = false AND vce.expiresAt > :now")
+    @Query("UPDATE VerificationCodeEntity vce SET vce.expiresAt = :now WHERE vce.userId = :userId AND vce.applicationId = :applicationId AND vce.isVerified = false AND vce.expiresAt > :now")
     int expirePending(@Param("userId") UUID userId, @Param("applicationId") UUID applicationId, @Param("now") LocalDateTime now);
 
     /**

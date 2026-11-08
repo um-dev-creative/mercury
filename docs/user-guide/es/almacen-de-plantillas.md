@@ -6,22 +6,25 @@ El texto de cada mensaje que envía Mercury (el correo de verificación, el mens
 
 ## Una carpeta por aplicación
 
-Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o TEMPLATE_S3_PREFIX>/<carpeta>/<archivo>`. Por ejemplo, con `TEMPLATE_S3_PREFIX=lth/mercury/templates/` las plantillas de Iris son `lth/mercury/templates/iris/iris_welcome.ftl`, y las demás están en `sakn/`, `zeronbou/`, `latinhub/` y `lucky_le/`.
+Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o TEMPLATE_S3_PREFIX>/<carpeta>/<archivo>`. Por ejemplo, con `TEMPLATE_S3_PREFIX=lth/mercury/templates/` las plantillas de Iris son `lth/mercury/templates/iris/iris_welcome.ftl`, y las demás están en `smartkind/`, `zerobound/` y `latinhub/`.
 
 - El `location` de una plantilla sigue siendo el nombre del archivo (`iris_welcome.ftl`). Mercury añade la carpeta de la aplicación de la plantilla, tanto al enviar un mensaje como al editarla desde Iris, así que ambos usan el mismo archivo.
-- La carpeta de una aplicación es su `code_name` en minúsculas (`general.application.code_name`), sin mapeos: las carpetas del bucket se llaman como los code names (por ejemplo `iris`, `latinhub`, `sakn`, `zeronbou`, `lucky_le`). Las aplicaciones que comparten `code_name` comparten carpeta.
-- Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zeronbou`, el `code_name` de ZeroBound REST).
+- Cada aplicación tiene su propia carpeta y la gestiona el propio Mercury: al crear la **primera plantilla de una aplicación nueva**, Mercury crea su carpeta (con el id de la aplicación como nombre) y la usa desde entonces. No hay que configurar nada cuando aparece una aplicación nueva.
+- Para darle a una aplicación un nombre de carpeta más amigable, usa `PUT /api/v1/templates/applications/<id de la aplicación>/folder` con el cuerpo `{"folder": "mi-app"}` (necesitas el permiso template-manage en esa aplicación; `GET` sobre la misma ruta muestra la actual). Una carpeta pertenece a una sola aplicación. Cambiarla **no mueve** los archivos: copia antes las plantillas a la carpeta nueva.
+- Las aplicaciones que ya guardan sus plantillas en una carpeta con nombre se registran una vez con el script `scripts/templates/seed-application-folders.sql` (revisa antes los ids de aplicación que trae). No hay ninguna variable de configuración para las carpetas, y una aplicación nueva no necesita nada.
+- Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zerobound`).
 - Una carpeta usa minúsculas, dígitos, `_` y `-`, hasta 64 caracteres. Solo hay un nivel de carpetas.
-- Una aplicación sin un `code_name` utilizable sigue funcionando con archivos en la raíz, y Mercury registra un aviso con su nombre.
+- Una aplicación que aún no tiene carpeta (sin plantillas creadas desde Mercury desde que existen las carpetas) sigue funcionando con sus archivos en la raíz del almacén.
 - Cloudflare R2: `TEMPLATE_STORAGE=s3` más `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<id de cuenta>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` y `CLOUDFLARE_R2_SECRET_KEY` (secretos, guárdalos en Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (ruta base de las plantillas), `TEMPLATE_S3_REGION=auto` y `TEMPLATE_S3_PATH_STYLE=true`.
 
-Para comprobar que cada aplicación encuentra su carpeta, ejecuta `SELECT id, name, code_name FROM general.application;` y compara `lower(code_name)` con las carpetas del bucket.
+Para ver qué carpeta usa una aplicación, llama a `GET /api/v1/templates/applications/<id de la aplicación>/folder` o lee la tabla `mercury.application_template_folders` (id de la aplicación y carpeta).
 
 ## Lo que debes saber
 
 - Una plantilla es un solo archivo con letras, números, `_`, `-` y `.`, que termina en `.ftl`, `.ftlh`, `.md` o `.html`. No puede estar en una subcarpeta.
 - Puedes agregar o cambiar un archivo en la carpeta y Mercury lo usa en unos 5 segundos, sin reiniciar.
 - El nombre que le das a una plantilla en Mercury (su `location`) es ese nombre de archivo.
+- **La carpeta debe poder escribirla Mercury** (con `TEMPLATE_STORAGE=local`): al guardar una plantilla editada o creada desde Iris se escribe el archivo, y se crea la subcarpeta de la aplicación, ahí. Un montaje de solo lectura (por ejemplo un volumen de Docker con `:ro`) hace que cada guardado responda `500` con `Read-only file system`; monta la carpeta con escritura, da permiso de escritura al usuario del contenedor, o guarda las plantillas en un bucket.
 - Si la carpeta no existe al arrancar, Mercury se detiene con un error que nombra la carpeta. Créala o corrige `TEMPLATE_PATH`.
 - Una plantilla que no se encuentra, o con un nombre no permitido, se omite y el mensaje usa el texto plano de la campaña.
 

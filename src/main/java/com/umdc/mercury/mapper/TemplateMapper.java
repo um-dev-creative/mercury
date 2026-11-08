@@ -4,7 +4,6 @@ import com.umdc.commons.services.config.mapper.MapperAppConfig;
 import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
@@ -27,7 +26,7 @@ public interface TemplateMapper {
     @Mapping(target = "templateType", source = "templateType")
     @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
     @Mapping(target = "updatedAt", expression = "java(java.time.LocalDateTime.now())")
-    @Mapping(target = "application", expression = "java(getApplication(templateTO.application()))")
+    @Mapping(target = "applicationId", source = "application")
     TemplateEntity toSource(TemplateTO templateTO);
 
     @Mapping(target = "id", source = "id")
@@ -35,7 +34,7 @@ public interface TemplateMapper {
     @Mapping(target = "templateType", source = "templateType")
     @Mapping(target = "createdAt", source = "createdAt")
     @Mapping(target = "updatedAt", source = "updatedAt")
-    @Mapping(target = "application", source = "application.id")
+    @Mapping(target = "application", source = "applicationId")
     TemplateTO toTemplateTO(TemplateEntity templateEntity);
 
     /**
@@ -47,14 +46,14 @@ public interface TemplateMapper {
     @Mapping(target = "description", source = "request.description")
     @Mapping(target = "location", source = "request.location")
     @Mapping(target = "fileFormat", source = "request.fileFormat")
+    @Mapping(target = "applicationId", source = "request.applicationId")
     @Mapping(target = "createdAt", source = "now")
     @Mapping(target = "updatedAt", source = "now")
     TemplateEntity toEntity(CreateTemplateRequest request, TemplateTypeEntity templateType,
-                             ApplicationEntity application, SeverityTypeEntity severityType, LocalDateTime now);
+                             SeverityTypeEntity severityType, LocalDateTime now);
 
     @Mapping(target = "templateTypeId", source = "templateType.id")
     @Mapping(target = "templateTypeName", source = "templateType.name")
-    @Mapping(target = "applicationId", source = "application.id")
     @Mapping(target = "severityTypeId", source = "severityType.id")
     @Mapping(target = "severityTypeName", source = "severityType.name")
     TemplateDetailResponse toDetailResponse(TemplateEntity templateEntity);
@@ -65,10 +64,5 @@ public interface TemplateMapper {
         return templateEntity;
     }
 
-    default ApplicationEntity getApplication(UUID applicationId) {
-        var applicationEntity = new ApplicationEntity();
-        applicationEntity.setId(applicationId);
-        return applicationEntity;
-    }
 
 }

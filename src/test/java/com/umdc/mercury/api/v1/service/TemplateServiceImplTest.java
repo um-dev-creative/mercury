@@ -10,11 +10,9 @@ import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateSearchResponse;
 import com.umdc.mercury.api.v1.to.UpdateTemplateRequest;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
-import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import com.umdc.mercury.jpa.sql.repository.SeverityTypeRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateTypeEntityRepository;
@@ -66,10 +64,10 @@ class TemplateServiceImplTest {
     private SeverityTypeRepository severityTypeRepository;
 
     @Mock
-    private ApplicationRepository applicationRepository;
+    private ApplicationAuthorizationService applicationAuthorizationService;
 
     @Mock
-    private ApplicationAuthorizationService applicationAuthorizationService;
+    private com.umdc.mercury.template.ApplicationTemplateFolders templateFolders;
 
     @Mock
     private TemplateMapper templateMapper;
@@ -87,7 +85,7 @@ class TemplateServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TemplateServiceImpl(templateRepository, templateTypeRepository, severityTypeRepository,
-                applicationRepository, applicationAuthorizationService, templateMapper, templateUpdateApplier, PERMISSION);
+                applicationAuthorizationService, templateMapper, templateUpdateApplier, templateFolders, PERMISSION);
 
         requesterId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
@@ -124,9 +122,7 @@ class TemplateServiceImplTest {
         entity.setId(id);
         entity.setActive(true);
         entity.setDescription("desc");
-        ApplicationEntity application = new ApplicationEntity();
-        application.setId(applicationId);
-        entity.setApplication(application);
+        entity.setApplicationId(applicationId);
         return entity;
     }
 
@@ -139,14 +135,11 @@ class TemplateServiceImplTest {
         @Test
         @DisplayName("persists an active template and returns the mapped response")
         void createTemplate_success() throws Exception {
-            ApplicationEntity application = new ApplicationEntity();
-            application.setId(applicationId);
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(application));
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
             when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
 
             UUID newId = UUID.randomUUID();
-            when(templateMapper.toEntity(any(), any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
             when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> {
                 TemplateEntity e = inv.getArgument(0);
                 e.setId(newId);
@@ -175,20 +168,39 @@ class TemplateServiceImplTest {
         }
 
         @Test
-        @DisplayName("throws IllegalArgumentException when application does not exist")
-        void createTemplate_applicationNotFound() {
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.empty());
+        @DisplayName("the first template of an application gives it a folder; an application that already has templates keeps where they are")
+        void createTemplate_registersTheFolderOfANewApplicationOnly() throws Exception {
+            when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
+            when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            assertThrows(IllegalArgumentException.class, () -> service.createTemplate(createRequest(), requesterId, SESSION_TOKEN));
-            verify(templateRepository, never()).save(any());
+            when(templateRepository.existsByApplicationId(applicationId)).thenReturn(false);
+            service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
+            verify(templateFolders).ensureFolder(applicationId);
+
+            org.mockito.Mockito.clearInvocations(templateFolders);
+            when(templateRepository.existsByApplicationId(applicationId)).thenReturn(true);
+            service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
+            verify(templateFolders, never()).ensureFolder(any());
+        }
+
+        @Test
+        @DisplayName("builds the row from the request alone: the application is never loaded, only its id is kept")
+        void createTemplate_neverLoadsTheApplication() throws Exception {
+            when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
+            when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
+
+            verify(templateMapper).toEntity(eq(createRequest()), any(), any(), any());
         }
 
         @Test
         @DisplayName("throws IllegalArgumentException when template type does not exist")
         void createTemplate_templateTypeNotFound() {
-            ApplicationEntity application = new ApplicationEntity();
-            application.setId(applicationId);
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(application));
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.empty());
 
             assertThrows(IllegalArgumentException.class, () -> service.createTemplate(createRequest(), requesterId, SESSION_TOKEN));
@@ -198,9 +210,6 @@ class TemplateServiceImplTest {
         @Test
         @DisplayName("throws IllegalArgumentException when template type is inactive")
         void createTemplate_templateTypeInactive() {
-            ApplicationEntity application = new ApplicationEntity();
-            application.setId(applicationId);
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(application));
             TemplateTypeEntity inactive = activeTemplateType();
             inactive.setActive(false);
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(inactive));
@@ -211,9 +220,6 @@ class TemplateServiceImplTest {
         @Test
         @DisplayName("throws IllegalArgumentException when severity type does not exist")
         void createTemplate_severityTypeNotFound() {
-            ApplicationEntity application = new ApplicationEntity();
-            application.setId(applicationId);
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(application));
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
             when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.empty());
 
@@ -223,9 +229,6 @@ class TemplateServiceImplTest {
         @Test
         @DisplayName("throws IllegalArgumentException when severity type is inactive")
         void createTemplate_severityTypeInactive() {
-            ApplicationEntity application = new ApplicationEntity();
-            application.setId(applicationId);
-            when(applicationRepository.findById(applicationId)).thenReturn(Optional.of(application));
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
             SeverityTypeEntity inactive = activeSeverityType();
             inactive.setActive(false);

@@ -3,7 +3,6 @@ package com.umdc.mercury.mapper;
 import com.umdc.commons.services.config.mapper.MapperAppConfig;
 import com.umdc.mercury.api.v1.to.SendEmailRequest;
 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.FrequencyTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
@@ -26,7 +25,7 @@ public interface TemplateDefinedMapper {
     @Mapping(target = "userId", source = "sendEmailRequest.userId")
     @Mapping(target = "frequencyType", source = "frequencyTypeId")
     @Mapping(target = "template", expression ="java(getTemplate(sendEmailRequest))")
-    @Mapping(target = "application", expression ="java(getApplication(applicationId))")
+    @Mapping(target = "applicationId", source = "applicationId")
     @Mapping(target = "createdAt", expression ="java(java.time.LocalDateTime.now())")
     @Mapping(target = "updatedAt", expression ="java(java.time.LocalDateTime.now())")
     TemplateDefinedEntity toSource(SendEmailRequest sendEmailRequest, UUID applicationId,
@@ -34,7 +33,7 @@ public interface TemplateDefinedMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "expiredAt", ignore = true)
-    @Mapping(target = "application", ignore = true)
+    @Mapping(target = "applicationId", ignore = true)
     @Mapping(target = "userId", source = "mail.userId")
     @Mapping(target = "isActive", expression = "java(true)")
     @Mapping(target = "template", expression = "java(getTemplate(mail))")
@@ -49,7 +48,6 @@ public interface TemplateDefinedMapper {
     @Mapping(target = "expiredAt", source = "expiredAt")
     @Mapping(target = "createdAt", source = "createdAt")
     @Mapping(target = "updatedAt", source = "updatedAt")
-    @Mapping(target = "applicationId", source = "application.id")
     @Mapping(target = "frequencyTypeId", source = "frequencyType.id")
     TemplateDefinedTO toTemplateDefinedTO(TemplateDefinedEntity templateDefinedEntity);
 
@@ -65,9 +63,4 @@ public interface TemplateDefinedMapper {
         return templateEntity;
     }
 
-    default ApplicationEntity getApplication(UUID applicationId) {
-        var applicationEntity = new ApplicationEntity();
-        applicationEntity.setId(applicationId);
-        return applicationEntity;
-    }
 }

@@ -124,7 +124,7 @@ public class LoginClientAdminServiceImpl implements LoginClientAdminService {
 
     /// The caller must hold the login-client-manage permission in the administering application (Iris), or be a platform administrator.
     private void authorize(String sessionToken) {
-        authorization.assertPermission(sessionToken, administeringApplication.id(), manageLoginClientsPermission);
+        authorization.assertPermission(sessionToken, administeringApplication.id(sessionToken), manageLoginClientsPermission);
     }
 
     private LoginClientEntity find(UUID id) {

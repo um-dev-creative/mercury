@@ -9,5 +9,5 @@ import java.util.UUID;
 public interface TemplateDefinedRepository extends JpaRepository<TemplateDefinedEntity, UUID>, JpaSpecificationExecutor<TemplateDefinedEntity> {
 
     /** Active template definitions of an application. */
-    java.util.List<TemplateDefinedEntity> findByApplication_IdAndIsActiveTrue(java.util.UUID applicationId);
+    java.util.List<TemplateDefinedEntity> findByApplicationIdAndIsActiveTrue(java.util.UUID applicationId);
 }

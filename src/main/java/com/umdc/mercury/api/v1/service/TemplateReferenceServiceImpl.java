@@ -65,7 +65,7 @@ public class TemplateReferenceServiceImpl implements TemplateReferenceService {
             throw new IllegalArgumentException("applicationId is required");
         }
         applicationAuthorizationService.assertPermission(sessionToken, applicationId, templateReadPermission);
-        return templateDefinedRepository.findByApplication_IdAndIsActiveTrue(applicationId).stream()
+        return templateDefinedRepository.findByApplicationIdAndIsActiveTrue(applicationId).stream()
                 .filter(defined -> Objects.nonNull(defined.getTemplate()) && !Boolean.FALSE.equals(defined.getTemplate().getActive()))
                 .map(TemplateReferenceServiceImpl::toItem)
                 .sorted(Comparator.comparing(TemplateDefinedItemResponse::description, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER)))

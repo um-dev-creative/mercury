@@ -277,6 +277,12 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- In-memory database only to let Hibernate and Spring Data check the repositories against the entities (RepositoryMappingTest); no tables are created. -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- @WebMvcTest slice + spring-security-test: exercise the real SecurityFilterChain beans -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

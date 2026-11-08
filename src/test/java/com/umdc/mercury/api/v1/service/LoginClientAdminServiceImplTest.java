@@ -58,7 +58,7 @@ class LoginClientAdminServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new LoginClientAdminServiceImpl(repository, authorization, administering, PERMISSION);
-        when(administering.id()).thenReturn(APPLICATION);
+        when(administering.id(any())).thenReturn(APPLICATION);
         when(repository.save(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
         when(repository.saveAndFlush(any(LoginClientEntity.class))).thenAnswer(call -> call.getArgument(0));
     }
@@ -92,7 +92,7 @@ class LoginClientAdminServiceImplTest {
 
     @Test
     void whenTheAdministeringApplicationCannotBeResolvedNobodyCanAdminister() {
-        when(administering.id()).thenThrow(new ForbiddenException("not configured"));
+        when(administering.id(any())).thenThrow(new ForbiddenException("not configured"));
 
         assertThrows(ForbiddenException.class, () -> service.list(TOKEN));
         verifyNoInteractions(authorization, repository);

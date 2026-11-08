@@ -1,7 +1,6 @@
 package com.umdc.mercury.mapper;
 
 import com.umdc.mercury.api.v1.to.VerificationCodeTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
 import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import com.umdc.mercury.mapper.VerificationCodeMapper;
@@ -25,18 +24,6 @@ class VerificationCodeMapperTest {
             throw new UnsupportedOperationException("not implemented");
         }
     };
-
-    @Test
-    @DisplayName("toApplicationEntity should map applicationId to ApplicationEntity.id")
-    void toApplicationEntityMapsId() {
-        UUID appId = UUID.randomUUID();
-        VerificationCodeTO to = new VerificationCodeTO(null, null, appId, null, null, null, null, null, null, null, null, null, null, null);
-
-        ApplicationEntity app = mapper.toApplicationEntity(to);
-
-        assertNotNull(app);
-        assertEquals(appId, app.getId());
-    }
 
     @Test
     @DisplayName("toUserEntity should return the userId from TO")

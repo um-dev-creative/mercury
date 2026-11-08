@@ -63,7 +63,7 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
         }
         UUID administering;
         try {
-            administering = administeringApplication.id();
+            administering = administeringApplication.id(sessionToken);
         } catch (ForbiddenException e) {
             return false;
         }

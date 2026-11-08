@@ -136,11 +136,15 @@ umdc:
       # secrets: leave empty to use the AWS default credentials chain (instance role, environment, profile)
       access-key: ${CLOUDFLARE_R2_ACCESS_KEY:}
       secret-key: ${CLOUDFLARE_R2_SECRET_KEY:}
-    # each application keeps its templates in its own folder, named with its code_name in lower case (general.application.code_name):
-    # <storage root or s3 prefix>/<code_name>/<file> (lth/mercury/templates/iris/iris_welcome.ftl). No mapping
-    # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row:
-    # the code_name of ZeroBound REST
-    telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zeronbou}
+    # each application keeps its templates in its own folder: <storage root or s3 prefix>/<folder>/<file>
+    # (lth/mercury/templates/iris/iris_welcome.ftl). The folders are rows of mercury.application_template_folders (V2033), read and
+    # written dynamically, with nothing to configure: the first template created for an application that has no folder registers one
+    # named like the application id, and PUT /api/v1/templates/applications/{applicationId}/folder sets a friendlier name. Mercury
+    # never reads the general schema. An application without a row keeps its files at the root of the storage.
+    # seconds a folder read from the table is kept before it is read again (a change made by another instance applies within this time)
+    application-folders-cache-seconds: ${TEMPLATE_APPLICATION_FOLDERS_CACHE_SECONDS:60}
+    # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row
+    telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zerobound}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
     max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
     # versions of the content kept per template (older ones are deleted); needs mercury.template_versions (V2032)
@@ -195,8 +199,8 @@ umdc:
       # every application's template permission and the login-client administration.
       platform-admin: ${PLATFORM_ADMIN_PERMISSION:PLATFORM_ADMIN}
     login-clients:
-      # code_name of the backbone-rest application in which login-client-manage is checked (Iris). Mercury looks it up in its
-      # applications table, so nothing has to be copied between services or environments. Exactly one application must have it.
+      # code_name of the backbone-rest application in which login-client-manage is checked (Iris). Mercury asks backbone-rest's
+      # applications API with the caller's session (it never reads the general schema), so nothing has to be copied between services or environments. Exactly one application must have it.
       admin-application: ${LOGIN_CLIENTS_ADMIN_APPLICATION:iris}
       # Optional: force the application by id instead (wins over admin-application). Leave empty normally.
       admin-application-id: ${LOGIN_CLIENTS_ADMIN_APPLICATION_ID:}

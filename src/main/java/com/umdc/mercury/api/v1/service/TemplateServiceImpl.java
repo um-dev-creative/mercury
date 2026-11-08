@@ -5,11 +5,10 @@ import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateSearchResponse;
 import com.umdc.mercury.api.v1.to.UpdateTemplateRequest;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
-import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import com.umdc.mercury.jpa.sql.repository.SeverityTypeRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateSpecifications;
@@ -51,27 +50,27 @@ public class TemplateServiceImpl implements TemplateService {
     private final TemplateRepository templateRepository;
     private final TemplateTypeEntityRepository templateTypeRepository;
     private final SeverityTypeRepository severityTypeRepository;
-    private final ApplicationRepository applicationRepository;
     private final ApplicationAuthorizationService applicationAuthorizationService;
     private final TemplateMapper templateMapper;
     private final TemplateUpdateApplier templateUpdateApplier;
+    private final ApplicationTemplateFolders templateFolders;
     private final String templateManagePermission;
 
     public TemplateServiceImpl(TemplateRepository templateRepository,
                                 TemplateTypeEntityRepository templateTypeRepository,
                                 SeverityTypeRepository severityTypeRepository,
-                                ApplicationRepository applicationRepository,
                                 ApplicationAuthorizationService applicationAuthorizationService,
                                 TemplateMapper templateMapper,
                                 TemplateUpdateApplier templateUpdateApplier,
+                                ApplicationTemplateFolders templateFolders,
                                 @Value("${umdc.security.permissions.template-manage:TEMPLATE_MANAGE}") String templateManagePermission) {
         this.templateRepository = templateRepository;
         this.templateTypeRepository = templateTypeRepository;
         this.severityTypeRepository = severityTypeRepository;
-        this.applicationRepository = applicationRepository;
         this.applicationAuthorizationService = applicationAuthorizationService;
         this.templateMapper = templateMapper;
         this.templateUpdateApplier = templateUpdateApplier;
+        this.templateFolders = templateFolders;
         this.templateManagePermission = templateManagePermission;
     }
 
@@ -81,14 +80,17 @@ public class TemplateServiceImpl implements TemplateService {
         logger.info("Creating template. applicationId={}, requesterId={}", request.applicationId(), requesterId);
         applicationAuthorizationService.assertPermission(sessionToken, request.applicationId(), templateManagePermission);
 
-        ApplicationEntity application = applicationRepository.findById(request.applicationId())
-                .orElseThrow(() -> new IllegalArgumentException("Application not found: " + request.applicationId()));
         TemplateTypeEntity templateType = requireActiveTemplateType(request.templateTypeId());
         SeverityTypeEntity severityType = requireActiveSeverityType(request.severityTypeId());
+        // an application that already has templates keeps where they are; a new one gets its folder once its first template exists
+        boolean firstTemplate = !templateRepository.existsByApplicationId(request.applicationId());
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        TemplateEntity entity = templateMapper.toEntity(request, templateType, application, severityType, now);
+        TemplateEntity entity = templateMapper.toEntity(request, templateType, severityType, now);
         entity = templateRepository.save(entity);
+        if (firstTemplate) {
+            templateFolders.ensureFolder(request.applicationId());
+        }
 
         logger.info("Template created. id={}, applicationId={}", entity.getId(), request.applicationId());
         return CompletableFuture.completedFuture(templateMapper.toDetailResponse(entity));
@@ -98,7 +100,7 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateDetailResponse updateTemplate(UUID id, UpdateTemplateRequest request, UUID requesterId, String sessionToken) {
         logger.info("Updating template. id={}, requesterId={}", id, requesterId);
         TemplateEntity entity = requireActiveExisting(id);
-        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplication().getId(), templateManagePermission);
+        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplicationId(), templateManagePermission);
 
         boolean changed = templateUpdateApplier.apply(entity, request);
         if (changed) {
@@ -115,7 +117,7 @@ public class TemplateServiceImpl implements TemplateService {
     public void deleteTemplate(UUID id, UUID requesterId, String sessionToken) {
         logger.info("Soft-delete template request. id={}, requesterId={}", id, requesterId);
         TemplateEntity entity = requireAnyExisting(id);
-        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplication().getId(), templateManagePermission);
+        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplicationId(), templateManagePermission);
 
         if (Boolean.FALSE.equals(entity.getActive())) {
             logger.info("Template already inactive; delete is idempotent. id={}", id);
@@ -131,7 +133,7 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateDetailResponse getById(UUID id, UUID requesterId, String sessionToken) {
         logger.debug("Fetching template by id. id={}", id);
         TemplateEntity entity = requireActiveExisting(id);
-        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplication().getId(), templateManagePermission);
+        applicationAuthorizationService.assertPermission(sessionToken, entity.getApplicationId(), templateManagePermission);
         return templateMapper.toDetailResponse(entity);
     }
 

@@ -28,7 +28,7 @@ class EmailServiceImplMailTest {
     EmailMessageNSRepository messages = mock(EmailMessageNSRepository.class);
     EmailServiceImpl service = new EmailServiceImpl(new freemarker.template.Configuration(
             freemarker.template.Configuration.VERSION_2_3_30), messages, mock(JavaMailSender.class), tracking,
-            com.umdc.mercury.template.TemplateFolderFixtures.noFolders());
+            new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class), 60));
 
     private SendEmailRequest request() {
         return new SendEmailRequest(UUID.randomUUID(), UUID.randomUUID(), "f@x.test",

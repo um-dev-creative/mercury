@@ -25,9 +25,27 @@ flowchart TD
 ## What Mercury does
 
 - `ApplicationAuthorizationService.assertPermission` grants when backbone grants the permission in the application **or** the caller is a platform administrator (`isPlatformAdmin`: `PLATFORM_ADMIN` in the administering application). `holds` is the strict, per-application question without the exception. Everything fails closed: unreachable backbone, unresolvable Iris, missing token ⇒ denied.
-- `AdministeringApplication` finds Iris by `code_name` (`LOGIN_CLIENTS_ADMIN_APPLICATION`, default `iris`; exactly one match or nobody is an administrator; `LOGIN_CLIENTS_ADMIN_APPLICATION_ID` forces a UUID).
+- `AdministeringApplication` finds Iris by `code_name` through `ApplicationDirectory`, which calls backbone-rest's `GET /api/v1/applications` (`BackboneApplicationClient`) with the caller's session as `Authorization: Bearer`; Mercury never reads the `general` schema, and a backbone that cannot answer refuses everyone (`LOGIN_CLIENTS_ADMIN_APPLICATION`, default `iris`; exactly one match or nobody is an administrator; `LOGIN_CLIENTS_ADMIN_APPLICATION_ID` forces a UUID).
 - `GET /api/v1/templates/applications` returns the active applications whose templates the caller may manage: all of them for a platform administrator, otherwise those where `TEMPLATE_MANAGE` is held. Iris uses it for its application selector.
 - Permission names: `PLATFORM_ADMIN_PERMISSION` (default `PLATFORM_ADMIN`), `TEMPLATE_MANAGE_PERMISSION`, `TEMPLATE_READ_PERMISSION`, `LOGIN_CLIENT_MANAGE_PERMISSION`.
+
+### How applications are read (never from the `general` schema)
+
+```mermaid
+sequenceDiagram
+  participant I as Iris (BFF)
+  participant M as Mercury
+  participant B as backbone-rest
+  I->>M: GET /api/v1/templates/applications (session-token)
+  M->>B: GET /api/v1/applications (Authorization: Bearer session)
+  B-->>M: [{id, name, codeName, active}]
+  loop each active application
+    M->>B: POST /api/v1/iam/permissions/check (TEMPLATE_MANAGE)
+  end
+  M-->>I: applications the caller may manage
+```
+
+Backbone cannot be reached or refuses the session: `ApplicationDirectory` throws `ForbiddenException` and the caller sees nothing (fail closed).
 
 ## Plan (three repositories)
 

@@ -143,7 +143,7 @@ class ApplicationAuthorizationServiceImplTest {
         @Test
         @DisplayName("a platform administrator passes in an application where the role does not grant the permission")
         void platformAdminIsGrantedEverywhere() {
-            when(administeringApplication.id()).thenReturn(irisId);
+            when(administeringApplication.id(any())).thenReturn(irisId);
             when(backbonePermissionClient.check(new PermissionCheckRequest(PERMISSION, applicationId, SESSION_TOKEN)))
                     .thenReturn(answer(false, PERMISSION));
             when(backbonePermissionClient.check(new PermissionCheckRequest("PLATFORM_ADMIN", irisId, SESSION_TOKEN)))
@@ -165,7 +165,7 @@ class ApplicationAuthorizationServiceImplTest {
         @Test
         @DisplayName("without the platform-admin permission the denial stands")
         void notPlatformAdminIsDenied() {
-            when(administeringApplication.id()).thenReturn(irisId);
+            when(administeringApplication.id(any())).thenReturn(irisId);
             when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenReturn(answer(false, PERMISSION));
 
             assertThrows(ForbiddenException.class, () -> service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION));
@@ -174,7 +174,7 @@ class ApplicationAuthorizationServiceImplTest {
         @Test
         @DisplayName("an unresolvable administering application means nobody is a platform administrator")
         void unresolvableAdministeringApplicationFailsClosed() {
-            when(administeringApplication.id()).thenThrow(new ForbiddenException("not configured"));
+            when(administeringApplication.id(any())).thenThrow(new ForbiddenException("not configured"));
 
             assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();
         }
@@ -192,7 +192,7 @@ class ApplicationAuthorizationServiceImplTest {
         @Test
         @DisplayName("a backbone failure while checking platform admin fails closed")
         void backboneFailureFailsClosed() {
-            when(administeringApplication.id()).thenReturn(irisId);
+            when(administeringApplication.id(any())).thenReturn(irisId);
             when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenThrow(new RuntimeException("down"));
 
             assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();

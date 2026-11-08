@@ -19,7 +19,7 @@ import java.util.UUID;
 public final class TemplateSpecifications {
 
     /** JPA attribute names are the field names of {@link TemplateEntity} (field access), not its getter names. */
-    static final String APPLICATION = "applicationEntity";
+    static final String APPLICATION = "applicationId";
     static final String TEMPLATE_TYPE = "templateTypeEntity";
     static final String SEVERITY_TYPE = "severityTypeEntity";
 
@@ -41,7 +41,7 @@ public final class TemplateSpecifications {
                                                          UUID severityTypeId, Boolean active) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-            predicates.add(cb.equal(root.get(APPLICATION).get("id"), applicationId));
+            predicates.add(cb.equal(root.get(APPLICATION), applicationId));
 
             if (Objects.nonNull(active)) {
                 predicates.add(cb.equal(root.get("active"), active));
