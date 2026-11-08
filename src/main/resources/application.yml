@@ -136,12 +136,11 @@ umdc:
       # secrets: leave empty to use the AWS default credentials chain (instance role, environment, profile)
       access-key: ${CLOUDFLARE_R2_ACCESS_KEY:}
       secret-key: ${CLOUDFLARE_R2_SECRET_KEY:}
-    # each application keeps its templates in its own folder: <storage root or s3 prefix>/<folder>/<file>
-    # (lth/mercury/templates/iris/iris_welcome.ftl). The folder is the lower-cased code_name of the application; override it
-    # with `<code_name or application id>=<folder>,...` (e.g. SAKN=smartkind,zeronbou=zerobound)
-    application-folders: ${TEMPLATE_APPLICATION_FOLDERS:SAKN=smartkind,zeronbou=zerobound}
-    # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row
-    telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zerobound}
+    # each application keeps its templates in its own folder, named with its code_name in lower case (general.application.code_name):
+    # <storage root or s3 prefix>/<code_name>/<file> (lth/mercury/templates/iris/iris_welcome.ftl). No mapping
+    # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row:
+    # the code_name of ZeroBound REST
+    telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zeronbou}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes
     max-content-bytes: ${TEMPLATE_MAX_CONTENT_BYTES:262144}
     # versions of the content kept per template (older ones are deleted); needs mercury.template_versions (V2032)
