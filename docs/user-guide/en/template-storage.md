@@ -14,13 +14,13 @@ The text of every message Mercury sends (the verification e-mail, a campaign mes
 
 ## One folder per application
 
-Each application keeps its templates in its own folder: `<TEMPLATE_PATH or TEMPLATE_S3_PREFIX>/<folder>/<file>`. For example, with `TEMPLATE_S3_PREFIX=lth/mercury/templates/` the Iris templates are `lth/mercury/templates/iris/iris_welcome.ftl`, and the others live in `smartkind/`, `zerobound/` and `latinhub/`.
+Each application keeps its templates in its own folder: `<TEMPLATE_PATH or TEMPLATE_S3_PREFIX>/<folder>/<file>`. For example, with `TEMPLATE_S3_PREFIX=lth/mercury/templates/` the Iris templates are `lth/mercury/templates/iris/iris_welcome.ftl`, and the others live in `sakn/`, `zeronbou/`, `latinhub/` and `lucky_le/`.
 
 - The `location` of a template stays the plain file name (`iris_welcome.ftl`). Mercury adds the folder of the template's application, both when it sends a message and when someone edits the template from Iris, so both use the same file.
-- The folder of an application is its `code_name` in lower case (`general.application.code_name`). If a folder has another name, say so with `TEMPLATE_APPLICATION_FOLDERS=<code_name or application id>=<folder>,...` (the code name is not case-sensitive and applies to every application that has it). For the current applications that is the default value (`TEMPLATE_APPLICATION_FOLDERS=SAKN=smartkind,zeronbou=zerobound`), so nothing needs to be set; `iris` and `latinhub` already match their folders, and `lucky_le` (Lucky Leaf and Lucky Leaf REST) uses the folder `lucky_le`.
-- The Telegram templates of ZeroBound (`zb_<kind>_tg_<language>.ftl`) are read from `TEMPLATE_TELEGRAM_FOLDER` (default `zerobound`).
+- The folder of an application is its `code_name` in lower case (`general.application.code_name`), with no mapping: the folders of the bucket are named after the code names (for example `iris`, `latinhub`, `sakn`, `zeronbou`, `lucky_le`). Applications that share a `code_name` share the folder.
+- The Telegram templates of ZeroBound (`zb_<kind>_tg_<language>.ftl`) are read from `TEMPLATE_TELEGRAM_FOLDER` (default `zeronbou`, the `code_name` of ZeroBound REST).
 - A folder name has lower-case letters, digits, `_` and `-`, up to 64 characters. There is one level of folders only.
-- An application with no folder (no `code_name` and no entry in `TEMPLATE_APPLICATION_FOLDERS`) keeps working with files at the root, and Mercury logs a warning naming the application.
+- An application with no usable `code_name` keeps working with files at the root, and Mercury logs a warning naming the application.
 - Cloudflare R2: `TEMPLATE_STORAGE=s3` plus `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` and `CLOUDFLARE_R2_SECRET_KEY` (secrets, keep them in Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (base path of the templates), `TEMPLATE_S3_REGION=auto` and `TEMPLATE_S3_PATH_STYLE=true`.
 
 To check that each application finds its folder, run `SELECT id, name, code_name FROM general.application;` and compare `lower(code_name)` with the folders of the bucket.
