@@ -4,7 +4,7 @@
 
 Un cliente de login es un servicio backend autorizado a pedir un token con `POST /api/v1/auth/token`. Mercury los guarda en la tabla `mercury.login_clients`, con la contraseña cifrada con bcrypt.
 
-Administrarlos exige el permiso `LOGIN_CLIENT_MANAGE` en la aplicación indicada por `LOGIN_CLIENTS_ADMIN_APPLICATION_ID`. Si esa variable está vacía, nadie puede administrarlos.
+Administrarlos exige el permiso `LOGIN_CLIENT_MANAGE` en la aplicación Iris. Mercury la encuentra por su `code_name` (`iris`), así que no hay que configurar ningún id: da el permiso a un rol de Iris en Backbone y asígnalo al usuario. Si ninguna aplicación, o más de una, tiene ese `code_name`, nadie puede administrarlos (`403`).
 
 ## Operaciones
 

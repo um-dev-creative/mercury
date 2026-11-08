@@ -192,8 +192,10 @@ umdc:
       # Permission a user needs to administer the login clients (/api/v1/login-clients); checked in the application below.
       login-client-manage: ${LOGIN_CLIENT_MANAGE_PERMISSION:LOGIN_CLIENT_MANAGE}
     login-clients:
-      # Id of the backbone-rest application (normally Iris') in which login-client-manage is checked. EMPTY = nobody can administer the
-      # login clients (the endpoints answer 403): grant the permission to a role of that application first, then set this.
+      # code_name of the backbone-rest application in which login-client-manage is checked (Iris). Mercury looks it up in its
+      # applications table, so nothing has to be copied between services or environments. Exactly one application must have it.
+      admin-application: ${LOGIN_CLIENTS_ADMIN_APPLICATION:iris}
+      # Optional: force the application by id instead (wins over admin-application). Leave empty normally.
       admin-application-id: ${LOGIN_CLIENTS_ADMIN_APPLICATION_ID:}
     # AuthProperties/JwtConverterProperties (security-oauth jar) bind to umdc.security.auth.* -
     # this block was previously (wrongly) at umdc.auth.*, one level too shallow, so
