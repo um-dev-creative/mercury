@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class ApplicationTemplateFolders {
 
-    private static final int ENTRY_PARTS = 2;
     private static final Logger logger = LoggerFactory.getLogger(ApplicationTemplateFolders.class);
 
     private final ApplicationTemplateFolderRepository repository;
@@ -130,27 +129,6 @@ public class ApplicationTemplateFolders {
         return wanted;
     }
 
-    /**
-     * Registers the configured folders that are not registered yet (never overwrites a row, and skips a folder another application owns).
-     *
-     * @return how many were added
-     */
-    public int importMissing(Map<UUID, String> configured) {
-        int added = 0;
-        for (Map.Entry<UUID, String> entry : configured.entrySet()) {
-            if (readThrough(entry.getKey()).isPresent()) {
-                continue;
-            }
-            try {
-                assign(entry.getKey(), entry.getValue());
-                added++;
-            } catch (FolderInUseException e) {
-                logger.warn("Not registering the folder of application {}: {}", entry.getKey(), e.getMessage());
-            }
-        }
-        return added;
-    }
-
     /** The folder an application gets when none is chosen: its own id, which is unique and needs no lookup. */
     public static String defaultFolder(UUID applicationId) {
         return applicationId.toString().toLowerCase(java.util.Locale.ROOT);
@@ -163,34 +141,6 @@ public class ApplicationTemplateFolders {
 
     private LocalDateTime now() {
         return LocalDateTime.now(clock.withZone(ZoneOffset.UTC));
-    }
-
-    static Map<UUID, String> parse(String value) {
-        Map<UUID, String> map = new ConcurrentHashMap<>();
-        if (Objects.isNull(value) || value.isBlank()) {
-            return map;
-        }
-        for (String entry : value.split(",")) {
-            String[] parts = entry.trim().split("=", ENTRY_PARTS);
-            if (parts.length != ENTRY_PARTS) {
-                throw new IllegalArgumentException("umdc.templates.application-folders: expected <application id>=<folder>, got '" + entry.trim() + "'");
-            }
-            String folder = parts[1].trim();
-            if (!TemplateNames.isFolder(folder)) {
-                throw new IllegalArgumentException("umdc.templates.application-folders: '" + folder + "' is not a valid folder name");
-            }
-            map.put(applicationId(parts[0], entry), folder);
-        }
-        return map;
-    }
-
-    private static UUID applicationId(String owner, String entry) {
-        try {
-            return UUID.fromString(owner.trim());
-        } catch (IllegalArgumentException _) {
-            throw new IllegalArgumentException("umdc.templates.application-folders: '" + owner.trim() + "' is not an application id (a UUID) in '"
-                    + entry.trim() + "'; Mercury does not read the application code from the database, so use the id");
-        }
     }
 
     private record Cached(Optional<String> folder, long expiresAt) {

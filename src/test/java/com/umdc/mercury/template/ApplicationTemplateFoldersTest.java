@@ -10,7 +10,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
@@ -160,24 +159,6 @@ class ApplicationTemplateFoldersTest {
     }
 
     @Test
-    void importMissingOnlyAddsWhatIsNotRegistered() {
-        when(repository.findById(iris)).thenReturn(Optional.of(row(iris, "kept")));
-        UUID third = UUID.randomUUID();
-
-        int added = folders.importMissing(Map.of(iris, "ignored", third, "third"));
-
-        assertThat(added).isEqualTo(1);
-        verify(repository, times(1)).saveAndFlush(any());
-    }
-
-    @Test
-    void importMissingSkipsAFolderAnotherApplicationOwns() {
-        when(repository.findByFolder("taken")).thenReturn(Optional.of(row(other, "taken")));
-
-        assertThat(folders.importMissing(Map.of(iris, "taken"))).isZero();
-    }
-
-    @Test
     void theDefaultFolderIsTheApplicationId() {
         assertThat(ApplicationTemplateFolders.defaultFolder(iris)).isEqualTo(iris.toString());
         assertThat(com.umdc.mercury.template.storage.TemplateNames.isFolder(ApplicationTemplateFolders.defaultFolder(iris))).isTrue();
@@ -193,35 +174,4 @@ class ApplicationTemplateFoldersTest {
         verify(repository, times(2)).findById(iris);
     }
 
-    @Test
-    void parseReadsApplicationIdsAndFolders() {
-        var parsed = ApplicationTemplateFolders.parse(iris + "=iris, " + other + "=other");
-
-        assertThat(parsed).containsEntry(iris, "iris").containsEntry(other, "other");
-        assertThat(ApplicationTemplateFolders.parse("")).isEmpty();
-        assertThat(ApplicationTemplateFolders.parse(null)).isEmpty();
-        assertThat(ApplicationTemplateFolders.parse("  ")).isEmpty();
-    }
-
-    @Test
-    void parseRefusesAnEntryThatIsNotAnApplicationId() {
-        assertThatThrownBy(() -> ApplicationTemplateFolders.parse("SAKN=smartkind"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("not an application id")
-                .hasMessageContaining("does not read the application code");
-        assertThatThrownBy(() -> ApplicationTemplateFolders.parse(iris.toString())).hasMessageContaining("expected <application id>=<folder>");
-        assertThatThrownBy(() -> ApplicationTemplateFolders.parse(iris + "=Not Valid")).hasMessageContaining("not a valid folder name");
-    }
-
-    @Test
-    void theDefaultOfApplicationYmlParses() throws Exception {
-        String line = java.nio.file.Files.readAllLines(java.nio.file.Path.of("src/main/resources/application.yml")).stream()
-                .filter(l -> l.contains("application-folders: ${")).findFirst().orElseThrow();
-        String value = line.substring(line.indexOf("TEMPLATE_APPLICATION_FOLDERS:") + "TEMPLATE_APPLICATION_FOLDERS:".length(), line.lastIndexOf('}'));
-
-        var parsed = ApplicationTemplateFolders.parse(value);
-
-        assertThat(parsed.get(UUID.fromString("8249aa97-23fa-47cd-9c6d-4685f0c03cc3"))).isEqualTo("iris");
-        assertThat(parsed.get(UUID.fromString("e50b2e01-1a40-43a3-aa55-90bc9b207fa3"))).isEqualTo("smartkind");
-    }
 }
