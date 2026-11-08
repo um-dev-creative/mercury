@@ -9,6 +9,7 @@ The text of every message Mercury sends (the verification e-mail, a campaign mes
 - A template is a single file named with letters, digits, `_`, `-` and `.`, ending in `.ftl`, `.ftlh`, `.md` or `.html`. It cannot be in a sub-folder.
 - You can add or change a file in the folder and Mercury uses it within about 5 seconds, without restarting.
 - The name you give a template in Mercury (its `location`) is that file name.
+- **The folder must be writable by Mercury** (with `TEMPLATE_STORAGE=local`): saving a template edited or created from Iris writes the file, and creates the application's sub-folder, there. A read-only mount (for example a Docker volume with `:ro`) makes every save answer `500` with `Read-only file system`; mount the folder read-write, give the container's user write permission on it, or keep the templates in a bucket instead.
 - If the folder does not exist when Mercury starts, Mercury stops with an error that names the folder. Create it or fix `TEMPLATE_PATH`.
 - A template that is not found, or has a name that is not allowed, is skipped and the message falls back to the plain text of the campaign.
 

@@ -139,7 +139,9 @@ COPY --from=builder /staging/usr/lib/ /usr/lib/
 # comments for why these are copied in rather than runtime-mounted. Sourced from the builder
 # stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
 COPY --from=builder /staging-certs/mercury/ certs/mercury/
-COPY src/main/resources/templates/ templates/
+# `nonroot` (uid 65532) must be able to write here: templates edited or created from Iris are saved in this folder (and in one
+# sub-folder per application) when TEMPLATE_STORAGE=local. Root-owned, a save fails with "Permission denied".
+COPY --chown=65532:65532 src/main/resources/templates/ templates/
 # The Aiven client certificates are baked into this image and application.yml defaults to PLAINTEXT
 # for local dev, which Aiven drops ("Node -1 disconnected"). Override at run time if ever needed.
 ENV KAFKA_SECURITY_PROTOCOL=SSL
