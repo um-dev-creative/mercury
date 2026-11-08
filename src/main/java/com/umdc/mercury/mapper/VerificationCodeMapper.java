@@ -2,7 +2,6 @@ package com.umdc.mercury.mapper;
 
 import com.umdc.commons.services.config.mapper.MapperAppConfig;
 import com.umdc.mercury.api.v1.to.VerificationCodeTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.MessageRecordEntity;
 import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import org.mapstruct.Mapper;
@@ -21,22 +20,14 @@ public interface VerificationCodeMapper {
     @Mapping(target = "modifiedBy", source = "modifiedAt")
     @Mapping(target = "expiresAt", source = "expiredAt")
     @Mapping(target = "userId", expression = "java(toUserEntity(verificationCodeTO))")
-    @Mapping(target = "application", expression = "java(toApplicationEntity(verificationCodeTO))")
     @Mapping(target = "messageRecord", expression = "java(toMessageRecordEntity(verificationCodeTO))")
     VerificationCodeEntity toVerificationCodeEntity(VerificationCodeTO verificationCodeTO);
 
     @Mapping(target = "userId", source = "userId")
     @Mapping(target = "expiredAt", source = "expiresAt")
     @Mapping(target = "updatedBy", source = "modifiedBy")
-    @Mapping(target = "applicationId", source = "application.id")
     @Mapping(target = "messageRecordId", source = "messageRecord.id")
     VerificationCodeTO toVerificationCodeTO(VerificationCodeEntity verificationCodeEntity);
-
-    default ApplicationEntity toApplicationEntity(VerificationCodeTO verificationCodeTO) {
-        var applicationEntity = new ApplicationEntity();
-        applicationEntity.setId(verificationCodeTO.applicationId());
-        return applicationEntity;
-    }
 
     default UUID toUserEntity(VerificationCodeTO verificationCodeTO) {
         return verificationCodeTO.userId();

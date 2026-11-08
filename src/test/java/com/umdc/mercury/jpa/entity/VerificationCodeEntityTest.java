@@ -1,6 +1,5 @@
 package com.umdc.mercury.jpa.entity;
 
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.VerificationCodeEntity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,7 @@ class VerificationCodeEntityTest {
         UUID id = UUID.randomUUID();
         verificationCodeEntity.setId(id);
         verificationCodeEntity.setUserId(UUID.randomUUID());
-        verificationCodeEntity.setApplication(new ApplicationEntity());
+        verificationCodeEntity.setApplicationId(java.util.UUID.randomUUID());
         verificationCodeEntity.setVerificationCode("123456");
         verificationCodeEntity.setCreatedAt(LocalDateTime.now());
         verificationCodeEntity.setExpiresAt(LocalDateTime.now().plusDays(1));
@@ -33,7 +32,7 @@ class VerificationCodeEntityTest {
 
         assertEquals(id, verificationCodeEntity.getId());
         assertNotNull(verificationCodeEntity.getUserId());
-        assertNotNull(verificationCodeEntity.getApplication());
+        assertNotNull(verificationCodeEntity.getApplicationId());
         assertEquals("123456", verificationCodeEntity.getVerificationCode());
         assertNotNull(verificationCodeEntity.getCreatedAt());
         assertNotNull(verificationCodeEntity.getExpiresAt());

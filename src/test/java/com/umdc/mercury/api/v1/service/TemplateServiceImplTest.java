@@ -10,7 +10,6 @@ import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateSearchResponse;
 import com.umdc.mercury.api.v1.to.UpdateTemplateRequest;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
@@ -123,9 +122,7 @@ class TemplateServiceImplTest {
         entity.setId(id);
         entity.setActive(true);
         entity.setDescription("desc");
-        ApplicationEntity application = new ApplicationEntity();
-        application.setId(applicationId);
-        entity.setApplication(application);
+        entity.setApplicationId(applicationId);
         return entity;
     }
 
@@ -142,7 +139,7 @@ class TemplateServiceImplTest {
             when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
 
             UUID newId = UUID.randomUUID();
-            when(templateMapper.toEntity(any(), any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
             when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> {
                 TemplateEntity e = inv.getArgument(0);
                 e.setId(newId);
@@ -175,32 +172,30 @@ class TemplateServiceImplTest {
         void createTemplate_registersTheFolderOfANewApplicationOnly() throws Exception {
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
             when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
-            when(templateMapper.toEntity(any(), any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
             when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-            when(templateRepository.existsByApplicationEntityId(applicationId)).thenReturn(false);
+            when(templateRepository.existsByApplicationId(applicationId)).thenReturn(false);
             service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
             verify(templateFolders).ensureFolder(applicationId);
 
             org.mockito.Mockito.clearInvocations(templateFolders);
-            when(templateRepository.existsByApplicationEntityId(applicationId)).thenReturn(true);
+            when(templateRepository.existsByApplicationId(applicationId)).thenReturn(true);
             service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
             verify(templateFolders, never()).ensureFolder(any());
         }
 
         @Test
-        @DisplayName("keeps only the application id as the reference of the row: the general schema is never read")
-        void createTemplate_usesTheApplicationIdOnly() throws Exception {
+        @DisplayName("builds the row from the request alone: the application is never loaded, only its id is kept")
+        void createTemplate_neverLoadsTheApplication() throws Exception {
             when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
             when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
-            when(templateMapper.toEntity(any(), any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateMapper.toEntity(any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
             when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
             service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
 
-            org.mockito.ArgumentCaptor<ApplicationEntity> application = org.mockito.ArgumentCaptor.forClass(ApplicationEntity.class);
-            verify(templateMapper).toEntity(any(), any(), application.capture(), any(), any());
-            assertThat(application.getValue().getId()).isEqualTo(applicationId);
+            verify(templateMapper).toEntity(eq(createRequest()), any(), any(), any());
         }
 
         @Test

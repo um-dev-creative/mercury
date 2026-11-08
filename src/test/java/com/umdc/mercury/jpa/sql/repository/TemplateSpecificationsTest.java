@@ -37,9 +37,7 @@ class TemplateSpecificationsTest {
         CriteriaBuilder cb = mock(CriteriaBuilder.class);
 
         Path<Object> applicationPath = mock(Path.class);
-        Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("applicationEntity")).thenReturn(applicationPath);
-        when(applicationPath.get("id")).thenReturn(applicationIdPath);
+        when(root.get("applicationId")).thenReturn(applicationPath);
 
         Path<Object> activePath = mock(Path.class);
         when(root.get("active")).thenReturn(activePath);
@@ -76,7 +74,7 @@ class TemplateSpecificationsTest {
         Predicate orPred = mock(Predicate.class);
         Predicate andPred = mock(Predicate.class);
 
-        when(cb.equal(applicationIdPath, applicationId)).thenReturn(appPred);
+        when(cb.equal(applicationPath, applicationId)).thenReturn(appPred);
         when(cb.equal(activePath, Boolean.TRUE)).thenReturn(activePred);
         when(cb.equal(templateTypeIdPath, templateTypeId)).thenReturn(typePred);
         when(cb.equal(severityTypeIdPath, severityTypeId)).thenReturn(severityPred);
@@ -102,14 +100,12 @@ class TemplateSpecificationsTest {
         CriteriaBuilder cb = mock(CriteriaBuilder.class);
 
         Path<Object> applicationPath = mock(Path.class);
-        Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("applicationEntity")).thenReturn(applicationPath);
-        when(applicationPath.get("id")).thenReturn(applicationIdPath);
+        when(root.get("applicationId")).thenReturn(applicationPath);
 
         UUID applicationId = UUID.randomUUID();
         Predicate appPred = mock(Predicate.class);
         Predicate andPred = mock(Predicate.class);
-        when(cb.equal(applicationIdPath, applicationId)).thenReturn(appPred);
+        when(cb.equal(applicationPath, applicationId)).thenReturn(appPred);
         when(cb.and(any(Predicate[].class))).thenReturn(andPred);
 
         Specification<TemplateEntity> spec = TemplateSpecifications.search(applicationId, null, null, null, null);
@@ -128,14 +124,12 @@ class TemplateSpecificationsTest {
         CriteriaBuilder cb = mock(CriteriaBuilder.class);
 
         Path<Object> applicationPath = mock(Path.class);
-        Path<Object> applicationIdPath = mock(Path.class);
-        when(root.get("applicationEntity")).thenReturn(applicationPath);
-        when(applicationPath.get("id")).thenReturn(applicationIdPath);
+        when(root.get("applicationId")).thenReturn(applicationPath);
 
         UUID applicationId = UUID.randomUUID();
         Predicate appPred = mock(Predicate.class);
         Predicate andPred = mock(Predicate.class);
-        when(cb.equal(applicationIdPath, applicationId)).thenReturn(appPred);
+        when(cb.equal(applicationPath, applicationId)).thenReturn(appPred);
         when(cb.and(any(Predicate[].class))).thenReturn(andPred);
 
         Specification<TemplateEntity> spec = TemplateSpecifications.search(applicationId, "   ", null, null, null);

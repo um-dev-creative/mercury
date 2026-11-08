@@ -144,7 +144,7 @@ public class TemplateContentServiceImpl implements TemplateContentService {
         TemplateEntity template = templateRepository.findById(templateId)
                 .filter(entity -> !Boolean.FALSE.equals(entity.getActive()))
                 .orElseThrow(() -> new TemplateNotFoundException("Template not found: " + templateId));
-        authorization.assertPermission(sessionToken, template.getApplication().getId(), templateManagePermission);
+        authorization.assertPermission(sessionToken, template.getApplicationId(), templateManagePermission);
         return template;
     }
 
@@ -158,7 +158,7 @@ public class TemplateContentServiceImpl implements TemplateContentService {
 
     /** Where the template is in the storage: inside the folder of its application. */
     private String storageName(TemplateEntity template, String fileName) {
-        return templateFolders.nameOf(template.getApplication().getId(), fileName);
+        return templateFolders.nameOf(template.getApplicationId(), fileName);
     }
 
     private boolean isProtected(String name) {

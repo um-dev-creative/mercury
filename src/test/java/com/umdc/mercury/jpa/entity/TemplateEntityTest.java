@@ -1,6 +1,5 @@
 package com.umdc.mercury.jpa.entity;
 
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +22,7 @@ class TemplateEntityTest {
         templateEntity.setLocation("Test Location");
         templateEntity.setFileFormat("Test Format");
         templateEntity.setTemplateType(new TemplateTypeEntity());
-        templateEntity.setApplication(new ApplicationEntity());
+        templateEntity.setApplicationId(java.util.UUID.randomUUID());
         templateEntity.setCreatedAt(LocalDateTime.now());
         templateEntity.setUpdatedAt(LocalDateTime.now());
         templateEntity.setActive(true);
@@ -33,7 +32,7 @@ class TemplateEntityTest {
         assertEquals("Test Location", templateEntity.getLocation());
         assertEquals("Test Format", templateEntity.getFileFormat());
         assertNotNull(templateEntity.getTemplateType());
-        assertNotNull(templateEntity.getApplication());
+        assertNotNull(templateEntity.getApplicationId());
         assertNotNull(templateEntity.getCreatedAt());
         assertNotNull(templateEntity.getUpdatedAt());
         assertTrue(templateEntity.getActive());

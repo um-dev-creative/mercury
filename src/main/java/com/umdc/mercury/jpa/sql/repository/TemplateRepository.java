@@ -9,6 +9,6 @@ import java.util.UUID;
 public interface TemplateRepository extends JpaRepository<TemplateEntity, UUID>, JpaSpecificationExecutor<TemplateEntity> {
 
     /** Whether the application has any template row (active or not). */
-    boolean existsByApplicationEntityId(UUID applicationId);
+    boolean existsByApplicationId(UUID applicationId);
 
 }

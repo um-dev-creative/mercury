@@ -6,7 +6,6 @@ import com.umdc.mercury.api.v1.to.PreviewTemplateRequest;
 import com.umdc.mercury.api.v1.to.PreviewTemplateResponse;
 import com.umdc.mercury.api.v1.to.TemplateContentResponse;
 import com.umdc.mercury.api.v1.to.TemplateVersionResponse;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.template.content.ContentTooLargeException;
@@ -65,13 +64,11 @@ class TemplateContentServiceImplTest {
     }
 
     private TemplateEntity template(String location, Boolean active) {
-        ApplicationEntity application = new ApplicationEntity();
-        application.setId(applicationId);
         TemplateEntity entity = new TemplateEntity();
         entity.setId(templateId);
         entity.setLocation(location);
         entity.setActive(active);
-        entity.setApplication(application);
+        entity.setApplicationId(applicationId);
         return entity;
     }
 

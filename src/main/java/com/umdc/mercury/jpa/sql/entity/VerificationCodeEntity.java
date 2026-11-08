@@ -21,10 +21,10 @@ public class VerificationCodeEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private UUID userId;
 
+    /** The application (backbone-rest's): only its id is kept, Mercury never reads the general schema. */
     @NotNull
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "application_id", nullable = false)
-    private ApplicationEntity applicationEntity;
+    @Column(name = "application_id", nullable = false)
+    private UUID applicationId;
 
     @Size(max = 9)
     @NotNull
@@ -104,12 +104,12 @@ public class VerificationCodeEntity {
         this.userId = userId;
     }
 
-    public ApplicationEntity getApplication() {
-        return applicationEntity;
+    public UUID getApplicationId() {
+        return applicationId;
     }
 
-    public void setApplication(ApplicationEntity applicationEntity) {
-        this.applicationEntity = applicationEntity;
+    public void setApplicationId(UUID applicationId) {
+        this.applicationId = applicationId;
     }
 
     public String getVerificationCode() {

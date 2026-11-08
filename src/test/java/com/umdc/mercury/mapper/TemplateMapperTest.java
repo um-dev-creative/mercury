@@ -3,7 +3,6 @@ package com.umdc.mercury.mapper;
 import com.umdc.mercury.api.v1.to.CreateTemplateRequest;
 import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateTO;
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
@@ -36,7 +35,7 @@ class TemplateMapperTest {
 
         @Override
         public TemplateEntity toEntity(CreateTemplateRequest request, TemplateTypeEntity templateType,
-                                        ApplicationEntity application, SeverityTypeEntity severityType, LocalDateTime now) {
+                                        SeverityTypeEntity severityType, LocalDateTime now) {
             throw new UnsupportedOperationException("not implemented");
         }
 
@@ -45,16 +44,6 @@ class TemplateMapperTest {
             throw new UnsupportedOperationException("not implemented");
         }
     };
-
-    @Test
-    @DisplayName("getApplication should produce ApplicationEntity with same id")
-    void getApplicationProducesApplicationEntity() {
-        UUID applicationId = UUID.randomUUID();
-        var result = mapper.getApplication(applicationId);
-
-        assertNotNull(result);
-        assertEquals(applicationId, result.getId());
-    }
 
     @Test
     @DisplayName("getTemplate should produce TemplateEntity with same id")
@@ -73,7 +62,7 @@ class TemplateMapperTest {
         private final TemplateMapper generated = Mappers.getMapper(TemplateMapper.class);
 
         private TemplateTypeEntity templateType;
-        private ApplicationEntity application;
+        private UUID applicationId;
         private SeverityTypeEntity severityType;
 
         @BeforeEach
@@ -82,8 +71,7 @@ class TemplateMapperTest {
             templateType.setId(UUID.randomUUID());
             templateType.setName("Marketing");
 
-            application = new ApplicationEntity();
-            application.setId(UUID.randomUUID());
+            applicationId = UUID.randomUUID();
 
             severityType = new SeverityTypeEntity();
             severityType.setId(UUID.randomUUID());
@@ -100,10 +88,10 @@ class TemplateMapperTest {
         @DisplayName("toEntity maps every field and always forces active=true")
         void toEntity_mapsEveryField() {
             CreateTemplateRequest request = new CreateTemplateRequest(
-                    "desc", "loc", "HTML", templateType.getId(), application.getId(), severityType.getId());
+                    "desc", "loc", "HTML", templateType.getId(), applicationId, severityType.getId());
             LocalDateTime now = LocalDateTime.of(2026, 1, 1, 10, 0);
 
-            TemplateEntity entity = generated.toEntity(request, templateType, application, severityType, now);
+            TemplateEntity entity = generated.toEntity(request, templateType, severityType, now);
 
             assertAll("toEntity",
                     () -> assertNull(entity.getId()),
@@ -111,7 +99,7 @@ class TemplateMapperTest {
                     () -> assertEquals("loc", entity.getLocation()),
                     () -> assertEquals("HTML", entity.getFileFormat()),
                     () -> assertSame(templateType, entity.getTemplateType()),
-                    () -> assertSame(application, entity.getApplication()),
+                    () -> assertEquals(applicationId, entity.getApplicationId()),
                     () -> assertSame(severityType, entity.getSeverityType()),
                     () -> assertEquals(Boolean.TRUE, entity.getActive()),
                     () -> assertEquals(now, entity.getCreatedAt()),
@@ -130,7 +118,7 @@ class TemplateMapperTest {
             entity.setLocation("loc");
             entity.setFileFormat("HTML");
             entity.setTemplateType(templateType);
-            entity.setApplication(application);
+            entity.setApplicationId(applicationId);
             entity.setSeverityType(severityType);
             entity.setActive(false);
             entity.setCreatedAt(now);
@@ -145,7 +133,7 @@ class TemplateMapperTest {
                     () -> assertEquals("HTML", response.fileFormat()),
                     () -> assertEquals(templateType.getId(), response.templateTypeId()),
                     () -> assertEquals("Marketing", response.templateTypeName()),
-                    () -> assertEquals(application.getId(), response.applicationId()),
+                    () -> assertEquals(applicationId, response.applicationId()),
                     () -> assertEquals(severityType.getId(), response.severityTypeId()),
                     () -> assertEquals("High", response.severityTypeName()),
                     () -> assertEquals(Boolean.FALSE, response.active()),
@@ -163,7 +151,7 @@ class TemplateMapperTest {
             entity.setLocation("loc");
             entity.setFileFormat("HTML");
             entity.setTemplateType(templateType);
-            entity.setApplication(application);
+            entity.setApplicationId(applicationId);
             entity.setActive(false);
 
             TemplateTO result = generated.toTemplateTO(entity);

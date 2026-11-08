@@ -1,6 +1,5 @@
 package com.umdc.mercury.jpa.entity;
 
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import org.junit.jupiter.api.DisplayName;
@@ -21,7 +20,7 @@ class TemplateDefinedEntityTest {
         templateDefinedEntity.setId(id);
         templateDefinedEntity.setTemplate(new TemplateEntity());
         templateDefinedEntity.setUserId(UUID.randomUUID());
-        templateDefinedEntity.setApplication(new ApplicationEntity());
+        templateDefinedEntity.setApplicationId(java.util.UUID.randomUUID());
         templateDefinedEntity.setCreatedAt(LocalDateTime.now());
         templateDefinedEntity.setUpdatedAt(LocalDateTime.now());
         templateDefinedEntity.setExpiredAt(LocalDateTime.now().plusDays(1));
@@ -30,7 +29,7 @@ class TemplateDefinedEntityTest {
         assertEquals(id, templateDefinedEntity.getId());
         assertNotNull(templateDefinedEntity.getTemplate());
         assertNotNull(templateDefinedEntity.getUserId());
-        assertNotNull(templateDefinedEntity.getApplication());
+        assertNotNull(templateDefinedEntity.getApplicationId());
         assertNotNull(templateDefinedEntity.getCreatedAt());
         assertNotNull(templateDefinedEntity.getUpdatedAt());
         assertNotNull(templateDefinedEntity.getExpiredAt());
@@ -61,10 +60,10 @@ class TemplateDefinedEntityTest {
     @DisplayName("Set and get application")
     void setAndGetApplication() {
         TemplateDefinedEntity templateUsageEntity = new TemplateDefinedEntity();
-        ApplicationEntity applicationEntity = new ApplicationEntity();
-        templateUsageEntity.setApplication(applicationEntity);
+        java.util.UUID applicationId = java.util.UUID.randomUUID();
+        templateUsageEntity.setApplicationId(applicationId);
 
-        assertEquals(applicationEntity, templateUsageEntity.getApplication());
+        assertEquals(applicationId, templateUsageEntity.getApplicationId());
     }
 
     @Test
