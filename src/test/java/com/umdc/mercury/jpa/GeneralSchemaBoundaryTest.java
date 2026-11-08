@@ -24,6 +24,16 @@ class GeneralSchemaBoundaryTest {
 
     private static final Path MAIN = Path.of("src/main/java");
 
+    private static final java.util.regex.Pattern GENERAL_TABLE_MAPPING = java.util.regex.Pattern.compile("@Table\\([^)]*schema\\s*=\\s*\"general\"");
+    private static final java.util.regex.Pattern QUERY_KEYWORD = java.util.regex.Pattern.compile("@Query|@NativeQuery|createNativeQuery|nativeQuery|\\bfrom\\b|\\bjoin\\b");
+    private static final java.util.regex.Pattern GENERAL_TABLE = java.util.regex.Pattern.compile("\\bgeneral\\.\\w+");
+
+    /** Whether a line of code has a query keyword followed by a `general.<table>` name. */
+    private static boolean namesGeneralTable(String code) {
+        var keyword = QUERY_KEYWORD.matcher(code);
+        return keyword.find() && GENERAL_TABLE.matcher(code).region(keyword.end(), code.length()).find();
+    }
+
     @Test
     @DisplayName("no entity maps a table of the general schema")
     void noEntityMapsTheGeneralSchema() throws IOException {
@@ -36,7 +46,7 @@ class GeneralSchemaBoundaryTest {
                     continue;
                 }
                 entities++;
-                if (source.replace("\n", " ").matches("(?s).*@Table\\([^)]*schema\\s*=\\s*\"general\"[^)]*\\).*")) {
+                if (GENERAL_TABLE_MAPPING.matcher(source).find()) {
                     offenders.add(file.getFileName().toString());
                 }
             }
@@ -54,7 +64,7 @@ class GeneralSchemaBoundaryTest {
                 for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
                     String code = line.strip();
                     boolean comment = code.startsWith("//") || code.startsWith("*") || code.startsWith("/*");
-                    if (!comment && code.matches(".*(@Query|@NativeQuery|createNativeQuery|nativeQuery|\\bfrom\\b|\\bjoin\\b).*\\bgeneral\\.\\w+.*")) {
+                    if (!comment && namesGeneralTable(code)) {
                         offenders.add(file.getFileName() + ": " + code);
                     }
                 }
