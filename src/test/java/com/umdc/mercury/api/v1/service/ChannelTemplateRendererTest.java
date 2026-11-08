@@ -29,7 +29,7 @@ class ChannelTemplateRendererTest {
     void setUp() throws IOException {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
         configuration.setDirectoryForTemplateLoading(templateDir.toFile());
-        renderer = new ChannelTemplateRenderer(configuration, new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class), ""));
+        renderer = new ChannelTemplateRenderer(configuration, new com.umdc.mercury.template.ApplicationTemplateFolders(""));
     }
 
     private TemplateDefinedTO templateAt(String location) {
@@ -94,8 +94,7 @@ class ChannelTemplateRendererTest {
         UUID application = UUID.randomUUID();
         Files.createDirectories(templateDir.resolve("iris"));
         Files.writeString(templateDir.resolve("iris/welcome.ftl"), "Hola ${name} desde iris");
-        var repo = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class);
-        var folders = new com.umdc.mercury.template.ApplicationTemplateFolders(repo, application + "=iris");
+        var folders = new com.umdc.mercury.template.ApplicationTemplateFolders(application + "=iris");
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
         configuration.setDirectoryForTemplateLoading(templateDir.toFile());
         var inFolder = new ChannelTemplateRenderer(configuration, folders);

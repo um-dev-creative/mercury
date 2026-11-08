@@ -147,7 +147,7 @@ sequenceDiagram
     participant Service as TemplateServiceImpl
     participant Auth as ApplicationAuthorizationService
     participant Backbone as backbone-rest
-    participant Repo as TemplateRepository / ApplicationRepository / TemplateTypeEntityRepository / SeverityTypeRepository
+    participant Repo as TemplateRepository / TemplateTypeEntityRepository / SeverityTypeRepository
     participant DB as PostgreSQL
 
     Client->>API: POST /api/v1/templates (session-token, body)
@@ -444,7 +444,7 @@ API never uploads, downloads, renders, or validates the referenced content — o
 | Exception | `api/v1/exception/TemplateNotFoundException.java` |
 | Mapper | `mapper/TemplateMapper.java` (fixed the pre-existing hardcoded-`active`/missing-severity mapping bug; added `toEntity`/`toDetailResponse`) |
 | Search predicate | `jpa/sql/repository/TemplateSpecifications.java` |
-| New lookup repositories | `jpa/sql/repository/ApplicationRepository.java`, `SeverityTypeRepository.java` |
+| New lookup repositories | `jpa/sql/repository/SeverityTypeRepository.java` (the application is never looked up: the `general` schema is backbone-rest's) |
 | Authorization | `api/v1/service/ApplicationAuthorizationService.java`, `ApplicationAuthorizationServiceImpl.java` |
 | Backbone client | `client/BackbonePermissionClient.java`, `client/to/PermissionCheckRequest.java`, `PermissionCheckResponse.java` |
 | Reused, unchanged | `jpa/sql/entity/TemplateEntity.java`, `jpa/sql/repository/TemplateRepository.java`, `client/interceptor/BackendFeignClientInterceptor.java` (previously dead code, now exercised) |

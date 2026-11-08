@@ -59,7 +59,7 @@ class TemplateContentServiceImplTest {
     @BeforeEach
     void setUp() {
         storage = new LocalTemplateStorage(dir);
-        folders = new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class), "");
+        folders = new com.umdc.mercury.template.ApplicationTemplateFolders("");
         service = new TemplateContentServiceImpl(repository, storage, versions, folders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
     }
@@ -332,8 +332,7 @@ class TemplateContentServiceImplTest {
 
     @Test
     void contentOfAnApplicationWithAFolderIsReadAndSavedInsideThatFolder() {
-        var repo = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationRepository.class);
-        var inFolders = new com.umdc.mercury.template.ApplicationTemplateFolders(repo, applicationId + "=iris");
+        var inFolders = new com.umdc.mercury.template.ApplicationTemplateFolders(applicationId + "=iris");
         var foldered = new TemplateContentServiceImpl(repository, storage, versions, inFolders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
         found("welcome.ftl");

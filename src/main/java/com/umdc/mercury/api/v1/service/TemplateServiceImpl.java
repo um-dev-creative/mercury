@@ -9,7 +9,6 @@ import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
-import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import com.umdc.mercury.jpa.sql.repository.SeverityTypeRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateRepository;
 import com.umdc.mercury.jpa.sql.repository.TemplateSpecifications;
@@ -51,7 +50,6 @@ public class TemplateServiceImpl implements TemplateService {
     private final TemplateRepository templateRepository;
     private final TemplateTypeEntityRepository templateTypeRepository;
     private final SeverityTypeRepository severityTypeRepository;
-    private final ApplicationRepository applicationRepository;
     private final ApplicationAuthorizationService applicationAuthorizationService;
     private final TemplateMapper templateMapper;
     private final TemplateUpdateApplier templateUpdateApplier;
@@ -60,7 +58,6 @@ public class TemplateServiceImpl implements TemplateService {
     public TemplateServiceImpl(TemplateRepository templateRepository,
                                 TemplateTypeEntityRepository templateTypeRepository,
                                 SeverityTypeRepository severityTypeRepository,
-                                ApplicationRepository applicationRepository,
                                 ApplicationAuthorizationService applicationAuthorizationService,
                                 TemplateMapper templateMapper,
                                 TemplateUpdateApplier templateUpdateApplier,
@@ -68,7 +65,6 @@ public class TemplateServiceImpl implements TemplateService {
         this.templateRepository = templateRepository;
         this.templateTypeRepository = templateTypeRepository;
         this.severityTypeRepository = severityTypeRepository;
-        this.applicationRepository = applicationRepository;
         this.applicationAuthorizationService = applicationAuthorizationService;
         this.templateMapper = templateMapper;
         this.templateUpdateApplier = templateUpdateApplier;
@@ -81,8 +77,10 @@ public class TemplateServiceImpl implements TemplateService {
         logger.info("Creating template. applicationId={}, requesterId={}", request.applicationId(), requesterId);
         applicationAuthorizationService.assertPermission(sessionToken, request.applicationId(), templateManagePermission);
 
-        ApplicationEntity application = applicationRepository.findById(request.applicationId())
-                .orElseThrow(() -> new IllegalArgumentException("Application not found: " + request.applicationId()));
+        // the permission check above already proved the application exists (the caller holds a role in it); the general schema is
+        // backbone-rest's, so Mercury only keeps the id as the foreign key of the row
+        ApplicationEntity application = new ApplicationEntity();
+        application.setId(request.applicationId());
         TemplateTypeEntity templateType = requireActiveTemplateType(request.templateTypeId());
         SeverityTypeEntity severityType = requireActiveSeverityType(request.severityTypeId());
 

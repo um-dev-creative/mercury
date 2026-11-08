@@ -1,133 +1,75 @@
 package com.umdc.mercury.template;
 
-import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
-import com.umdc.mercury.jpa.sql.repository.ApplicationRepository;
 import org.junit.jupiter.api.Test;
 
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class ApplicationTemplateFoldersTest {
 
-    private final ApplicationRepository repository = mock(ApplicationRepository.class);
     private final UUID iris = UUID.randomUUID();
     private final UUID smartkin = UUID.randomUUID();
 
-    private ApplicationEntity application(UUID id, String codeName) throws Exception {
-        ApplicationEntity entity = new ApplicationEntity();
-        entity.setId(id);
-        var field = ApplicationEntity.class.getDeclaredField("codeName");
-        field.setAccessible(true);
-        field.set(entity, codeName);
-        return entity;
-    }
-
     @Test
-    void theFolderIsTheLowerCasedCodeNameOfTheApplication() throws Exception {
-        when(repository.findById(iris)).thenReturn(Optional.of(application(iris, " Iris ")));
-        var folders = new ApplicationTemplateFolders(repository, "");
+    void theFolderIsTheOneConfiguredForTheApplicationId() {
+        var folders = new ApplicationTemplateFolders(iris + "=iris, " + smartkin + "=smartkind");
 
         assertThat(folders.folderOf(iris)).contains("iris");
         assertThat(folders.nameOf(iris, "iris_welcome.ftl")).isEqualTo("iris/iris_welcome.ftl");
-    }
-
-    @Test
-    void aConfiguredFolderWinsOverTheCodeName() throws Exception {
-        when(repository.findById(smartkin)).thenReturn(Optional.of(application(smartkin, "SMARTKIN")));
-        var folders = new ApplicationTemplateFolders(repository, smartkin + "=smartkind, " + UUID.randomUUID() + "=other");
-
         assertThat(folders.nameOf(smartkin, "sk_a.ftl")).isEqualTo("smartkind/sk_a.ftl");
-        verify(repository, times(0)).findById(smartkin);
     }
 
     @Test
-    void anApplicationWithoutAUsableFolderKeepsTheBareFileName() throws Exception {
-        UUID noCode = UUID.randomUUID();
-        UUID badCode = UUID.randomUUID();
-        when(repository.findById(noCode)).thenReturn(Optional.of(application(noCode, null)));
-        when(repository.findById(badCode)).thenReturn(Optional.of(application(badCode, "N/A")));
-        var folders = new ApplicationTemplateFolders(repository, "");
+    void anApplicationWithoutAnEntryKeepsTheBareFileName() {
+        var folders = new ApplicationTemplateFolders(iris + "=iris");
+        UUID other = UUID.randomUUID();
 
-        assertThat(folders.nameOf(noCode, "a.ftl")).isEqualTo("a.ftl");
-        assertThat(folders.nameOf(badCode, "a.ftl")).isEqualTo("a.ftl");
-        assertThat(folders.nameOf(UUID.randomUUID(), "a.ftl")).isEqualTo("a.ftl");
+        assertThat(folders.folderOf(other)).isEmpty();
+        assertThat(folders.nameOf(other, "a.ftl")).isEqualTo("a.ftl");
+        assertThat(folders.nameOf(other, "a.ftl")).isEqualTo("a.ftl");
         assertThat(folders.nameOf(null, "a.ftl")).isEqualTo("a.ftl");
     }
 
     @Test
-    void aNameThatAlreadyHasAFolderIsLeftAlone() {
-        var folders = new ApplicationTemplateFolders(repository, "");
+    void aLocationThatAlreadyHasAFolderIsLeftAlone() {
+        var folders = new ApplicationTemplateFolders(iris + "=iris");
 
-        assertThat(folders.nameOf(iris, "zerobound/a.ftl")).isEqualTo("zerobound/a.ftl");
+        assertThat(folders.nameOf(iris, "other/a.ftl")).isEqualTo("other/a.ftl");
         assertThat(folders.nameOf(iris, null)).isNull();
     }
 
     @Test
-    void theFolderIsLookedUpOnlyOnce() throws Exception {
-        when(repository.findById(iris)).thenReturn(Optional.of(application(iris, "iris")));
-        var folders = new ApplicationTemplateFolders(repository, "");
-
-        folders.folderOf(iris);
-        folders.folderOf(iris);
-
-        verify(repository, times(1)).findById(iris);
+    void noConfigurationMeansNoFolders() {
+        assertThat(new ApplicationTemplateFolders("").folderOf(iris)).isEmpty();
+        assertThat(new ApplicationTemplateFolders(null).folderOf(iris)).isEmpty();
+        assertThat(new ApplicationTemplateFolders("   ").folderOf(iris)).isEmpty();
     }
 
     @Test
-    void aMissingFolderIsNotCachedSoALaterCodeIsPickedUp() throws Exception {
-        when(repository.findById(iris)).thenReturn(Optional.empty(), Optional.of(application(iris, "iris")));
-        var folders = new ApplicationTemplateFolders(repository, "");
-
-        assertThat(folders.folderOf(iris)).isEmpty();
-        assertThat(folders.folderOf(iris)).contains("iris");
+    void anEntryThatIsNotAnApplicationIdIsRefusedWithAHint() {
+        assertThatThrownBy(() -> new ApplicationTemplateFolders("SAKN=smartkind"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("not an application id")
+                .hasMessageContaining("does not read the application code");
     }
 
     @Test
-    void aBadConfigurationStopsTheStartupWithAClearMessage() {
-        assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, "no-equals"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("<application id or code_name>=<folder>");
-        assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, iris + "=Bad Folder"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("not a valid folder");
-        assertThatThrownBy(() -> new ApplicationTemplateFolders(repository, "=iris"))
-                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("missing application id or code_name");
+    void aMalformedEntryOrFolderIsRefused() {
+        assertThatThrownBy(() -> new ApplicationTemplateFolders(iris.toString())).hasMessageContaining("expected <application id>=<folder>");
+        assertThatThrownBy(() -> new ApplicationTemplateFolders(iris + "=Not Valid")).hasMessageContaining("not a valid folder name");
     }
 
     @Test
-    void emptyConfigurationIsFine() {
-        assertThat(ApplicationTemplateFolders.parse(null)).isEmpty();
-        assertThat(ApplicationTemplateFolders.parse("  ")).isEmpty();
-    }
+    void theDefaultOfApplicationYmlParses() throws Exception {
+        String line = java.nio.file.Files.readAllLines(java.nio.file.Path.of("src/main/resources/application.yml")).stream()
+                .filter(l -> l.contains("application-folders:")).findFirst().orElseThrow();
+        String value = line.substring(line.indexOf("TEMPLATE_APPLICATION_FOLDERS:") + "TEMPLATE_APPLICATION_FOLDERS:".length(), line.lastIndexOf('}'));
+        var folders = new ApplicationTemplateFolders(value);
 
-    @Test
-    void aFolderConfiguredForTheCodeNameAppliesToEveryApplicationWithThatCode() throws Exception {
-        UUID zerobound = UUID.randomUUID();
-        UUID smartKin = UUID.randomUUID();
-        UUID luckyLeaf = UUID.randomUUID();
-        UUID luckyLeafRest = UUID.randomUUID();
-        when(repository.findById(zerobound)).thenReturn(Optional.of(application(zerobound, "zeronbou")));
-        when(repository.findById(smartKin)).thenReturn(Optional.of(application(smartKin, "SAKN")));
-        when(repository.findById(luckyLeaf)).thenReturn(Optional.of(application(luckyLeaf, "lucky_le")));
-        when(repository.findById(luckyLeafRest)).thenReturn(Optional.of(application(luckyLeafRest, "lucky_le")));
-        var folders = new ApplicationTemplateFolders(repository, "SAKN=smartkind, Zeronbou=zerobound");
-
-        assertThat(folders.nameOf(zerobound, "zb_a.ftl")).isEqualTo("zerobound/zb_a.ftl");
-        assertThat(folders.nameOf(smartKin, "sk_a.ftl")).isEqualTo("smartkind/sk_a.ftl");
-        assertThat(folders.nameOf(luckyLeaf, "a.ftl")).isEqualTo("lucky_le/a.ftl");
-        assertThat(folders.nameOf(luckyLeafRest, "a.ftl")).isEqualTo("lucky_le/a.ftl");
-    }
-
-    @Test
-    void anIdEntryWinsOverACodeEntry() throws Exception {
-        when(repository.findById(iris)).thenReturn(Optional.of(application(iris, "iris")));
-        var folders = new ApplicationTemplateFolders(repository, "iris=by-code, " + iris + "=by-id");
-
-        assertThat(folders.folderOf(iris)).contains("by-id");
+        assertThat(folders.folderOf(UUID.fromString("8249aa97-23fa-47cd-9c6d-4685f0c03cc3"))).contains("iris");
+        assertThat(folders.folderOf(UUID.fromString("e50b2e01-1a40-43a3-aa55-90bc9b207fa3"))).contains("smartkind");
+        assertThat(folders.folderOf(UUID.fromString("c913b241-866e-4f1d-9ee4-f241b00d6475"))).contains("zerobound");
     }
 }

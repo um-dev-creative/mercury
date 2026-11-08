@@ -17,13 +17,13 @@ The text of every message Mercury sends (the verification e-mail, a campaign mes
 Each application keeps its templates in its own folder: `<TEMPLATE_PATH or TEMPLATE_S3_PREFIX>/<folder>/<file>`. For example, with `TEMPLATE_S3_PREFIX=lth/mercury/templates/` the Iris templates are `lth/mercury/templates/iris/iris_welcome.ftl`, and the others live in `smartkind/`, `zerobound/` and `latinhub/`.
 
 - The `location` of a template stays the plain file name (`iris_welcome.ftl`). Mercury adds the folder of the template's application, both when it sends a message and when someone edits the template from Iris, so both use the same file.
-- The folder of an application is its `code_name` in lower case (`general.application.code_name`). If a folder has another name, say so with `TEMPLATE_APPLICATION_FOLDERS=<code_name or application id>=<folder>,...` (the code name is not case-sensitive and applies to every application that has it). For the current applications that is the default value (`TEMPLATE_APPLICATION_FOLDERS=SAKN=smartkind,zeronbou=zerobound`), so nothing needs to be set; `iris` and `latinhub` already match their folders, and `lucky_le` (Lucky Leaf and Lucky Leaf REST) uses the folder `lucky_le`.
+- The folder of an application is set by its id with `TEMPLATE_APPLICATION_FOLDERS=<application id>=<folder>,...` (Mercury does not read the application code from the database, so only ids are accepted; anything else stops Mercury from starting, with a message). The default already lists the current applications (`iris`, `latinhub`, `lucky_le` for Lucky Leaf and Lucky Leaf REST, `smartkind` and `zerobound`), so nothing needs to be set unless the ids of your Backbone differ.
 - The Telegram templates of ZeroBound (`zb_<kind>_tg_<language>.ftl`) are read from `TEMPLATE_TELEGRAM_FOLDER` (default `zerobound`).
 - A folder name has lower-case letters, digits, `_` and `-`, up to 64 characters. There is one level of folders only.
-- An application with no folder (no `code_name` and no entry in `TEMPLATE_APPLICATION_FOLDERS`) keeps working with files at the root, and Mercury logs a warning naming the application.
+- An application with no entry in `TEMPLATE_APPLICATION_FOLDERS` keeps working with files at the root, and Mercury logs a warning naming the application.
 - Cloudflare R2: `TEMPLATE_STORAGE=s3` plus `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<account id>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` and `CLOUDFLARE_R2_SECRET_KEY` (secrets, keep them in Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (base path of the templates), `TEMPLATE_S3_REGION=auto` and `TEMPLATE_S3_PATH_STYLE=true`.
 
-To check that each application finds its folder, run `SELECT id, name, code_name FROM general.application;` and compare `lower(code_name)` with the folders of the bucket.
+To check that each application finds its folder, compare the ids in `TEMPLATE_APPLICATION_FOLDERS` with the application ids shown by Backbone (the Applications screen of Stratum) and with the folders of the bucket.
 
 ## Using a bucket instead of a folder
 
