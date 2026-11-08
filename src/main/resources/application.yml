@@ -137,11 +137,15 @@ umdc:
       access-key: ${CLOUDFLARE_R2_ACCESS_KEY:}
       secret-key: ${CLOUDFLARE_R2_SECRET_KEY:}
     # each application keeps its templates in its own folder: <storage root or s3 prefix>/<folder>/<file>
-    # (lth/mercury/templates/iris/iris_welcome.ftl). The folder is configured per application ID, as `<application id>=<folder>,...`:
-    # Mercury never reads the general schema (backbone-rest's), so it cannot look the application code up. An application without an
-    # entry keeps its files at the root of the storage. The default lists the applications of the Backbone database (ids as in QA);
-    # set TEMPLATE_APPLICATION_FOLDERS where the ids differ.
+    # (lth/mercury/templates/iris/iris_welcome.ftl). The folders are rows of mercury.application_template_folders (V2033), read and
+    # written dynamically: the first template created for an application that has no folder registers one named like the application
+    # id, and PUT /api/v1/templates/applications/{applicationId}/folder sets a friendlier name. Mercury never reads the general schema.
+    # An application without a row keeps its files at the root of the storage.
+    # application-folders is OPTIONAL and only for applications whose templates already live in a named folder: at startup the
+    # entries `<application id>=<folder>,...` that are not registered yet are added (never overwritten). A new application needs none.
     application-folders: ${TEMPLATE_APPLICATION_FOLDERS:8249aa97-23fa-47cd-9c6d-4685f0c03cc3=iris,c9291036-fd71-4f2b-9986-2c5d4e5a0f8b=latinhub,137519ec-c070-4a82-b5d3-1a2b6638433b=lucky_le,9c1573bf-b328-4ad2-b808-6040e5c15787=lucky_le,e50b2e01-1a40-43a3-aa55-90bc9b207fa3=smartkind,c913b241-866e-4f1d-9ee4-f241b00d6475=zerobound}
+    # seconds a folder read from the table is kept before it is read again (a change made by another instance applies within this time)
+    application-folders-cache-seconds: ${TEMPLATE_APPLICATION_FOLDERS_CACHE_SECONDS:60}
     # folder of the ZeroBound Telegram templates (zb_<kind>_tg_<language>.ftl), which are not tied to a template row
     telegram-folder: ${TEMPLATE_TELEGRAM_FOLDER:zerobound}
     # largest template accepted by PUT /api/v1/templates/{id}/content and by the preview, in bytes

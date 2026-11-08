@@ -9,13 +9,15 @@ El texto de cada mensaje que envía Mercury (el correo de verificación, el mens
 Cada aplicación guarda sus plantillas en su propia carpeta: `<TEMPLATE_PATH o TEMPLATE_S3_PREFIX>/<carpeta>/<archivo>`. Por ejemplo, con `TEMPLATE_S3_PREFIX=lth/mercury/templates/` las plantillas de Iris son `lth/mercury/templates/iris/iris_welcome.ftl`, y las demás están en `smartkind/`, `zerobound/` y `latinhub/`.
 
 - El `location` de una plantilla sigue siendo el nombre del archivo (`iris_welcome.ftl`). Mercury añade la carpeta de la aplicación de la plantilla, tanto al enviar un mensaje como al editarla desde Iris, así que ambos usan el mismo archivo.
-- La carpeta de una aplicación se define por su id con `TEMPLATE_APPLICATION_FOLDERS=<id de la aplicación>=<carpeta>,...` (Mercury no lee el código de la aplicación en la base de datos, así que solo acepta ids; cualquier otra cosa impide arrancar Mercury, con un mensaje). El valor por defecto ya incluye las aplicaciones actuales (`iris`, `latinhub`, `lucky_le` para Lucky Leaf y Lucky Leaf REST, `smartkind` y `zerobound`), así que no hace falta definirlo salvo que los ids de tu Backbone sean otros.
+- Cada aplicación tiene su propia carpeta y la gestiona el propio Mercury: al crear la **primera plantilla de una aplicación nueva**, Mercury crea su carpeta (con el id de la aplicación como nombre) y la usa desde entonces. No hay que configurar nada cuando aparece una aplicación nueva.
+- Para darle a una aplicación un nombre de carpeta más amigable, usa `PUT /api/v1/templates/applications/<id de la aplicación>/folder` con el cuerpo `{"folder": "mi-app"}` (necesitas el permiso template-manage en esa aplicación; `GET` sobre la misma ruta muestra la actual). Una carpeta pertenece a una sola aplicación. Cambiarla **no mueve** los archivos: copia antes las plantillas a la carpeta nueva.
+- Las aplicaciones que ya guardan sus plantillas en una carpeta con nombre se registran una vez al arrancar con la variable opcional `TEMPLATE_APPLICATION_FOLDERS=<id de la aplicación>=<carpeta>,...` (solo añade, nunca sobrescribe). No hace falta para aplicaciones nuevas.
 - Las plantillas de Telegram de ZeroBound (`zb_<tipo>_tg_<idioma>.ftl`) se leen de `TEMPLATE_TELEGRAM_FOLDER` (por defecto `zerobound`).
 - Una carpeta usa minúsculas, dígitos, `_` y `-`, hasta 64 caracteres. Solo hay un nivel de carpetas.
-- Una aplicación sin entrada en `TEMPLATE_APPLICATION_FOLDERS` sigue funcionando con archivos en la raíz, y Mercury registra un aviso con su id.
+- Una aplicación que aún no tiene carpeta (sin plantillas creadas desde Mercury desde que existen las carpetas) sigue funcionando con sus archivos en la raíz del almacén.
 - Cloudflare R2: `TEMPLATE_STORAGE=s3` más `CLOUDFLARE_R2_BUCKET_NAME` (bucket), `CLOUDFLARE_R2_ENDPOINT` (`https://<id de cuenta>.r2.cloudflarestorage.com`), `CLOUDFLARE_R2_ACCESS_KEY` y `CLOUDFLARE_R2_SECRET_KEY` (secretos, guárdalos en Vault), `TEMPLATE_S3_PREFIX=lth/mercury/templates/` (ruta base de las plantillas), `TEMPLATE_S3_REGION=auto` y `TEMPLATE_S3_PATH_STYLE=true`.
 
-Para comprobar que cada aplicación encuentra su carpeta, compara los ids de `TEMPLATE_APPLICATION_FOLDERS` con los ids de las aplicaciones en Backbone (pantalla Aplicaciones de Stratum) y con las carpetas del bucket.
+Para ver qué carpeta usa una aplicación, llama a `GET /api/v1/templates/applications/<id de la aplicación>/folder` o lee la tabla `mercury.application_template_folders` (id de la aplicación y carpeta).
 
 ## Lo que debes saber
 

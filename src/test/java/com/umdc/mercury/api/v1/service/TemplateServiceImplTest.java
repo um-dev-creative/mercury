@@ -68,6 +68,9 @@ class TemplateServiceImplTest {
     private ApplicationAuthorizationService applicationAuthorizationService;
 
     @Mock
+    private com.umdc.mercury.template.ApplicationTemplateFolders templateFolders;
+
+    @Mock
     private TemplateMapper templateMapper;
 
     @Mock
@@ -83,7 +86,7 @@ class TemplateServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TemplateServiceImpl(templateRepository, templateTypeRepository, severityTypeRepository,
-                applicationAuthorizationService, templateMapper, templateUpdateApplier, PERMISSION);
+                applicationAuthorizationService, templateMapper, templateUpdateApplier, templateFolders, PERMISSION);
 
         requesterId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
@@ -165,6 +168,24 @@ class TemplateServiceImplTest {
 
             assertThrows(ForbiddenException.class, () -> service.createTemplate(createRequest(), requesterId, SESSION_TOKEN));
             verify(templateRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("the first template of an application gives it a folder; an application that already has templates keeps where they are")
+        void createTemplate_registersTheFolderOfANewApplicationOnly() throws Exception {
+            when(templateTypeRepository.findById(templateTypeId)).thenReturn(Optional.of(activeTemplateType()));
+            when(severityTypeRepository.findById(severityTypeId)).thenReturn(Optional.of(activeSeverityType()));
+            when(templateMapper.toEntity(any(), any(), any(), any(), any())).thenAnswer(inv -> new TemplateEntity());
+            when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            when(templateRepository.existsByApplicationEntityId(applicationId)).thenReturn(false);
+            service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
+            verify(templateFolders).ensureFolder(applicationId);
+
+            org.mockito.Mockito.clearInvocations(templateFolders);
+            when(templateRepository.existsByApplicationEntityId(applicationId)).thenReturn(true);
+            service.createTemplate(createRequest(), requesterId, SESSION_TOKEN).get();
+            verify(templateFolders, never()).ensureFolder(any());
         }
 
         @Test

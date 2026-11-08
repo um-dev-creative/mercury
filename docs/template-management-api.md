@@ -115,6 +115,12 @@ never treated as an implicit grant.
 
 ---
 
+## 🗂️ Template folder of an application
+
+`GET` and `PUT /api/v1/templates/applications/{applicationId}/folder` read and set the folder of the template storage an application keeps its templates in (`{"folder":"iris"}`; response `{applicationId, folder, registered}`). `GET` needs the template-read permission in the application, `PUT` template-manage (`400` invalid name, `409` the folder belongs to another application). It does not move files. The first template created for an application with no folder and no templates registers one named like the application id, so a new application needs no configuration. See [`docs/tec/en/11-template-application-folders.md`](tec/en/11-template-application-folders.md).
+
+---
+
 ## 📝 Create
 
 ```

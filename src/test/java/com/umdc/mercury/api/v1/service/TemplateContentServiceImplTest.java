@@ -59,7 +59,7 @@ class TemplateContentServiceImplTest {
     @BeforeEach
     void setUp() {
         storage = new LocalTemplateStorage(dir);
-        folders = new com.umdc.mercury.template.ApplicationTemplateFolders("");
+        folders = new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class), 60);
         service = new TemplateContentServiceImpl(repository, storage, versions, folders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
     }
@@ -332,7 +332,7 @@ class TemplateContentServiceImplTest {
 
     @Test
     void contentOfAnApplicationWithAFolderIsReadAndSavedInsideThatFolder() {
-        var inFolders = new com.umdc.mercury.template.ApplicationTemplateFolders(applicationId + "=iris");
+        var inFolders = foldersWith(applicationId, "iris");
         var foldered = new TemplateContentServiceImpl(repository, storage, versions, inFolders, authorization, "TEMPLATE_MANAGE", 200,
                 List.of("zb_", " ", "iris_"), 1000, 2000);
         found("welcome.ftl");
@@ -355,5 +355,12 @@ class TemplateContentServiceImplTest {
 
         org.junit.jupiter.api.Assertions.assertThrows(TemplateNotFoundException.class,
                 () -> service.read(templateId, TOKEN));
+    }
+
+    private static com.umdc.mercury.template.ApplicationTemplateFolders foldersWith(UUID application, String folder) {
+        var repository = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class);
+        org.mockito.Mockito.when(repository.findById(application)).thenReturn(java.util.Optional.of(
+                new com.umdc.mercury.jpa.sql.entity.ApplicationTemplateFolderEntity(application, folder, java.time.LocalDateTime.now())));
+        return new com.umdc.mercury.template.ApplicationTemplateFolders(repository, 60);
     }
 }

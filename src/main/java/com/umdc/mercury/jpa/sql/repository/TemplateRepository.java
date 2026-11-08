@@ -7,4 +7,8 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import java.util.UUID;
 
 public interface TemplateRepository extends JpaRepository<TemplateEntity, UUID>, JpaSpecificationExecutor<TemplateEntity> {
+
+    /** Whether the application has any template row (active or not). */
+    boolean existsByApplicationEntityId(UUID applicationId);
+
 }

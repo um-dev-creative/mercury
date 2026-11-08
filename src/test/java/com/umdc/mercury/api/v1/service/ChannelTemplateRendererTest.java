@@ -29,7 +29,7 @@ class ChannelTemplateRendererTest {
     void setUp() throws IOException {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
         configuration.setDirectoryForTemplateLoading(templateDir.toFile());
-        renderer = new ChannelTemplateRenderer(configuration, new com.umdc.mercury.template.ApplicationTemplateFolders(""));
+        renderer = new ChannelTemplateRenderer(configuration, new com.umdc.mercury.template.ApplicationTemplateFolders(org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class), 60));
     }
 
     private TemplateDefinedTO templateAt(String location) {
@@ -94,7 +94,7 @@ class ChannelTemplateRendererTest {
         UUID application = UUID.randomUUID();
         Files.createDirectories(templateDir.resolve("iris"));
         Files.writeString(templateDir.resolve("iris/welcome.ftl"), "Hola ${name} desde iris");
-        var folders = new com.umdc.mercury.template.ApplicationTemplateFolders(application + "=iris");
+        var folders = foldersWith(application, "iris");
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_30);
         configuration.setDirectoryForTemplateLoading(templateDir.toFile());
         var inFolder = new ChannelTemplateRenderer(configuration, folders);
@@ -104,5 +104,12 @@ class ChannelTemplateRendererTest {
                 Map.of("name", "Ana"), "crudo");
 
         assertThat(result).isEqualTo("Hola Ana desde iris");
+    }
+
+    private static com.umdc.mercury.template.ApplicationTemplateFolders foldersWith(UUID application, String folder) {
+        var repository = org.mockito.Mockito.mock(com.umdc.mercury.jpa.sql.repository.ApplicationTemplateFolderRepository.class);
+        org.mockito.Mockito.when(repository.findById(application)).thenReturn(java.util.Optional.of(
+                new com.umdc.mercury.jpa.sql.entity.ApplicationTemplateFolderEntity(application, folder, java.time.LocalDateTime.now())));
+        return new com.umdc.mercury.template.ApplicationTemplateFolders(repository, 60);
     }
 }

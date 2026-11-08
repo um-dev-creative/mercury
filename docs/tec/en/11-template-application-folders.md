@@ -17,8 +17,26 @@ flowchart LR
 ```
 
 - `TemplateEntity.location` is still the plain file name. `ApplicationTemplateFolders.nameOf(applicationId, location)` returns `folder/location`; a location that already has a `/` is left alone.
-- Folder of an application: only `umdc.templates.application-folders` (`<application id>=<folder>,...`, env `TEMPLATE_APPLICATION_FOLDERS`). **Mercury never reads the `general` schema** (it belongs to backbone-rest), so the application code is not looked up: the key must be the application id, and a key that is not a UUID stops the start with a message saying so. An application with no entry falls back to the root and logs one WARN. The default lists the applications of the Backbone database (Iris, LatinHub, Lucky Leaf and Lucky Leaf REST, Smart Kin, Zeronbound REST); set the variable where the ids differ.
-- `GeneralSchemaBoundaryTest` guards the rule: no repository may query an entity that maps a `general` table, and no query may name that schema. `ApplicationEntity` only holds the id of a foreign key; creating a template trusts the permission check (the caller holds a role in the application) instead of reading the application.
+- Folders are **dynamic**: rows of Mercury's own table `mercury.application_template_folders` (V2033; `application_id` PK, `folder` UNIQUE, no foreign key to `general`). **Mercury never reads the `general` schema** (backbone-rest's), so it does not look an application up and needs no code name.
+  - **Read:** `ApplicationTemplateFolders.folderOf` reads the row (cached `umdc.templates.application-folders-cache-seconds`, default 60 s, so a change made through the API or by another instance applies without a restart). No row = the root of the storage, as before folders existed.
+  - **New application, zero configuration:** the first template created for an application that has no folder and no templates registers the folder named like its id (`ensureFolder`, race-safe between instances). An application that already has templates keeps where they are.
+  - **Friendlier name:** `PUT /api/v1/templates/applications/{applicationId}/folder` `{"folder":"iris"}` (needs the template-manage permission in that application; `GET` needs template-read). A folder belongs to one application (`409` otherwise) and must be a valid folder name (`400`). It **does not move files**: copy the templates of the old folder to the new one.
+  - **Existing applications:** `umdc.templates.application-folders` (`<application id>=<folder>,...`, env `TEMPLATE_APPLICATION_FOLDERS`) is OPTIONAL and only for applications whose templates already live in a named folder. `ApplicationTemplateFoldersImporter` adds, at startup, the entries not registered yet (never overwrites); a key that is not a UUID stops the start with a message. A new application needs no entry.
+- `GeneralSchemaBoundaryTest` guards the rule: no repository may query an entity that maps a `general` table, and no query may name that schema. `ApplicationEntity` only holds the id of a foreign key.
+
+```mermaid
+sequenceDiagram
+    participant I as Iris
+    participant M as Mercury
+    participant T as mercury.application_template_folders
+    participant S as Template storage
+    I->>M: POST /templates (new application)
+    M->>T: no row, no templates: insert folder = application id
+    I->>M: PUT /templates/{id}/content
+    M->>T: folderOf(application), cached 60 s
+    M->>S: write <folder>/<file>
+    Note over I,M: optional: PUT /templates/applications/{id}/folder to rename
+```
 - `TemplateNames` accepts `file` or `folder/file` (one level; folder `[a-z0-9][a-z0-9_-]{0,63}`); `isFileName` is the bare form, which is what `location` must be to be editable. Protected prefixes (`zb_`, `sk_`, `iris_`, `ds_`) are checked on the file name, not on the folder.
 - `LocalTemplateStorage` creates the folder on write (temporary file in the same folder, atomic move) and `list()` walks the root and one level of valid folders. `S3TemplateStorage.list()` no longer uses a delimiter, so it returns `folder/file` keys too; deeper keys are ignored.
 - Preview renders under the qualified name, so a relative `<#include "header.ftl">` resolves inside the application folder, as it does when sending.

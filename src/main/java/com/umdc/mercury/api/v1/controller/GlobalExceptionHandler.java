@@ -7,6 +7,7 @@ import com.umdc.mercury.api.v1.exception.LoginClientNotFoundException;
 import com.umdc.mercury.api.v1.exception.MailNotFoundException;
 import com.umdc.mercury.api.v1.exception.TemplateNotFoundException;
 import com.umdc.mercury.api.v1.to.ApiError;
+import com.umdc.mercury.api.v1.exception.FolderInUseException;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -208,6 +209,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LoginClientAlreadyExistsException.class)
     public ResponseEntity<ApiError> handleLoginClientAlreadyExists(LoginClientAlreadyExistsException ex, HttpServletRequest request) {
         logger.warn("Login client clash for '{}': {}", request.getRequestURI(), ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
+    }
+
+    /// Handles a template folder that another application already uses, returning `409 Conflict`.
+    @ExceptionHandler(FolderInUseException.class)
+    public ResponseEntity<ApiError> handleFolderInUse(FolderInUseException ex, HttpServletRequest request) {
+        logger.warn("Template folder clash for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));

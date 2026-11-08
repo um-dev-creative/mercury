@@ -735,6 +735,59 @@ paths:
           description: applicationId missing or malformed.
         '403':
           description: The caller may not use the application's templates.
+  /api/v1/templates/applications/{applicationId}/folder:
+    get:
+      tags: [templates]
+      summary: Get the template folder of an application
+      description: >
+        The folder of the template storage the application keeps its templates in, or `registered=false` (its templates are at the
+        root of the storage). Needs the template-read permission in that application.
+      operationId: getApplicationTemplateFolder
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      responses:
+        '200':
+          description: The folder.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationFolderResponse'
+        '403': {description: The caller lacks the template permission in the application.}
+    put:
+      tags: [templates]
+      summary: Set the template folder of an application
+      description: >
+        Creates or replaces the folder. It does not move files: templates already saved in the old folder must be copied to the new one.
+        The first template created for an application that has no folder registers one named like the application id, so this is only
+        needed for a friendlier name. Needs the template-manage permission in that application.
+      operationId: setApplicationTemplateFolder
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: {type: string, format: uuid}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder]
+              properties:
+                folder: {type: string, maxLength: 64, description: 'Lower-case letters, digits, _ and -, starting with a letter or digit.'}
+      responses:
+        '200':
+          description: The folder after the change.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationFolderResponse'
+        '400': {description: Not a valid folder name.}
+        '403': {description: The caller lacks the template permission in the application.}
+        '409': {description: Another application already uses that folder.}
   /api/v1/templates/{id}/content:
     get:
       tags: [templates]
@@ -1135,6 +1188,12 @@ paths:
 
 components:
   schemas:
+    ApplicationFolderResponse:
+      type: object
+      properties:
+        applicationId: {type: string, format: uuid}
+        folder: {type: string, nullable: true}
+        registered: {type: boolean}
     AuthRequest:
       type: object
       description: >-

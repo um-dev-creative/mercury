@@ -6,6 +6,7 @@ import com.umdc.mercury.api.v1.to.TemplateDetailResponse;
 import com.umdc.mercury.api.v1.to.TemplateSearchResponse;
 import com.umdc.mercury.api.v1.to.UpdateTemplateRequest;
 import com.umdc.mercury.jpa.sql.entity.ApplicationEntity;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
 import com.umdc.mercury.jpa.sql.entity.SeverityTypeEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateEntity;
 import com.umdc.mercury.jpa.sql.entity.TemplateTypeEntity;
@@ -53,6 +54,7 @@ public class TemplateServiceImpl implements TemplateService {
     private final ApplicationAuthorizationService applicationAuthorizationService;
     private final TemplateMapper templateMapper;
     private final TemplateUpdateApplier templateUpdateApplier;
+    private final ApplicationTemplateFolders templateFolders;
     private final String templateManagePermission;
 
     public TemplateServiceImpl(TemplateRepository templateRepository,
@@ -61,6 +63,7 @@ public class TemplateServiceImpl implements TemplateService {
                                 ApplicationAuthorizationService applicationAuthorizationService,
                                 TemplateMapper templateMapper,
                                 TemplateUpdateApplier templateUpdateApplier,
+                                ApplicationTemplateFolders templateFolders,
                                 @Value("${umdc.security.permissions.template-manage:TEMPLATE_MANAGE}") String templateManagePermission) {
         this.templateRepository = templateRepository;
         this.templateTypeRepository = templateTypeRepository;
@@ -68,6 +71,7 @@ public class TemplateServiceImpl implements TemplateService {
         this.applicationAuthorizationService = applicationAuthorizationService;
         this.templateMapper = templateMapper;
         this.templateUpdateApplier = templateUpdateApplier;
+        this.templateFolders = templateFolders;
         this.templateManagePermission = templateManagePermission;
     }
 
@@ -83,6 +87,12 @@ public class TemplateServiceImpl implements TemplateService {
         application.setId(request.applicationId());
         TemplateTypeEntity templateType = requireActiveTemplateType(request.templateTypeId());
         SeverityTypeEntity severityType = requireActiveSeverityType(request.severityTypeId());
+
+        // the first template of a new application gives it its folder, so a new application needs no configuration; an application that
+        // already has templates keeps where they are (its folder is set with PUT /templates/applications/{id}/folder)
+        if (!templateRepository.existsByApplicationEntityId(request.applicationId())) {
+            templateFolders.ensureFolder(request.applicationId());
+        }
 
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         TemplateEntity entity = templateMapper.toEntity(request, templateType, application, severityType, now);
