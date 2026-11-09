@@ -2,7 +2,7 @@
 
 🌐 [Read this in English](../en/template-storage.md)
 
-El texto de cada mensaje que envía Mercury (el correo de verificación, el mensaje de una campaña) sale de un archivo de plantilla. Mercury busca esos archivos en una sola carpeta, definida con `TEMPLATE_PATH` (por defecto `/usr/local/runme/templates`; en Docker puedes montar tu propia carpeta encima con `MERCURY_TEMPLATES_HOST_PATH`).
+El texto de cada mensaje que envía Mercury (el correo de verificación, el mensaje de una campaña) sale de un archivo de plantilla. Mercury los lee del almacenamiento definido con `TEMPLATE_STORAGE`: un bucket (`s3`/`r2`/`cloud`) o una carpeta local (`local` usa `TEMPLATE_PATH`, por defecto `/usr/local/runme/templates`; cualquier otro valor es la ruta de la carpeta). En Docker, monta un volumen con permiso de escritura sobre la carpeta para el almacenamiento local.
 
 ## Una carpeta por aplicación
 
@@ -53,3 +53,7 @@ Las plantillas no pueden crear objetos Java ni usar la API de Java (ver `docs/se
 
 
 > **Mercury ya no incluye plantillas.** La carpeta `src/main/resources/templates` no existe y las imágenes no contienen plantillas. Dónde viven lo decide `TEMPLATE_STORAGE`: `s3` (o `r2`, `cloud`) = el bucket de Cloudflare R2; `local` = la carpeta `TEMPLATE_PATH`; cualquier otro valor es la ruta de la propia carpeta local (se crea si no existe). Sube los archivos de plantilla al almacenamiento elegido antes de iniciar Mercury.
+
+## Si las plantillas se siguen guardando en `/usr/local/runme/templates`
+
+Comprueba que el contenedor tenga `TEMPLATE_STORAGE=s3` y `CLOUDFLARE_R2_BUCKET_NAME`. Desde esta corrección la variable se lee al arrancar, también en la imagen nativa (las imágenes anteriores la ignoraban y usaban siempre la carpeta, por eso los guardados fallaban con `Read-only file system`). Si `TEMPLATE_STORAGE=s3` está sin el bucket, Mercury no arranca y lo dice en el log.
