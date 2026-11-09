@@ -47,17 +47,21 @@ sequenceDiagram
 
 Backbone cannot be reached or refuses the session: `ApplicationDirectory` throws `ForbiddenException` and the caller sees nothing (fail closed).
 
-## Plan (three repositories)
+## Plan (four repositories) — status
 
 ```mermaid
 flowchart LR
-  A[1 · Mercury<br/>platform admin + manageable applications] --> B[2 · backbone-rest<br/>grant a user a role in any application]
-  B --> C[3 · Iris<br/>Users section: create users, assign applications]
+  A[1 · Mercury<br/>platform admin + manageable applications<br/>DONE] --> B[2 · backbone-rest<br/>grant a user a role in any application<br/>DONE: PUT /users/{id}/access/{app}/role/{role}]
+  B --> C[3 · Stratum<br/>create the application, give users access<br/>DONE: Applications and Users sections]
+  C --> D[4 · Iris<br/>templates by application, editor, preview, Users section<br/>DONE: /dashboard/templates and /dashboard/users]
 ```
 
 1. **Mercury** (this document): the authorization model above.
-2. **backbone-rest**: today a user has one primary application and `PUT /users/link/user/{id}/role/{id}` links a role only in it, so a user cannot be given access to several applications. Needs endpoints to grant and revoke a role in a chosen application, guarded by `PLATFORM_ADMIN`.
-3. **Iris**: a Users section (list, create, assign applications and role per application) and the application selector fed by `GET /api/v1/templates/applications`.
+2. **backbone-rest**: `UserApplicationAccessController` (`/api/v1/users/{userId}/access`) lists, grants and revokes a user's role in each application, so a user can administer several applications.
+3. **Stratum**: backbone's administration console creates and edits the applications and the users' access. **A new application is registered there**; Mercury and Iris do not create applications.
+4. **Iris**: the templates section (`/dashboard/templates`, with the applications `GET /api/v1/templates/applications` returns, the template editor and its preview; see `docs/technical/templates.md` in Iris) and the **Users** section (`/dashboard/users`) to give people access to several applications.
+
+To attach a new application to messaging: create it in Stratum, give the person that will administer it a role with `TEMPLATE_MANAGE` and `TEMPLATE_READ` in it, and open Iris: it appears in the templates section, and its first template registers its folder.
 
 ## Set-up in backbone (data, no code)
 
