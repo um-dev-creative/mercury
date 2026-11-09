@@ -39,7 +39,7 @@ flowchart LR
 |---|---|
 | `TEMPLATE_PATH` | Folder of the local storage (default `/usr/local/runme/templates`). It must exist at startup: Mercury fails fast if not, as before. |
 | `TEMPLATE_SUFFIX` | Unchanged. |
-| `TEMPLATE_STORAGE` | `local` (default) or `s3`. |
+| `TEMPLATE_STORAGE` | `local` (default) or `s3`. Read at run time: `TemplateStorageConfig.templateStorage` is the only bean and branches on it (see the note below). |
 | `CLOUDFLARE_R2_BUCKET_NAME` | Bucket that holds the templates (required with `s3`). |
 | `TEMPLATE_S3_PREFIX` | Key prefix inside the bucket (default `templates/`). |
 | `TEMPLATE_S3_REGION` | Region (default `us-east-1`; any value for MinIO). |
@@ -61,3 +61,18 @@ The names and the `location` of the templates do not change; only where the file
 ## Tests
 
 `S3TemplateStorageTest` (key and prefix handling, conditional headers, 404/409/412 mapping, paging; the S3 client is mocked) and `S3TemplateStorageIT` (the same contract against a real S3-compatible service; off by default, see its header to run it against MinIO). `LocalTemplateStorageTest` (round trip, invalid names, etag conflicts, atomicity, a concurrent race with exactly one winner), `StorageTemplateLoaderTest` (rendering, localized lookup, refresh after an edit, deletion), `TemplateNamesTest` and `FreeMarkerConfigTest`. The existing template tests (ZeroBound, SmartKin, Iris) render through the new loader unchanged.
+
+## Choosing the storage at run time (native image)
+
+The storage is **not** selected with `@ConditionalOnProperty`: Spring AOT evaluates conditions when the GraalVM image is built, so a
+`TEMPLATE_STORAGE` set on the container would be ignored and the local folder (`/usr/local/runme/templates`, read-only in QA) used.
+`TemplateStorageConfig.templateStorage` reads the property when the bean is created.
+
+```mermaid
+flowchart TD
+    A["Bean creation"] --> B{"umdc.templates.storage"}
+    B -->|"s3"| C{"bucket set?"}
+    C -->|"no"| D["IllegalStateException: set CLOUDFLARE_R2_BUCKET_NAME"]
+    C -->|"yes"| E["S3TemplateStorage (R2)"]
+    B -->|"local / empty"| F["FreeMarkerConfig.templateStorage() (folder)"]
+```
