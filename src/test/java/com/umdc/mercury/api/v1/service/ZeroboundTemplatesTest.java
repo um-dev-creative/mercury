@@ -31,7 +31,7 @@ class ZeroboundTemplatesTest {
     private static Configuration configuration() {
         var c = new Configuration(Configuration.VERSION_2_3_30);
         try {
-            c.setDirectoryForTemplateLoading(new File("src/main/resources/templates"));
+            c.setDirectoryForTemplateLoading(new File("src/test/resources/templates"));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -69,7 +69,7 @@ class ZeroboundTemplatesTest {
     @Test
     @DisplayName("there are 14 mail templates: 7 kinds x 2 languages (the Telegram ones are _tg_)")
     void fourteenFiles() {
-        var files = new File("src/main/resources/templates").list((d, n) -> n.startsWith("zb_") && n.endsWith(".ftl") && !n.contains("_tg_"));
+        var files = new File("src/test/resources/templates").list((d, n) -> n.startsWith("zb_") && n.endsWith(".ftl") && !n.contains("_tg_"));
         assertThat(files).hasSize(14);
     }
 }

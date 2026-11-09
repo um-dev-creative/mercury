@@ -37,9 +37,9 @@ flowchart LR
 
 | Variable | Use |
 |---|---|
-| `TEMPLATE_PATH` | Folder of the local storage (default `/usr/local/runme/templates`). It must exist at startup: Mercury fails fast if not, as before. |
+| `TEMPLATE_PATH` | Folder of the local storage (default `/usr/local/runme/templates`). Created at startup if missing; **no template is shipped in the repo or the images**. |
 | `TEMPLATE_SUFFIX` | Unchanged. |
-| `TEMPLATE_STORAGE` | `local` (default) or `s3`. Read at run time: `TemplateStorageConfig.templateStorage` is the only bean and branches on it (see the note below). |
+| `TEMPLATE_STORAGE` | `s3`/`r2`/`cloud` (bucket), `local` (default, folder `TEMPLATE_PATH`) or the path of the local folder itself. Read at run time: `TemplateStorageConfig.templateStorage` is the only bean and branches on it (see the note below). |
 | `CLOUDFLARE_R2_BUCKET_NAME` | Bucket that holds the templates (required with `s3`). |
 | `TEMPLATE_S3_PREFIX` | Key prefix inside the bucket (default `templates/`). |
 | `TEMPLATE_S3_REGION` | Region (default `us-east-1`; any value for MinIO). |
@@ -71,8 +71,9 @@ The storage is **not** selected with `@ConditionalOnProperty`: Spring AOT evalua
 ```mermaid
 flowchart TD
     A["Bean creation"] --> B{"umdc.templates.storage"}
-    B -->|"s3"| C{"bucket set?"}
+    B -->|"s3 / r2 / cloud"| C{"bucket set?"}
     C -->|"no"| D["IllegalStateException: set CLOUDFLARE_R2_BUCKET_NAME"]
     C -->|"yes"| E["S3TemplateStorage (R2)"]
-    B -->|"local / empty"| F["FreeMarkerConfig.templateStorage() (folder)"]
+    B -->|"local / empty"| F["LocalTemplateStorage(TEMPLATE_PATH, created if missing)"]
+    B -->|"any other value"| G["LocalTemplateStorage(that path)"]
 ```

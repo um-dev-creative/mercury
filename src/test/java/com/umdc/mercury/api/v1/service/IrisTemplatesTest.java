@@ -18,7 +18,7 @@ class IrisTemplatesTest {
 
     private String render(String language, Map<String, Object> params) throws IOException, TemplateException {
         var config = new Configuration(Configuration.VERSION_2_3_30);
-        config.setDirectoryForTemplateLoading(new File("src/main/resources/templates"));
+        config.setDirectoryForTemplateLoading(new File("src/test/resources/templates"));
         return FreeMarkerTemplateUtils.processTemplateIntoString(config.getTemplate("iris_verification_" + language + ".ftl"), params);
     }
 

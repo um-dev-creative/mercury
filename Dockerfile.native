@@ -60,8 +60,9 @@ COPY src ./src
 # ApplicationContext refresh and this build has no Vault/Config Server access — see that file's
 # own header comment and docs/architecture/graalvm-native-image.md.
 RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml \
-    sh -c 'set -a; . ./config/native.env; export TEMPLATE_PATH=/build/src/main/resources/templates; set +a; \
+    sh -c 'set -a; . ./config/native.env; export TEMPLATE_PATH=/tmp/templates; set +a; \
     mvn -Pnative -B -DskipTests clean package native:compile'
+RUN mkdir -p /staging-templates
 
 # native-image also dynamically links libz (java.util.zip / jar reading needs it — every Java app
 # uses this, native or not), which neither distroless variant ships: "error while loading shared
@@ -139,9 +140,9 @@ COPY --from=builder /staging/usr/lib/ /usr/lib/
 # comments for why these are copied in rather than runtime-mounted. Sourced from the builder
 # stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
 COPY --from=builder /staging-certs/mercury/ certs/mercury/
-# `nonroot` (uid 65532) must be able to write here: templates edited or created from Iris are saved in this folder (and in one
-# sub-folder per application) when TEMPLATE_STORAGE=local. Root-owned, a save fails with "Permission denied".
-COPY --chown=65532:65532 src/main/resources/templates/ templates/
+# No templates are baked in: they live in the storage set by TEMPLATE_STORAGE (a bucket, or this folder when local). `nonroot`
+# (uid 65532) must be able to write here (TEMPLATE_STORAGE=local); an empty owned folder is created for it.
+COPY --from=builder --chown=65532:65532 /staging-templates/ templates/
 # The Aiven client certificates are baked into this image and application.yml defaults to PLAINTEXT
 # for local dev, which Aiven drops ("Node -1 disconnected"). Override at run time if ever needed.
 ENV KAFKA_SECURITY_PROTOCOL=SSL
@@ -157,8 +158,8 @@ EXPOSE 8118
 # spring.freemarker.template-loader-path is deliberately NOT hardcoded here (a -D flag
 # would always win over the TEMPLATE_PATH env var, making it un-overridable) — it falls
 # through to application.yml's own ${TEMPLATE_PATH:/usr/local/runme/templates} default,
-# which already matches where this image bakes the .ftl files in above. Set TEMPLATE_PATH
-# at container-run time to point at a different mounted/host directory instead.
+# which is the empty, nonroot-writable folder created above. Set TEMPLATE_PATH (or put a path in
+# TEMPLATE_STORAGE) at container-run time to point at a different mounted/host directory instead.
 ENTRYPOINT ["/usr/local/runme/mercury", \
     "-Dspring.application.name=mercury", \
     "-Dapi.info.version=0.0.3"]

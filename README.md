@@ -99,11 +99,11 @@ Server/Postgres/Mongo — `config/native.env` supplies safe placeholder values
 for all of that instead, so the build works without live infrastructure:
 ```pwsh
 set -a; source config/native.env; set +a
-export TEMPLATE_PATH="$(pwd)/src/main/resources/templates"   # see comment in config/native.env
+export TEMPLATE_STORAGE=local TEMPLATE_PATH="$(pwd)/target/templates"   # or TEMPLATE_STORAGE=s3 plus CLOUDFLARE_R2_*; no templates are shipped
 mvn -Pnative clean package -DskipTests
 mvn -Pnative native:compile   # produces target/mercury (the native executable)
 
-./target/mercury -Dspring.freemarker.template-loader-path=src/main/resources/templates
+./target/mercury
 ```
 
 **Building the native Docker image:**
