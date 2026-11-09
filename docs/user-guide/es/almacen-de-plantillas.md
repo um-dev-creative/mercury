@@ -51,3 +51,5 @@ Las plantillas no pueden crear objetos Java ni usar la API de Java (ver `docs/se
 
 `GET /api/v1/templates` lista las plantillas de una aplicación, con filtros opcionales por tipo, severidad, estado activo o texto. Si responde `500 An unexpected error occurred` y el log dice `Could not resolve attribute 'application'`, la imagen en ejecución es anterior a la corrección; despliega la versión actual. No hay nada que configurar.
 
+
+> **Mercury ya no incluye plantillas.** La carpeta `src/main/resources/templates` no existe y las imágenes no contienen plantillas. Dónde viven lo decide `TEMPLATE_STORAGE`: `s3` (o `r2`, `cloud`) = el bucket de Cloudflare R2; `local` = la carpeta `TEMPLATE_PATH`; cualquier otro valor es la ruta de la propia carpeta local (se crea si no existe). Sube los archivos de plantilla al almacenamiento elegido antes de iniciar Mercury.

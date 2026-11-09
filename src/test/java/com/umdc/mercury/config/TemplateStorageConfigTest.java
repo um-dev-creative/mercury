@@ -4,7 +4,11 @@ import com.umdc.mercury.template.storage.S3TemplateStorage;
 import com.umdc.mercury.template.storage.LocalTemplateStorage;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.test.util.ReflectionTestUtils;
+import com.umdc.mercury.template.storage.TemplateStorage;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
@@ -41,30 +45,45 @@ class TemplateStorageConfigTest {
         }
     }
 
-    @Test
-    void theBeanIsAnS3StorageWhenTheModeIsS3() {
-        var storage = new TemplateStorageConfig().templateStorage(null, " S3 ", " bucket ", "templates/", "us-east-1", "http://localhost:9000", true, "k", "s");
+    private static TemplateStorage create(String mode, String localPath, String bucket) {
+        return new TemplateStorageConfig().templateStorage(mode, localPath, bucket, "templates/", "us-east-1", "http://localhost:9000", true, "k", "s");
+    }
 
-        assertThat(storage).isInstanceOf(S3TemplateStorage.class);
+    @ParameterizedTest
+    @ValueSource(strings = {"s3", " S3 ", "r2", "Cloud"})
+    void cloudModesGiveAnS3Storage(String mode) {
+        assertThat(create(mode, "", " bucket ")).isInstanceOf(S3TemplateStorage.class);
     }
 
     @Test
-    void s3WithoutABucketFailsAtStartup() {
-        var config = new TemplateStorageConfig();
-
-        assertThatThrownBy(() -> config.templateStorage(null, "s3", " ", "templates/", "us-east-1", "", false, "", ""))
-                .isInstanceOf(IllegalStateException.class).hasMessageContaining("CLOUDFLARE_R2_BUCKET_NAME");
-        assertThatThrownBy(() -> config.templateStorage(null, "s3", null, "templates/", "us-east-1", "", false, "", ""))
-                .isInstanceOf(IllegalStateException.class);
+    void cloudWithoutABucketFailsAtStartup() {
+        assertThatThrownBy(() -> create("s3", "", " ")).isInstanceOf(IllegalStateException.class).hasMessageContaining("CLOUDFLARE_R2_BUCKET_NAME");
+        assertThatThrownBy(() -> create("r2", "", null)).isInstanceOf(IllegalStateException.class);
     }
 
     @Test
-    void anyOtherModeUsesTheLocalFolder(@TempDir Path dir) {
-        var freeMarker = new FreeMarkerConfig();
-        ReflectionTestUtils.setField(freeMarker, "templateLoaderPath", dir.toString());
-        var config = new TemplateStorageConfig();
+    void localUsesTemplatePathAndCreatesTheFolder(@TempDir Path dir) {
+        Path folder = dir.resolve("made/here");
 
-        assertThat(config.templateStorage(freeMarker, "local", "", "", "", "", false, "", "")).isInstanceOf(LocalTemplateStorage.class);
-        assertThat(config.templateStorage(freeMarker, null, "", "", "", "", false, "", "")).isInstanceOf(LocalTemplateStorage.class);
+        assertThat(create("local", folder.toString(), "")).isInstanceOf(LocalTemplateStorage.class);
+        assertThat(create(null, folder.toString(), "")).isInstanceOf(LocalTemplateStorage.class);
+        assertThat(folder).isDirectory();
+    }
+
+    @Test
+    void anyOtherValueIsTheFolderPathItself(@TempDir Path dir) {
+        Path folder = dir.resolve("from-storage");
+
+        assertThat(create(folder.toString(), "/ignored", "")).isInstanceOf(LocalTemplateStorage.class);
+        assertThat(folder).isDirectory();
+    }
+
+    @Test
+    void localWithoutAFolderOrWithAnUnusableOneFailsAtStartup(@TempDir Path dir) throws IOException {
+        Path file = Files.writeString(dir.resolve("plain-file"), "x");
+
+        assertThatThrownBy(() -> create("local", " ", "")).isInstanceOf(IllegalStateException.class).hasMessageContaining("TEMPLATE_PATH");
+        assertThatThrownBy(() -> create("local", null, "")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> create("local", file.resolve("sub").toString(), "")).isInstanceOf(IllegalStateException.class);
     }
 }

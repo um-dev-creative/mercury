@@ -31,7 +31,7 @@ class ZeroboundTelegramTemplatesTest {
     private static TelegramTemplateRenderer renderer() {
         final var config = new Configuration(Configuration.VERSION_2_3_30);
         try {
-            config.setDirectoryForTemplateLoading(new File("src/main/resources/templates"));
+            config.setDirectoryForTemplateLoading(new File("src/test/resources/templates"));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -70,7 +70,7 @@ class ZeroboundTelegramTemplatesTest {
     @Test
     @DisplayName("there are 12 Telegram templates: 6 kinds x 2 languages; verification codes are not sent through Telegram")
     void twelveFiles() {
-        final var files = new File("src/main/resources/templates").list((d, n) -> n.startsWith("zb_") && n.contains("_tg_"));
+        final var files = new File("src/test/resources/templates").list((d, n) -> n.startsWith("zb_") && n.contains("_tg_"));
         assertEquals(12, files == null ? 0 : files.length);
         assertFalse(renderer.exists("verification", "es"));
     }

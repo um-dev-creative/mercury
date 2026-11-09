@@ -28,7 +28,7 @@ class SmartkinTemplatesTest {
     private static Configuration configuration() {
         var c = new Configuration(Configuration.VERSION_2_3_30);
         try {
-            c.setDirectoryForTemplateLoading(new File("src/main/resources/templates"));
+            c.setDirectoryForTemplateLoading(new File("src/test/resources/templates"));
         } catch (IOException e) {
             throw new IllegalStateException(e);
         }
@@ -82,7 +82,7 @@ class SmartkinTemplatesTest {
     @Test
     @DisplayName("there are exactly 2 SmartKin templates, and the seed script registers exactly those files")
     void filesAndSeedAgree() throws IOException {
-        var files = new File("src/main/resources/templates").list((d, n) -> n.startsWith("sk_") && n.endsWith(".ftl"));
+        var files = new File("src/test/resources/templates").list((d, n) -> n.startsWith("sk_") && n.endsWith(".ftl"));
         String seed = Files.readString(Path.of("scripts/smartkin/seed-templates.sql"));
 
         assertThat(files).containsExactlyInAnyOrder("sk_verification_es.ftl", "sk_verification_en.ftl");

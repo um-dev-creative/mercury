@@ -57,3 +57,5 @@ Templates cannot create Java objects or call the Java API (see `docs/security/te
 Check that the container really has `TEMPLATE_STORAGE=s3` and `CLOUDFLARE_R2_BUCKET_NAME`. Since this fix the variable is read when
 Mercury starts, also in the native image (older images ignored it and always used the folder, which is why saves failed with
 `Read-only file system`). If `TEMPLATE_STORAGE=s3` is set without the bucket, Mercury refuses to start and says so in the log.
+
+> **Mercury ships no templates.** `src/main/resources/templates` no longer exists and the images do not contain templates. Where they live is decided by `TEMPLATE_STORAGE`: `s3` (or `r2`, `cloud`) = the Cloudflare R2 bucket; `local` = the folder `TEMPLATE_PATH`; any other value is the path of the local folder itself (created if it does not exist). Upload the template files to the chosen storage before starting Mercury.

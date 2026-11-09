@@ -121,8 +121,9 @@ umdc:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server
       port: ${BOOTSTRAP_SERVER_PORT} # Port for the bootstrap server
   templates:
-    # where the content of the templates lives: `local` (the folder at spring.freemarker.template-loader-path) or `s3`
-    # (a bucket of S3 or of an S3-compatible service such as MinIO; with several Mercury instances use `s3`)
+    # where the templates live. Mercury ships none: `s3` (also `r2`/`cloud`) is a bucket of S3 or of an S3-compatible service
+    # (Cloudflare R2, MinIO; with several Mercury instances use it); `local` is the folder TEMPLATE_PATH; any other value is the
+    # path of the local folder itself. A local folder is created if it does not exist.
     storage: ${TEMPLATE_STORAGE:local}
     # bucket, endpoint and credentials come from the Cloudflare R2 variables (CLOUDFLARE_R2_*); prefix is the base path of the templates
     s3:
@@ -363,11 +364,8 @@ spring:
       # also does NOT auto-start when Kafka is unavailable locally
       auto-startup: ${UMDC_KAFKA_AUTO_STARTUP:false}
   freemarker:
-    # FreeMarkerConfig loads this as a plain java.io.File directory (not a classpath
-    # resource), so it must resolve to a real directory inside the running container —
-    # both Dockerfile and Dockerfile.native bake the .ftl files at this exact
-    # WORKDIR-relative path; docker-compose.yml can additionally bind-mount a host
-    # directory over it (see MERCURY_TEMPLATES_HOST_PATH there) without changing this default.
+    # Folder of the local template storage (TEMPLATE_STORAGE=local). No template is baked into the images: mount a writable
+    # volume here, or keep the templates in a bucket (TEMPLATE_STORAGE=s3).
     template-loader-path: ${TEMPLATE_PATH:/usr/local/runme/templates}
     suffix: ${TEMPLATE_SUFFIX:.ftl}
     check-template-location: false

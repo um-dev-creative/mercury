@@ -32,7 +32,7 @@ public class FreeMarkerConfig {
 
     /**
      * The storage over the folder at {@code spring.freemarker.template-loader-path}. It is not a bean by itself:
-     * {@link TemplateStorageConfig#templateStorage} chooses between this and the bucket at run time. (A
+     * {@link TemplateStorageConfig#templateStorage} chooses between a folder and the bucket at run time. (A
      * {@code @ConditionalOnProperty} here would be decided when the GraalVM native image is built, and the container's
      * {@code TEMPLATE_STORAGE} would be ignored.)
      *

@@ -40,17 +40,12 @@ services:
     env_file:
       - config/local.env
       - secrets/local.env
-    volumes:
+    # volumes:
       # certs/mercury/ is baked into the image now (see Dockerfile) — no runtime mount needed.
-      # Templates are ALSO baked into the image (same rationale, see Dockerfile) as a working
-      # default — this mount is an optional override so ops can point at a real host directory
-      # (e.g. C:\ambientes\mercury\templates on Windows, /opt/mercury/templates on Linux)
-      # without rebuilding the image. Set MERCURY_TEMPLATES_HOST_PATH in config/local.env (see
-      # its own comment there) — read via --env-file per the header comment above; defaults to
-      # the repo checkout's own templates when Compose falls back to its inline default.
-      # NOT read-only: Mercury writes here (templates edited or created from Iris, and their folders), so a `:ro` mount answers 500
-      # "Read-only file system" on every save. The user of the container needs write permission on the host directory.
-      - ${MERCURY_TEMPLATES_HOST_PATH:-./src/main/resources/templates}:/usr/local/runme/templates
+      # No templates are baked into the image or kept in the repo: they live in the storage set by TEMPLATE_STORAGE
+      # (s3/r2 = the Cloudflare R2 bucket, no volume needed). Only for TEMPLATE_STORAGE=local, uncomment to mount a WRITABLE
+      # host directory (never `:ro`: saving a template from Iris writes there):
+      # - ${MERCURY_TEMPLATES_HOST_PATH}:/usr/local/runme/templates
 
 networks:
   nginx_umdc-net:
