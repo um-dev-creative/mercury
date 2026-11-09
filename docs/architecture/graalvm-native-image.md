@@ -598,9 +598,10 @@ end-to-end with real credentials against `vault.umdc-qa.tst`.
    or any deploy host without that exact checkout at that exact relative
    path. `Dockerfile.native` already baked templates in and even carried a
    comment assuming the JIT `Dockerfile` did the same — it didn't.
-   **Fix:** both `Dockerfile` and `Dockerfile.native` now
-   `COPY src/main/resources/templates/ templates/` at build time, so every
-   image is self-sufficient by default. `docker-compose.yml`'s bind-mount
+   **Fix (superseded):** both Dockerfiles once copied
+   `src/main/resources/templates/`; that folder no longer exists. Templates now live in the storage
+   set by `TEMPLATE_STORAGE` (bucket, or the `TEMPLATE_PATH` folder, created if missing; see
+   `docs/architecture/template-storage.md`). `docker-compose.yml`'s bind-mount
    is now an **optional override** — its host-side path is driven by
    `MERCURY_TEMPLATES_HOST_PATH` (see `config/local.env`, and the `.env`
    file reference in

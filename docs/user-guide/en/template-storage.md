@@ -2,7 +2,7 @@
 
 🌐 [Leer esto en Español](../es/almacen-de-plantillas.md)
 
-The text of every message Mercury sends (the verification e-mail, a campaign message) comes from a template file. Mercury looks for those files in one folder, set with `TEMPLATE_PATH` (by default `/usr/local/runme/templates`; in Docker you can mount your own folder over it with `MERCURY_TEMPLATES_HOST_PATH`).
+The text of every message Mercury sends (the verification e-mail, a campaign message) comes from a template file. Mercury reads them from the storage set with `TEMPLATE_STORAGE`: a bucket (`s3`/`r2`/`cloud`) or a local folder (`local` uses `TEMPLATE_PATH`, by default `/usr/local/runme/templates`; any other value is the folder's path). In Docker, mount a writable volume over the folder for local storage.
 
 ## What you need to know
 
@@ -51,3 +51,11 @@ Templates cannot create Java objects or call the Java API (see `docs/security/te
 
 `GET /api/v1/templates` lists the templates of one application, optionally filtered by type, severity, active state or text. If it answers `500 An unexpected error occurred` with `Could not resolve attribute 'application'` in the log, the running image predates the fix; deploy the current version. Nothing needs to be configured.
 
+
+## If templates are still saved in `/usr/local/runme/templates`
+
+Check that the container really has `TEMPLATE_STORAGE=s3` and `CLOUDFLARE_R2_BUCKET_NAME`. Since this fix the variable is read when
+Mercury starts, also in the native image (older images ignored it and always used the folder, which is why saves failed with
+`Read-only file system`). If `TEMPLATE_STORAGE=s3` is set without the bucket, Mercury refuses to start and says so in the log.
+
+> **Mercury ships no templates.** `src/main/resources/templates` no longer exists and the images do not contain templates. Where they live is decided by `TEMPLATE_STORAGE`: `s3` (or `r2`, `cloud`) = the Cloudflare R2 bucket; `local` = the folder `TEMPLATE_PATH`; any other value is the path of the local folder itself (created if it does not exist). Upload the template files to the chosen storage before starting Mercury.

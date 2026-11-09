@@ -23,7 +23,7 @@ The rule lives in `FreeMarkerConfig` (`ALLOWS_NOTHING_RESOLVER` and `setAPIBuilt
 
 ## What does not change
 
-Parameters (`${name}`), `<#if>`, `<#list>`, `<#assign>`, `<#include>`, `?html`, `?string`, `?number` and the other built-ins keep working. The 28 templates shipped in `src/main/resources/templates` render exactly as before (checked by `ZeroboundTemplatesTest`, `SmartkinTemplatesTest` and the Iris template tests).
+Parameters (`${name}`), `<#if>`, `<#list>`, `<#assign>`, `<#include>`, `?html`, `?string`, `?number` and the other built-ins keep working. The 28 reference templates kept for the tests in `src/test/resources/templates` render exactly as before (checked by `ZeroboundTemplatesTest`, `SmartkinTemplatesTest` and the Iris template tests).
 
 ## Why now
 

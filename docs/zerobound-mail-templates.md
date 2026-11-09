@@ -36,7 +36,9 @@ parameter; TTL `umdc.mail.tracking-retention`, default `30d`). `DELIVERED` is no
 **Logging:** `SendEmailRequest.toString()` and `EmailMessageDocument.toString()` print ids, counts and dates only, never recipients,
 subject, body or params, because the processor and the framework log them.
 
-## 3. Templates (`src/main/resources/templates/zb_<kind>_<es|en>.ftl`)
+## 3. Templates (`zb_<kind>_<es|en>.ftl`, in the template storage)
+
+> Mercury ships no templates: they live in the storage set by `TEMPLATE_STORAGE` (bucket or `TEMPLATE_PATH` folder); upload the files there. Reference copies used by the tests: `src/test/resources/templates/`.
 The language is part of the file name, so zerobound picks the `templateDefinedId` of the user's language. Values are HTML-escaped
 (`?html`); amounts arrive **already masked/formatted by zerobound** (`"≈ 300"` by default) and are printed as received. A missing
 parameter makes the render fail instead of sending a half-empty mail. No uid, account number or free text of a transaction travels.
@@ -66,7 +68,7 @@ is of the type configured as `PRX_VERIFICATION_CODE_TEMPLATE_ID`; `POST /api/v1/
 * The e-mail is transactional: its footer does not mention notification preferences, which a visitor does not have yet.
 
 ### Registering them in an environment
-Templates are files (`TEMPLATE_PATH`, baked into the images from `src/main/resources/templates/`) **plus** rows in
+Templates are files (in the storage set by `TEMPLATE_STORAGE`; not baked into the images) **plus** rows in
 `mercury.templates` / `mercury.template_defined`. `scripts/zerobound/seed-templates.sql` creates the rows (idempotent) and prints
 the `template_defined` ids zerobound-rest needs. The schema is managed outside the application, so it was **not run** here: review it
 against the target database first. The `application` row of ZeroBound in `general.application` must already exist.
