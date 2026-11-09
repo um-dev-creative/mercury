@@ -7,7 +7,6 @@ import com.umdc.mercury.template.markdown.MarkdownDirective;
 import freemarker.cache.TemplateLoader;
 import freemarker.core.TemplateClassResolver;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -32,13 +31,13 @@ public class FreeMarkerConfig {
     private String templateLoaderPath;
 
     /**
-     * Where the content of the templates lives: the folder at {@code spring.freemarker.template-loader-path}. Every
-     * reader and writer of template content goes through this bean.
+     * The storage over the folder at {@code spring.freemarker.template-loader-path}. It is not a bean by itself:
+     * {@link TemplateStorageConfig#templateStorage} chooses between this and the bucket at run time. (A
+     * {@code @ConditionalOnProperty} here would be decided when the GraalVM native image is built, and the container's
+     * {@code TEMPLATE_STORAGE} would be ignored.)
      *
-     * @return the template storage
+     * @return the local template storage
      */
-    @Bean
-    @ConditionalOnProperty(name = "umdc.templates.storage", havingValue = "local", matchIfMissing = true)
     public TemplateStorage templateStorage() {
         // fail at startup, as the folder loader always did, instead of at the first message
         if (!Files.isDirectory(Path.of(templateLoaderPath))) {
