@@ -24,6 +24,7 @@
 | 🔑 | [**10 · Backbone M2M token**](10-backbone-m2m-token.md) | How Mercury obtains the token it sends to Backbone, and the endpoint it must point at |
 | 🗂️ | [**11 · Template folders per application**](11-template-application-folders.md) | How the storage key of a template is built from its application, and how to configure R2 |
 | 🔐 | [**12 · Platform and template administrators**](12-platform-administration.md) | Who may manage which application's templates; the plan across Mercury, backbone-rest and Iris |
+| 🏷️ | [**13 · Template types**](13-template-types.md) | The six types the shipped templates belong to and the SQL script that inserts them |
 | 📖 | [**User guide · Messaging channels**](../../user-guide/en/messaging-channels.md) | How to send by SMS, Telegram, WhatsApp and Push |
 
 ---
