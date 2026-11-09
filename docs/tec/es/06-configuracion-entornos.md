@@ -148,7 +148,9 @@ docker compose --env-file config/local.env up -d mercury
 ```
 
 > [!NOTE]
-> `--env-file config/local.env` es necesario para que `docker-compose.yml` resuelva `${MERCURY_TEMPLATES_HOST_PATH}` (el host que se monta sobre `/usr/local/runme/templates`) desde ese archivo — Compose solo lee `env_file:` para inyectar variables **dentro** del contenedor, nunca para su propia sustitución de `${...}` en el YAML. Sin el flag, Compose usa el default embebido en el propio `docker-compose.yml`.
+> `--env-file config/local.env` es necesario para que `docker-compose.yml` resuelva los `${...}` del YAML (por ejemplo el montaje opcional y comentado `MERCURY_TEMPLATES_HOST_PATH`, solo para `TEMPLATE_STORAGE=local`, siempre con permiso de escritura) desde ese archivo — Compose solo lee `env_file:` para inyectar variables **dentro** del contenedor, nunca para su propia sustitución de `${...}` en el YAML. Sin el flag, Compose usa el default embebido en el propio `docker-compose.yml`.
+
+> **`TEMPLATE_STORAGE`** decide dónde viven las plantillas (Mercury no incluye ninguna): `s3`/`r2`/`cloud` = bucket de Cloudflare R2 (`CLOUDFLARE_R2_*`, `TEMPLATE_S3_PREFIX`); `local` o vacío = la carpeta `TEMPLATE_PATH`; cualquier otro valor = la ruta de la carpeta local (se crea si no existe). Se lee en runtime, también en la imagen nativa. Ver `docs/architecture/template-storage.md`.
 
 ### Stack local completo (opcional)
 

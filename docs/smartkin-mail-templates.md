@@ -2,7 +2,7 @@
 
 smartkin-backend does not send e-mail itself: it publishes a message and Mercury renders and sends it (the rule for every e-mail, WhatsApp or
 Telegram notification). Today SmartKin sends **one** kind of e-mail: the verification code of a new account. Its templates are
-`src/main/resources/templates/sk_verification_<es|en>.ftl`.
+`sk_verification_<es|en>.ftl` in the template storage (`TEMPLATE_STORAGE`; reference copies in `src/test/resources/templates/`).
 
 ```mermaid
 sequenceDiagram
@@ -83,7 +83,7 @@ psql "$MERCURY_DB" -v ON_ERROR_STOP=1 -f scripts/smartkin/bootstrap-reference-da
 
 ### 3.1 The templates
 
-Templates are files (`TEMPLATE_PATH`, baked into the image from `src/main/resources/templates/`, so Mercury must be rebuilt and redeployed) **plus** rows in
+Templates are files (in the storage set by `TEMPLATE_STORAGE`; not baked into the image, so uploading them is enough, no rebuild) **plus** rows in
 `mercury.templates` and `mercury.template_defined`. `scripts/smartkin/seed-templates.sql` creates the rows, is idempotent, checks that every id exists before
 writing and prints the `template_defined` ids:
 

@@ -2,7 +2,7 @@
 
 🌐 [Leer esto en Español](../es/almacen-de-plantillas.md)
 
-The text of every message Mercury sends (the verification e-mail, a campaign message) comes from a template file. Mercury looks for those files in one folder, set with `TEMPLATE_PATH` (by default `/usr/local/runme/templates`; in Docker you can mount your own folder over it with `MERCURY_TEMPLATES_HOST_PATH`).
+The text of every message Mercury sends (the verification e-mail, a campaign message) comes from a template file. Mercury reads them from the storage set with `TEMPLATE_STORAGE`: a bucket (`s3`/`r2`/`cloud`) or a local folder (`local` uses `TEMPLATE_PATH`, by default `/usr/local/runme/templates`; any other value is the folder's path). In Docker, mount a writable volume over the folder for local storage.
 
 ## What you need to know
 
