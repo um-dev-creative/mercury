@@ -11,6 +11,7 @@ token; it needs no Kafka client, no broker and no knowledge of how a channel del
 | `MessageIngressController` / `MessageIngressApi` | `POST /api/v1/messages`, `GET /api/v1/messages/channels`, `GET /api/v1/messages/{id}`. M2M only (`MachineTokenInterceptor` covers `/api/v1/messages/**`). |
 | `MessageIngressService` | Validates, claims the `Idempotency-Key`, asks the provider to queue, answers `202`. Status lookups are scoped to the caller. |
 | `ChannelProvider` | The SPI: `code()`, `validTarget(target)`, `missingField(message)`, `queue(message)`. |
+| `TemplateNameResolver`, `TemplateIdentity` | Resolve a template by name + language inside an application, with no fallback language (D-15). |
 | `ChannelRegistry` | Finds the provider by code (case-insensitive) from the Spring beans; two providers with one code stop the start-up. |
 | `EmailChannelProvider` | Queues the same `EmailMessageDocument` as `POST /api/v1/mail`; the e-mail scheduler sends it. |
 | `SmsChannelProvider`, `WhatsAppChannelProvider`, `TelegramChannelProvider`, `PushChannelProvider` | Build the `NotificationEventTO` of the unified Kafka topic and hand it to the **same** `NotificationEventConsumerService`, so one message has one path whether it arrives over HTTP or Kafka. |
@@ -51,6 +52,25 @@ flowchart LR
 `202 {"id": "...", "status": "OPENED", "message": "Queued"}`. A repeat with the same key and body answers the first message with `Idempotent-Replayed: true`; the same key with another body is `422`.
 `400`: unknown or disabled channel (the answer lists the available codes), a target that is not valid for the channel, a field the channel needs (e-mail: `templateDefinedId`, `from`, `subject`), or an unknown template.
 `GET /api/v1/messages/{id}` returns `OPENED`, `SENT` or `FAILED` (the channel's own document when it has one, else the tracking row); `404` for an unknown id or another caller's message.
+
+## Templates by name (decision D-15)
+
+A caller does not keep mercury's template ids. It sends `template` (the name), `applicationId` and `language`, and `TemplateNameResolver` finds the active definition whose template has that
+`language` (a column of `mercury.templates`, migration `V2034`, filled from the file name for existing rows and by `TemplateEntity.deriveLanguage` for new ones) and whose name equals the one asked
+(the location without extension and language: `zb_verification` for `zb_verification_es.ftl`). **There is no fallback language**: a missing version is a `400` that lists the available ones,
+because sending in another language is a silent failure. `templateDefinedId` still works for older callers (send one or the other, not both). `GET /api/v1/messages/templates?applicationId=` lists
+every name with its languages, so a caller can check what it needs against what mercury has. Registering a new template (a `.ftl` and its definition, by Iris, the template-management API or `seed-templates.sql`) makes it
+reachable at once; no caller changes.
+
+```mermaid
+flowchart LR
+    R[template + applicationId + language] --> N[TemplateNameResolver]
+    N --> F{active definition, same name and language?}
+    F -->|yes| Q[queue with its id]
+    F -->|no| E[400 with the available languages]
+```
+
+*Hardening left for later:* the application is named by the caller (as the template id was before, mercury never scoped templates per caller); binding each login client to its application would close that.
 
 ## The channel is data plus a provider
 

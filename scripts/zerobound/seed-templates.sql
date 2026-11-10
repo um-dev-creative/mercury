@@ -13,8 +13,8 @@
 -- for a message whose template is of the verification-code type, and then needs the parameter `vc`; the other zb_* templates
 -- have none, so giving them that type would make every notice fail. Only zb_verification_{es,en} gets verification_type_id
 -- (T-96); a database seeded before that is corrected by the UPDATE below.
--- It prints each template_defined id: those are the `templateDefinedId` values zerobound-rest puts in
--- its configuration (docs/zerobound-mail-templates.md). Verify on a copy of the database first.
+-- It prints each template_defined id for reference only: since decision D-15 zerobound-rest names its templates (zb_<kind> + language) and mercury resolves
+-- them, so no id goes in any configuration. The `language` column is set here (migration V2034 fills it for older rows). Verify on a copy of the database first.
 
 BEGIN;
 
@@ -27,8 +27,8 @@ WITH kinds(kind, descr) AS (VALUES
          SELECT 'zb_' || k.kind || '_' || l.lang || '.ftl' AS location,
                 'ZeroBound - ' || k.descr || ' (' || l.lang || ')' AS description
          FROM kinds k CROSS JOIN langs l)
-INSERT INTO mercury.templates (description, location, file_format, template_type_id, application_id, severity_type_id)
-SELECT w.description, w.location, 'ftl',
+INSERT INTO mercury.templates (description, location, file_format, language, template_type_id, application_id, severity_type_id)
+SELECT w.description, w.location, 'ftl', substring(w.location from '_([a-z]{2,3})\.ftl$'),
        CASE WHEN w.location LIKE 'zb\_verification\_%' THEN :'verification_type_id'::uuid ELSE :'type_id'::uuid END,
        :'app_id'::uuid, :'severity_id'::uuid
 FROM wanted w

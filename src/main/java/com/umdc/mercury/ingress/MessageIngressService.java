@@ -32,14 +32,16 @@ public class MessageIngressService {
     private final ChannelRegistry registry;
     private final ChannelTypeRepository catalogue;
     private final TemplateDefinedService templates;
+    private final TemplateNameResolver names;
     private final MailTrackingNSRepository tracking;
     private final MessageNSRepository documents;
 
     public MessageIngressService(ChannelRegistry registry, ChannelTypeRepository catalogue, TemplateDefinedService templates,
-                                 MailTrackingNSRepository tracking, MessageNSRepository documents) {
+                                 TemplateNameResolver names, MailTrackingNSRepository tracking, MessageNSRepository documents) {
         this.registry = registry;
         this.catalogue = catalogue;
         this.templates = templates;
+        this.names = names;
         this.tracking = tracking;
         this.documents = documents;
     }
@@ -56,11 +58,9 @@ public class MessageIngressService {
         if (!provider.validTarget(target)) {
             throw new IllegalArgumentException("The target is not valid for the " + provider.code() + " channel");
         }
-        if (Objects.nonNull(request.templateDefinedId())) {
-            templates.find(request.templateDefinedId());
-        }
+        UUID templateId = templateOf(request);
         UUID messageId = UUID.randomUUID();
-        var message = new OutboundMessage(messageId, provider.code(), request.userId(), target, request.templateDefinedId(), request.language(), request.from(),
+        var message = new OutboundMessage(messageId, provider.code(), request.userId(), target, templateId, request.language(), request.from(),
                 request.subject(), request.body(), request.sendDate(), request.params(), request.options(), request.mediaUrl(), request.mediaType());
         String missing = provider.missingField(message);
         if (Objects.nonNull(missing)) {
@@ -82,6 +82,32 @@ public class MessageIngressService {
             throw e;
         }
         return new Accepted(new MessageResponse(messageId, DeliveryStatusType.OPENED.name(), "Queued"), false);
+    }
+
+    /** The template to queue with: the one named (resolved by mercury, no fallback language) or the id given, checked to exist. */
+    private UUID templateOf(MessageRequest request) {
+        boolean byName = Objects.nonNull(request.template()) && !request.template().isBlank();
+        if (byName && Objects.nonNull(request.templateDefinedId())) {
+            throw new IllegalArgumentException("Send either template or templateDefinedId, not both");
+        }
+        if (byName) {
+            if (Objects.isNull(request.applicationId())) {
+                throw new IllegalArgumentException("applicationId is required to name a template");
+            }
+            if (Objects.isNull(request.language()) || request.language().isBlank()) {
+                throw new IllegalArgumentException("language is required to name a template");
+            }
+            return names.resolve(request.applicationId(), request.template().strip(), request.language().strip());
+        }
+        if (Objects.nonNull(request.templateDefinedId())) {
+            templates.find(request.templateDefinedId());
+        }
+        return request.templateDefinedId();
+    }
+
+    /** The templates (and their languages) an application offers, for the callers to check what they need against. */
+    public List<TemplateNameResolver.Entry> templates(UUID applicationId) {
+        return names.catalogue(applicationId);
     }
 
     private ChannelProvider provider(String channel) {
@@ -125,7 +151,7 @@ public class MessageIngressService {
 
     /** SHA-256 over the whole request, so a reused key with another body is told apart (equal requests hash equal, whatever the order of the maps). */
     static String hash(MessageRequest r, String channel) {
-        return RequestHashes.of(List.of(channel, String.valueOf(r.userId()), r.target().strip().toLowerCase(Locale.ROOT), String.valueOf(r.templateDefinedId()),
+        return RequestHashes.of(List.of(channel, String.valueOf(r.userId()), r.target().strip().toLowerCase(Locale.ROOT), String.valueOf(r.templateDefinedId()), String.valueOf(r.template()), String.valueOf(r.applicationId()),
                 String.valueOf(r.language()), String.valueOf(r.from()), String.valueOf(r.subject()), String.valueOf(r.body()), String.valueOf(r.sendDate()),
                 Objects.requireNonNullElse(r.params(), Map.of()), Objects.requireNonNullElse(r.options(), Map.of()), String.valueOf(r.mediaUrl()), String.valueOf(r.mediaType())));
     }

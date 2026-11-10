@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -41,6 +42,11 @@ public class MessageIngressController implements MessageIngressApi {
     @Override
     public ResponseEntity<List<String>> channels() {
         return ResponseEntity.ok(service.channels());
+    }
+
+    @Override
+    public ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId) {
+        return ResponseEntity.ok(service.templates(applicationId));
     }
 
     @Override

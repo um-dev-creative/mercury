@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 import java.util.UUID;
@@ -42,6 +43,14 @@ public interface MessageIngressApi {
     @ApiResponse(responseCode = "200", description = "The codes, sorted.")
     @GetMapping(path = "/channels", produces = MediaType.APPLICATION_JSON_VALUE)
     default ResponseEntity<List<String>> channels() {
+        return ResponseEntity.status(501).build();
+    }
+
+    @Operation(description = "The templates an application offers and the languages of each, so a caller can check what it needs against what mercury has "
+            + "(a template is named by template + language; there is no fallback language).", operationId = "listMessageTemplates")
+    @ApiResponse(responseCode = "200", description = "Template names with their languages, sorted.")
+    @GetMapping(path = "/templates", produces = MediaType.APPLICATION_JSON_VALUE)
+    default ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId) {
         return ResponseEntity.status(501).build();
     }
 

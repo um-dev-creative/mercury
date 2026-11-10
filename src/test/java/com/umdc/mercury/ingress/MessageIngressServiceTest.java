@@ -41,6 +41,7 @@ class MessageIngressServiceTest {
     private final ChannelProvider sms = mock(ChannelProvider.class);
     private final ChannelTypeRepository catalogue = mock(ChannelTypeRepository.class);
     private final TemplateDefinedService templates = mock(TemplateDefinedService.class);
+    private final TemplateNameResolver names = mock(TemplateNameResolver.class);
     private final MailTrackingNSRepository tracking = mock(MailTrackingNSRepository.class);
     private final MessageNSRepository documents = mock(MessageNSRepository.class);
     private MessageIngressService service;
@@ -52,11 +53,11 @@ class MessageIngressServiceTest {
         when(sms.code()).thenReturn("sms");
         when(sms.validTarget(anyString())).thenReturn(true);
         when(catalogue.findByCode(anyString())).thenReturn(Optional.empty());
-        service = new MessageIngressService(new ChannelRegistry(List.of(email, sms)), catalogue, templates, tracking, documents);
+        service = new MessageIngressService(new ChannelRegistry(List.of(email, sms)), catalogue, templates, names, tracking, documents);
     }
 
     private MessageRequest request(String channel, String target) {
-        return new MessageRequest(channel, user, target, template, "es", "no-reply@zerobound.app", "Hola", null, null, Map.of("vc", "123456"), null, null, null);
+        return new MessageRequest(channel, user, target, template, null, null, "es", "no-reply@zerobound.app", "Hola", null, null, Map.of("vc", "123456"), null, null, null);
     }
 
     private static ChannelTypeEntity row(Boolean enabled, Boolean active) {
@@ -163,9 +164,62 @@ class MessageIngressServiceTest {
 
     @Test
     void aMessageWithoutATemplateDoesNotAskForOne() {
-        service.accept(new MessageRequest("sms", user, "+34600112233", null, null, null, null, "hola", null, null, null, null, null), "zerobound", null);
+        service.accept(new MessageRequest("sms", user, "+34600112233", null, null, null, null, null, null, "hola", null, null, null, null, null), "zerobound", null);
 
         verify(templates, never()).find(any());
+    }
+
+    private MessageRequest named(UUID app, String template, String language, UUID templateDefinedId) {
+        return new MessageRequest("email", user, "a@b.co", templateDefinedId, template, app, language, "no-reply@zerobound.app", "Hola", null, null, null, null, null, null);
+    }
+
+    @Test
+    void aTemplateNamedByNameAndLanguageIsResolvedByMercuryAndQueuedWithItsId() {
+        var app = UUID.randomUUID();
+        var resolved = UUID.randomUUID();
+        when(names.resolve(app, "zb_verification", "es")).thenReturn(resolved);
+
+        service.accept(named(app, " zb_verification ", " es ", null), "zerobound", null);
+
+        var queued = ArgumentCaptor.forClass(OutboundMessage.class);
+        verify(email).queue(queued.capture());
+        assertEquals(resolved, queued.getValue().templateId());
+        verify(templates, never()).find(any());
+    }
+
+    @Test
+    void aMissingLanguageVersionIsRefusedWithNoFallbackAndNothingIsQueued() {
+        var app = UUID.randomUUID();
+        when(names.resolve(app, "zb_verification", "en")).thenThrow(new IllegalArgumentException("The template 'zb_verification' has no 'en' version (available: es)"));
+
+        var e = assertThrows(IllegalArgumentException.class, () -> service.accept(named(app, "zb_verification", "en", null), "zerobound", null));
+
+        assertTrue(e.getMessage().contains("available: es"));
+        verify(email, never()).queue(any());
+        verify(tracking, never()).insert(any(MailTrackingDocument.class));
+    }
+
+    @Test
+    void namingATemplateNeedsTheApplicationAndTheLanguage() {
+        assertThrows(IllegalArgumentException.class, () -> service.accept(named(null, "zb_verification", "es", null), "zerobound", null));
+        assertThrows(IllegalArgumentException.class, () -> service.accept(named(UUID.randomUUID(), "zb_verification", " ", null), "zerobound", null));
+        assertThrows(IllegalArgumentException.class, () -> service.accept(named(UUID.randomUUID(), "zb_verification", null, null), "zerobound", null));
+    }
+
+    @Test
+    void anIdAndANameTogetherAreAmbiguousAndRefused() {
+        var e = assertThrows(IllegalArgumentException.class, () -> service.accept(named(UUID.randomUUID(), "zb_verification", "es", UUID.randomUUID()), "zerobound", null));
+
+        assertTrue(e.getMessage().contains("not both"));
+    }
+
+    @Test
+    void theCatalogueOfAnApplicationComesFromTheResolver() {
+        var app = UUID.randomUUID();
+        var entry = new TemplateNameResolver.Entry("zb_verification", List.of("en", "es"));
+        when(names.catalogue(app)).thenReturn(List.of(entry));
+
+        assertEquals(List.of(entry), service.templates(app));
     }
 
     @Test
@@ -214,9 +268,9 @@ class MessageIngressServiceTest {
 
     @Test
     void theHashIgnoresParameterOrderAndTargetCaseButNotTheChannelOrTheBody() {
-        var a = new MessageRequest("email", user, "A@B.co", template, "es", "f", "s", "b", null, Map.of("x", 1, "y", List.of(1, 2)), null, null, null);
-        var b = new MessageRequest("email", user, "a@b.co", template, "es", "f", "s", "b", null, Map.of("y", List.of(1, 2), "x", 1), null, null, null);
-        var otherBody = new MessageRequest("email", user, "a@b.co", template, "es", "f", "s", "other", null, Map.of("x", 1, "y", List.of(1, 2)), null, null, null);
+        var a = new MessageRequest("email", user, "A@B.co", template, null, null, "es", "f", "s", "b", null, Map.of("x", 1, "y", List.of(1, 2)), null, null, null);
+        var b = new MessageRequest("email", user, "a@b.co", template, null, null, "es", "f", "s", "b", null, Map.of("y", List.of(1, 2), "x", 1), null, null, null);
+        var otherBody = new MessageRequest("email", user, "a@b.co", template, null, null, "es", "f", "s", "other", null, Map.of("x", 1, "y", List.of(1, 2)), null, null, null);
 
         assertEquals(MessageIngressService.hash(a, "email"), MessageIngressService.hash(b, "email"));
         assertNotEquals(MessageIngressService.hash(a, "email"), MessageIngressService.hash(otherBody, "email"));

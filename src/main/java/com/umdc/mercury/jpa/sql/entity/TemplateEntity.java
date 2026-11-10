@@ -31,6 +31,11 @@ public class TemplateEntity {
     @Column(name = "file_format", nullable = false, length = 50)
     private String fileFormat;
 
+    /** The language of this version of the template ({@code es}, {@code en}, {@code pt-BR}); callers name it, so it is a column and not parsed from {@link #location} (D-15). */
+    @Size(max = 16)
+    @Column(name = "language", length = 16)
+    private String language;
+
     @NotNull
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "template_type_id", nullable = false)
@@ -145,4 +150,21 @@ public class TemplateEntity {
         this.active = isActive;
     }
 
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    /** A template saved without a language (the template management API, Iris) gets the one its file name ends with, so it stays reachable by name. */
+    @jakarta.persistence.PrePersist
+    @jakarta.persistence.PreUpdate
+    void deriveLanguage() {
+        if (language == null || language.isBlank()) {
+            language = com.umdc.mercury.ingress.TemplateIdentity.languageOf(location).orElse(null);
+        }
+    }
 }

@@ -35,7 +35,7 @@ public class EmailChannelProvider implements ChannelProvider {
     @Override
     public String missingField(OutboundMessage message) {
         if (Objects.isNull(message.templateId())) {
-            return "templateDefinedId is required for email";
+            return "a template (template + applicationId + language, or templateDefinedId) is required for email";
         }
         if (Objects.isNull(message.from()) || message.from().isBlank()) {
             return "from is required for email";

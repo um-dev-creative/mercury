@@ -52,7 +52,7 @@ class ChannelProvidersTest {
         var email = new EmailChannelProvider(emails);
 
         assertNull(email.missingField(message("email", "ana@example.com")));
-        assertEquals("templateDefinedId is required for email", email.missingField(new OutboundMessage(id, "email", user, "a@b.co", null, "es", "x@y.co", "s", "b", null, null, null, null, null)));
+        assertEquals("a template (template + applicationId + language, or templateDefinedId) is required for email", email.missingField(new OutboundMessage(id, "email", user, "a@b.co", null, "es", "x@y.co", "s", "b", null, null, null, null, null)));
         assertEquals("from is required for email", email.missingField(new OutboundMessage(id, "email", user, "a@b.co", template, "es", " ", "s", "b", null, null, null, null, null)));
         assertEquals("subject is required for email", email.missingField(new OutboundMessage(id, "email", user, "a@b.co", template, "es", "x@y.co", null, "b", null, null, null, null, null)));
     }

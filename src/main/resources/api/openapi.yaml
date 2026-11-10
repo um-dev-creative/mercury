@@ -411,6 +411,38 @@ paths:
         '401':
           description: Not a Mercury-minted backend token.
 
+  /api/v1/messages/templates:
+    get:
+      tags:
+        - messages
+      summary: The templates an application offers, with their languages
+      operationId: listMessageTemplates
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Template names and their languages, sorted.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    template:
+                      type: string
+                    languages:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Not a Mercury-minted backend token.
+
   /api/v1/messages/{id}:
     get:
       tags:
@@ -1496,7 +1528,18 @@ components:
         templateDefinedId:
           type: string
           format: uuid
-          description: Required by e-mail; optional elsewhere.
+          description: A template by id (older callers). Send either this or `template`, not both.
+        template:
+          type: string
+          maxLength: 100
+          description: >-
+            A template by name (decision D-15), resolved by Mercury inside `applicationId` with `language`; no id is kept by the caller.
+            The name is the template's location without extension and language (`zb_verification` for `zb_verification_es.ftl`).
+            There is no fallback language: a missing version is a 400 that lists the available ones.
+        applicationId:
+          type: string
+          format: uuid
+          description: The application that owns the template (required with `template`).
         language:
           type: string
           maxLength: 16

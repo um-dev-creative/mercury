@@ -4,7 +4,7 @@ Use this when your service must tell a person something (a verification code, a 
 
 ## 1. What you need
 1. A **login client** for your service in mercury (`docs/login-clients.md`): an alias and a password kept in your Vault.
-2. For e-mail: a **template** registered in mercury for your application (`docs/zerobound-mail-templates.md` shows how); you send its `templateDefinedId`.
+2. For e-mail: a **template** registered in mercury for your application (`docs/zerobound-mail-templates.md` shows how). You name it, you do **not** keep its id: send `template` (e.g. `zb_verification`), your `applicationId` and the `language`. Ask `GET /api/v1/messages/templates?applicationId=<uuid>` for what exists and in which languages.
 
 ## 2. The flow
 
@@ -29,7 +29,7 @@ POST /api/v1/messages
 session-token: <token>
 Idempotency-Key: <a key you choose for this event>
 
-{"channel":"email","userId":"<uuid>","target":"ana@example.com","templateDefinedId":"<uuid>",
+{"channel":"email","userId":"<uuid>","target":"ana@example.com","template":"zb_verification","applicationId":"<uuid>",
  "language":"es","from":"no-reply@your.app","subject":"Your code","params":{"vc":"123456"}}
 ```
 * `channel`: ask `GET /api/v1/messages/channels` for the codes available now (e-mail, sms, whatsapp, telegram, push, ...). New channels appear there by themselves; you only change the word you send.
@@ -40,7 +40,7 @@ Idempotency-Key: <a key you choose for this event>
 | Status | Meaning | What to do |
 |---|---|---|
 | `202` | Queued. `Idempotent-Replayed: true` = you already sent this one | Nothing; keep the `id` if you want its state |
-| `400` | Unknown or disabled channel, wrong target for the channel, a missing field, or an unknown template | Fix the request; the message says which |
+| `400` | Unknown or disabled channel, wrong target for the channel, a missing field, an unknown template, or a template with **no version in the language you asked** (mercury never sends in another language; the message lists the available ones) | Fix the request, or register the missing language; the message says which |
 | `401` | Not a mercury machine token | Get a new token |
 | `422` | That key was used with a different message | Use a new key |
 | `5xx` / no answer | mercury is not available | Try again later with the same key |
