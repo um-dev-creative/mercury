@@ -4,7 +4,9 @@ import com.umdc.mercury.api.v1.to.MailStatusResponse;
 import com.umdc.mercury.security.MachineTokenInterceptor;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -50,6 +52,7 @@ public class MessageIngressController implements MessageIngressApi {
     }
 
     @Override
+    @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MailStatusResponse> status(@PathVariable("id") UUID id,
             @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
         return ResponseEntity.ok(service.status(id, caller));
