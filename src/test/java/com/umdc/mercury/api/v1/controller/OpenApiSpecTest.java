@@ -29,6 +29,9 @@ class OpenApiSpecTest {
         boolean foundGetByApp = false;
         boolean foundSendEmail = false;
         boolean foundAccessToken = false;
+        boolean foundSendMessage = false;
+        boolean foundMessageStatus = false;
+        boolean foundMessageChannels = false;
 
         for (Object pathObj : paths.values()) {
             Map<?,?> methods = (Map<?,?>) pathObj;
@@ -40,12 +43,16 @@ class OpenApiSpecTest {
                 if ("getCampaignsByApplication".equals(opId)) foundGetByApp = true;
                 if ("sendEmail".equals(opId)) foundSendEmail = true;
                 if ("accessToken".equals(opId)) foundAccessToken = true;
+                if ("sendMessage".equals(opId)) foundSendMessage = true;
+                if ("getMessageStatus".equals(opId)) foundMessageStatus = true;
+                if ("listMessageChannels".equals(opId)) foundMessageChannels = true;
             }
         }
         assertTrue(foundCreate, "createCampaign operationId must exist in YAML");
         assertTrue(foundGetById, "getCampaignById operationId must exist in YAML");
         assertTrue(foundGetByApp, "getCampaignsByApplication operationId must exist in YAML");
         assertTrue(foundSendEmail, "sendEmail operationId must exist in YAML");
+        assertTrue(foundSendMessage && foundMessageStatus && foundMessageChannels, "the unified ingress operations must be documented in the YAML");
         // accessToken (POST /api/v1/auth/token) is implemented by security-oauth's AuthAPi, not by
         // a controller in this repo, but it is a real endpoint this app exposes at runtime.
         assertTrue(foundAccessToken, "accessToken operationId must exist in YAML");
