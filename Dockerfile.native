@@ -76,53 +76,13 @@ RUN MULTIARCH="$(gcc -print-multiarch)" \
     && mkdir -p "/staging/usr/lib/${MULTIARCH}" \
     && cp -a /usr/lib/"${MULTIARCH}"/libz.so* "/staging/usr/lib/${MULTIARCH}/"
 
-# certs/mercury/ is entirely gitignored, so a plain `COPY certs/mercury/ certs/mercury/` from
-# the build context copies nothing when building from a git checkout — confirmed the actual
-# cause of a real-deployment "trustAnchors parameter must be non-empty" TLS failure (TLS calls
-# had zero trust anchors because the PRX-internal CA never made it into the image). Each file
-# is passed in as its own BuildKit secret instead — same mechanism as maven_settings above — and
-# staged here (the distroless final stage has no shell, so it can't run a secret-mounted RUN
-# itself; the final stage just COPYs this staged output). `docker build` needs one
-# `--secret id=<name>,src=<path on the build host>` per file below: prx_internal_ca,
-# mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert, aiven_kafka_key,
-# aiven_kafka_pem, svc_pem. aiven_kafka_p12 is optional: Kafka only reads it when
-# KAFKA_SSL_KEYSTORE_TYPE is not PEM, and PEM is the default.
-# Local fallback for the secrets below: certs/mercury/ when present in the build context. pom.xml
-# is listed only so the COPY has at least one source when the (gitignored) directory is absent.
-COPY pom.xml certs/mercury/ ./certs/mercury/
-
-RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt,required=false \
-    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks,required=false \
-    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks,required=false \
-    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks,required=false \
-    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert,required=false \
-    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key,required=false \
-    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem,required=false \
-    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12,required=false \
-    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem,required=false \
-    mkdir -p /staging-certs/mercury && \
-    for f in prx-internal-ca.crt mercury.jks backbone.jks umdc-truststore.jks \
-             aiven-kafka-7e59598.cert aiven-kafka-7e59598.key aiven-kafka-7e59598.pem \
-             svc.pem; do \
-      if [ -f "/run/secrets/$f" ]; then cp "/run/secrets/$f" "/staging-certs/mercury/$f"; \
-      else cp "/build/certs/mercury/$f" "/staging-certs/mercury/$f"; fi || exit 1; \
-    done && \
-    if [ -f /run/secrets/aiven-kafka.p12 ]; then \
-      cp /run/secrets/aiven-kafka.p12 /staging-certs/mercury/; \
-    elif [ -f /build/certs/mercury/aiven-kafka.p12 ]; then \
-      cp /build/certs/mercury/aiven-kafka.p12 /staging-certs/mercury/; \
-    fi && \
-    chmod 0444 /staging-certs/mercury/*
-# BuildKit mounts each --secret at mode 0400 owned by root, and `cp` (no -p flag) still
-# preserves those source permission bits — so, unlike the JIT Dockerfile (which chowns/chmods
-# the whole app dir to its own non-root APP_USER before switching to it), the files staged
-# above land as root-owned, owner-only-readable. The final stage below runs as `nonroot`
-# (distroless's fixed uid 65532, a different identity than root) — chmod here, while still
-# root in the builder stage, is what makes them world-readable so COPY --from=builder (which
-# preserves file mode) hands the final stage files nonroot can actually open. Confirmed the
-# actual cause of a real-deployment "Permission denied" TLS/keystore failure (every cert/jks
-# read failed identically, including the Tomcat SSL connector's own keystore) after the
-# equally real "certs never made it into the image at all" failure above was fixed.
+# certs/mercury/ is NOT baked into the image: it holds private keys (the Aiven Kafka client key, svc.pem, the keystores) and an image
+# pushed to a registry is readable by whoever can pull it (a public Docker Hub repository means everyone). The folder is mounted READ-ONLY
+# at run time at /usr/local/runme/certs/mercury (docker-compose.yml does it), the WORKDIR-relative path application.yml reads as
+# file:certs/mercury/... Nothing in this build needs the certificates (they are read when the application starts, not by the AOT step),
+# so no BuildKit secret is needed for them any more: only `maven_settings`. An empty directory owned by `nonroot` (uid 65532) is staged
+# here so the mount point exists. The files themselves must be readable by that uid (chmod 644 on a Linux host; Docker Desktop does not care).
+RUN mkdir -p /staging-certs/mercury
 
 # cc-debian12 (glibc + libstdc++/libgcc1), not the smaller base-debian12 (glibc only) — this
 # build uses the plain default `--no-fallback` native-image linking (dynamically linked against
@@ -136,14 +96,12 @@ WORKDIR /usr/local/runme
 
 COPY --from=builder /build/target/mercury /usr/local/runme/mercury
 COPY --from=builder /staging/usr/lib/ /usr/lib/
-# Same certs/mercury/ + templates baking rationale as the JIT Dockerfile — see its own
-# comments for why these are copied in rather than runtime-mounted. Sourced from the builder
-# stage's staged secrets (see the RUN --mount=type=secret step above), not the build context.
-COPY --from=builder /staging-certs/mercury/ certs/mercury/
+# certs/mercury/ is an empty mount point here, filled at run time (see the comment above the builder's staging step).
+COPY --from=builder --chown=65532:65532 /staging-certs/mercury/ certs/mercury/
 # No templates are baked in: they live in the storage set by TEMPLATE_STORAGE (a bucket, or this folder when local). `nonroot`
 # (uid 65532) must be able to write here (TEMPLATE_STORAGE=local); an empty owned folder is created for it.
 COPY --from=builder --chown=65532:65532 /staging-templates/ templates/
-# The Aiven client certificates are baked into this image and application.yml defaults to PLAINTEXT
+# The Aiven client certificates are mounted at run time and application.yml defaults to PLAINTEXT
 # for local dev, which Aiven drops ("Node -1 disconnected"). Override at run time if ever needed.
 ENV KAFKA_SECURITY_PROTOCOL=SSL
 

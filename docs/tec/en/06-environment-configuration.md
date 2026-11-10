@@ -112,10 +112,10 @@ curl -s --cacert certs/mercury/prx-internal-ca.crt \
 
 ```bash
 mvn -o clean package -DskipTests          # jar at target/mercury.jar
-docker build -t lamata/mercury:0.0.2 .    # the Dockerfile copies certs/mercury/ into it
+docker build -t lamata/mercury:0.0.2 .    # no certificates in the image: they are mounted at run time
 ```
 
-The `Dockerfile` copies `certs/mercury/` **into the image** (a deliberate choice — see [01 · Technology Stack](01-technology-stack.md) and the `fix/docker-image-and-compose` commit history): it removes the need to mount a certificate volume on every deploy machine, in exchange for the certificates being extractable from the image's layers by anyone with registry access. `docker-entrypoint.sh` imports any `*.crt` in `certs/mercury/` into the JVM's trust store (`/usr/local/runme/cacerts`) at container start.
+The image does **not** contain `certs/mercury/` (it holds private keys: the Aiven Kafka client key, `svc.pem`, the keystores; an image pushed to a registry is readable by whoever can pull it, and a public Docker Hub repository means everyone). `docker-compose.yml` mounts the folder **read-only** at `/usr/local/runme/certs/mercury`, the path `application.yml` reads (`file:certs/mercury/...`); `create_host_path: false` makes a missing folder an error. The files must be readable by the image's non-root user (`chmod 644 certs/mercury/*` on a Linux host; Docker Desktop does not care). `docker-entrypoint.sh` (JIT image) stops with exit code 78 naming the missing files; the native image has no shell and fails later with a keystore error, so check the mount first. The entrypoint does not touch the JVM trust store: each integration carries its own trust material.
 
 ### `docker-compose.yml` — config vs. secrets split
 
@@ -209,7 +209,7 @@ Mercury authenticates against Aiven with a client certificate (mTLS). Three thin
 | Requirement | Detail |
 |---|---|
 | `KAFKA_SECURITY_PROTOCOL=SSL` | `application.yml` defaults to `PLAINTEXT` for local development. The Docker images set `SSL`; other runs must set it themselves. |
-| PEM files in `certs/mercury/` | `aiven-kafka-7e59598.cert`, `.key` and `.pem`, baked into the image at build time. |
+| PEM files in `certs/mercury/` | `aiven-kafka-7e59598.cert`, `.key` and `.pem`, mounted read-only at run time (never baked into the image). |
 | Topics created in Aiven | `mercury-email-messages` and `mercury-unified-message` (override the latter with `UMDC_NOTIFICATION_TOPIC`). |
 
 `aiven-kafka.p12` is optional: it is only read when `KAFKA_SSL_KEYSTORE_TYPE` is not `PEM`, and neither Dockerfile requires it.

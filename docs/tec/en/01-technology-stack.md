@@ -116,7 +116,7 @@ mvn -Pbenchmark clean test         # runs the JMH benchmarks
 
 | Tool | Role |
 |---|---|
-| Docker (no multi-stage — single image on top of a pre-built jar) | Packages the jar + baked-in certificates (`certs/mercury/`) |
+| Docker (no multi-stage — single image on top of a pre-built jar) | Packages the jar; the certificates (`certs/mercury/`) are mounted read-only at run time, never baked into the image |
 | `docker-entrypoint.sh` | Imports `*.crt` files into the JVM's trust store at container start |
 | Docker Compose | Orchestrates `mercury` (and, in the full development compose, `config-server`/`vault-server`) |
 
