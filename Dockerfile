@@ -16,43 +16,13 @@ COPY docker-entrypoint.sh docker-entrypoint.sh
 # No templates are baked into the image: they live in the storage set by TEMPLATE_STORAGE (a Cloudflare R2/S3 bucket, or the
 # folder TEMPLATE_PATH, which Mercury creates if missing; mount a writable volume there for local storage).
 
-# certs/mercury/ (gitignored — never in git history, unlike the old keystore.jks incident) is
-# baked into the image here by explicit choice: these keystores/truststores are read as
-# file:certs/mercury/... (relative to WORKDIR, i.e. this exact path) by application.yml — see
-# spring.cloud.vault.ssl, spring.cloud.config.tls, eureka.client.tls, and umdc.security there.
-# This does mean they're extractable from the built image's layers by anyone with registry
-# access — that trade-off (vs. runtime-mounting them fresh on every deploy target, which kept
-# failing operationally) was made deliberately; see application.yml for the resolution logic.
-#
-# Every file here is gitignored, so a plain `COPY certs/mercury/ certs/mercury/` copies nothing
-# when the build context is a git checkout (confirmed the actual cause of a "trustAnchors
-# parameter must be non-empty" TLS failure at runtime — this directory was silently empty in
-# the deployed image). Each file is instead passed in as its own BuildKit secret — same
-# mechanism as maven_settings above — so `docker build` needs one `--secret id=<name>,src=<path
-# on the build host>` per file below:
-#   prx_internal_ca, mercury_jks, backbone_jks, umdc_truststore_jks, aiven_kafka_cert,
-#   aiven_kafka_key, aiven_kafka_pem, svc_pem
-# aiven_kafka_p12 is optional: Kafka only reads it when KAFKA_SSL_KEYSTORE_TYPE is not PEM, and
-# PEM is the default.
-RUN --mount=type=secret,id=prx_internal_ca,target=/run/secrets/prx-internal-ca.crt \
-    --mount=type=secret,id=mercury_jks,target=/run/secrets/mercury.jks \
-    --mount=type=secret,id=backbone_jks,target=/run/secrets/backbone.jks \
-    --mount=type=secret,id=umdc_truststore_jks,target=/run/secrets/umdc-truststore.jks \
-    --mount=type=secret,id=aiven_kafka_cert,target=/run/secrets/aiven-kafka-7e59598.cert \
-    --mount=type=secret,id=aiven_kafka_key,target=/run/secrets/aiven-kafka-7e59598.key \
-    --mount=type=secret,id=aiven_kafka_pem,target=/run/secrets/aiven-kafka-7e59598.pem \
-    --mount=type=secret,id=aiven_kafka_p12,target=/run/secrets/aiven-kafka.p12 \
-    --mount=type=secret,id=svc_pem,target=/run/secrets/svc.pem \
-    mkdir -p certs/mercury && \
-    cp /run/secrets/prx-internal-ca.crt certs/mercury/prx-internal-ca.crt && \
-    cp /run/secrets/mercury.jks certs/mercury/mercury.jks && \
-    cp /run/secrets/backbone.jks certs/mercury/backbone.jks && \
-    cp /run/secrets/umdc-truststore.jks certs/mercury/umdc-truststore.jks && \
-    cp /run/secrets/aiven-kafka-7e59598.cert certs/mercury/aiven-kafka-7e59598.cert && \
-    cp /run/secrets/aiven-kafka-7e59598.key certs/mercury/aiven-kafka-7e59598.key && \
-    cp /run/secrets/aiven-kafka-7e59598.pem certs/mercury/aiven-kafka-7e59598.pem && \
-    cp /run/secrets/svc.pem certs/mercury/svc.pem && \
-    if [ -f /run/secrets/aiven-kafka.p12 ]; then cp /run/secrets/aiven-kafka.p12 certs/mercury/aiven-kafka.p12; fi
+# certs/mercury/ (gitignored) is NOT part of the image: it holds private keys (the Aiven Kafka client key, svc.pem, the keystores), and an
+# image pushed to a registry is readable by whoever can pull it (a public Docker Hub repository means everyone). The folder is mounted
+# READ-ONLY at run time at this exact WORKDIR-relative path, which application.yml reads as file:certs/mercury/... (spring.cloud.vault.ssl,
+# spring.cloud.config.tls, eureka.client.tls, umdc.security). docker-compose.yml does the mount; docker-entrypoint.sh refuses to start,
+# naming the missing files, when it is not there. The files must be readable by the image's non-root user (chmod 644 on a Linux host).
+# An empty mount point is created here so the directory exists with the right owner.
+RUN mkdir -p certs/mercury
 
 RUN addgroup -S "${APP_GROUP}" && adduser -S "${APP_USER}" -G "${APP_GROUP}" && \
     chown -R "${APP_USER}:${APP_GROUP}" . && \
@@ -61,7 +31,7 @@ RUN addgroup -S "${APP_GROUP}" && adduser -S "${APP_USER}" -G "${APP_GROUP}" && 
 
 USER ${APP_USER}:${APP_GROUP}
 
-# The Aiven client certificates are baked into this image and application.yml defaults to PLAINTEXT
+# The Aiven client certificates are mounted (see above) and application.yml defaults to PLAINTEXT
 # for local dev, which Aiven drops ("Node -1 disconnected"). Override at run time if ever needed.
 ENV KAFKA_SECURITY_PROTOCOL=SSL
 

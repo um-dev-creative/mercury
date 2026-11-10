@@ -40,8 +40,16 @@ services:
     env_file:
       - config/local.env
       - secrets/local.env
-    # volumes:
-      # certs/mercury/ is baked into the image now (see Dockerfile) — no runtime mount needed.
+    volumes:
+      # certs/mercury/ holds private keys, so it is NOT in the image (a pushed image is readable by whoever can pull it): it is mounted
+      # read-only at the fixed path application.yml reads (file:certs/mercury/...). create_host_path: false makes a missing folder an
+      # error instead of Docker silently creating an empty one. On a Linux host the files must be readable by the image's user (chmod 644).
+      - type: bind
+        source: ./certs/mercury
+        target: /usr/local/runme/certs/mercury
+        read_only: true
+        bind:
+          create_host_path: false
       # No templates are baked into the image or kept in the repo: they live in the storage set by TEMPLATE_STORAGE
       # (s3/r2 = the Cloudflare R2 bucket, no volume needed). Only for TEMPLATE_STORAGE=local, uncomment to mount a WRITABLE
       # host directory (never `:ro`: saving a template from Iris writes there):
