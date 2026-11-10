@@ -12,16 +12,11 @@ import com.umdc.mercury.jpa.nosql.repository.MailTrackingNSRepository;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -103,30 +98,10 @@ public class MailTrackingService {
 
     /** SHA-256 over every field of the request, with maps in key order so equal requests hash equal. */
     static String hash(SendEmailRequest r) {
-        String canonical = canonical(List.of(String.valueOf(r.templateDefinedId()), String.valueOf(r.userId()),
+        return RequestHashes.of(List.of(String.valueOf(r.templateDefinedId()), String.valueOf(r.userId()),
                 String.valueOf(r.from()), String.valueOf(r.to()), String.valueOf(r.cc()),
                 String.valueOf(r.subject()), String.valueOf(r.body()), String.valueOf(r.sendDate()),
                 Objects.requireNonNullElse(r.params(), Map.of())));
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available", e);
-        }
-    }
-
-    private static String canonical(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            var sorted = new TreeMap<String, String>();
-            map.forEach((k, v) -> sorted.put(String.valueOf(k), canonical(v)));
-            return sorted.toString();
-        }
-        if (value instanceof Iterable<?> items) {
-            var out = new StringBuilder("[");
-            items.forEach(i -> out.append(canonical(i)).append(','));
-            return out.append(']').toString();
-        }
-        return String.valueOf(value);
     }
 
     /** Answer plus whether it replays an earlier request. */
