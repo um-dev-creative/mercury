@@ -54,6 +54,7 @@ public class TemplateServiceImpl implements TemplateService {
     private final TemplateMapper templateMapper;
     private final TemplateUpdateApplier templateUpdateApplier;
     private final ApplicationTemplateFolders templateFolders;
+    private final TemplateDefinitionRegistrar definitions;
     private final String templateManagePermission;
 
     public TemplateServiceImpl(TemplateRepository templateRepository,
@@ -63,6 +64,7 @@ public class TemplateServiceImpl implements TemplateService {
                                 TemplateMapper templateMapper,
                                 TemplateUpdateApplier templateUpdateApplier,
                                 ApplicationTemplateFolders templateFolders,
+                                TemplateDefinitionRegistrar definitions,
                                 @Value("${umdc.security.permissions.template-manage:TEMPLATE_MANAGE}") String templateManagePermission) {
         this.templateRepository = templateRepository;
         this.templateTypeRepository = templateTypeRepository;
@@ -71,6 +73,7 @@ public class TemplateServiceImpl implements TemplateService {
         this.templateMapper = templateMapper;
         this.templateUpdateApplier = templateUpdateApplier;
         this.templateFolders = templateFolders;
+        this.definitions = definitions;
         this.templateManagePermission = templateManagePermission;
     }
 
@@ -88,6 +91,8 @@ public class TemplateServiceImpl implements TemplateService {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         TemplateEntity entity = templateMapper.toEntity(request, templateType, severityType, now);
         entity = templateRepository.save(entity);
+        // the definition is what makes the template usable (campaigns, POST /api/v1/messages, the catalogue)
+        definitions.register(entity, requesterId);
         if (firstTemplate) {
             templateFolders.ensureFolder(request.applicationId());
         }
@@ -126,6 +131,7 @@ public class TemplateServiceImpl implements TemplateService {
         entity.setActive(false);
         entity.setUpdatedAt(LocalDateTime.now(ZoneOffset.UTC));
         templateRepository.save(entity);
+        definitions.deactivate(entity.getId());
         logger.info("Template soft-deleted. id={}", id);
     }
 
