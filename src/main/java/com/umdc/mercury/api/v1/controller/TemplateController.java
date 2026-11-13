@@ -23,7 +23,7 @@ import java.util.UUID;
  * {@link TemplateService}. {@link TemplateApi} is not {@code @SkipSessionValidation}, so
  * Mercury's {@code SessionJwtInterceptor} already verifies {@code session-token}'s
  * signature before any of these methods run; {@code requesterId} below is still resolved
- * through {@link SessionJwtServiceImpl#getVerifiedUid(String)} — not the unverified
+ * through {@link SessionJwtServiceImpl#getVerifiedActorId(String)} — not the unverified
  * {@code com.umdc.commons.util.JwtUtil.getUidFromToken} — so this controller doesn't
  * silently depend on that interceptor coverage remaining in place, and a malformed
  * {@code uid} claim fails loudly instead of flowing through as a {@code null} requester.</p>
@@ -43,7 +43,7 @@ public class TemplateController implements TemplateApi {
     }
 
     private UUID resolveVerifiedUserId(String sessionToken) {
-        return sessionJwtService.getVerifiedUid(sessionToken)
+        return sessionJwtService.getVerifiedActorId(sessionToken)
                 .orElseThrow(() -> new InvalidSessionTokenException(INVALID_TOKEN_MESSAGE));
     }
 

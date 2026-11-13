@@ -24,7 +24,7 @@ import java.util.UUID;
  * <p>The user opens {@code t.me/<bot>?start=<token>}; the token is 32 random bytes in base64url (43
  * characters, valid for Telegram's {@code start}), stored only as its SHA-256, single use, valid
  * {@link #TOKEN_TTL}. One user has at most one chat and a chat at most one user per application:
- * linking again replaces. The {@code application} is the caller's login-client alias, so a caller never
+ * linking again replaces. The {@code application} is the caller's application id, so a caller never
  * sees another's rows, and the {@code chat_id} is never returned by this service's API.</p>
  */
 @Service

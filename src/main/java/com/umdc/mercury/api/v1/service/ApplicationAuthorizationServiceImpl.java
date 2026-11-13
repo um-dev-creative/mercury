@@ -4,12 +4,15 @@ import com.umdc.mercury.client.BackbonePermissionClient;
 import com.umdc.mercury.client.to.PermissionCheckRequest;
 import com.umdc.mercury.client.to.PermissionCheckResponse;
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
+import com.umdc.mercury.security.MachineCaller;
+import com.umdc.mercury.security.SessionJwtServiceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -21,13 +24,16 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
     private final BackbonePermissionClient backbonePermissionClient;
     private final AdministeringApplication administeringApplication;
     private final String platformAdminPermission;
+    private final SessionJwtServiceImpl sessionJwtService;
 
     public ApplicationAuthorizationServiceImpl(BackbonePermissionClient backbonePermissionClient,
                                                AdministeringApplication administeringApplication,
+                                               SessionJwtServiceImpl sessionJwtService,
                                                @Value("${umdc.security.permissions.platform-admin:PLATFORM_ADMIN}") String platformAdminPermission) {
         this.backbonePermissionClient = backbonePermissionClient;
         this.administeringApplication = administeringApplication;
         this.platformAdminPermission = platformAdminPermission;
+        this.sessionJwtService = sessionJwtService;
     }
 
     @Override
@@ -47,6 +53,11 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
         if (Objects.isNull(sessionToken) || sessionToken.isBlank() || Objects.isNull(applicationId)) {
             return false;
         }
+        Optional<MachineCaller> machine = sessionJwtService.getMachineCaller(sessionToken);
+        if (machine.isPresent()) {
+            // an application's M2M token: it manages its own application, whatever the permission, and no other (the scope was checked per call)
+            return applicationId.equals(machine.get().applicationId());
+        }
         PermissionCheckResponse response = callBackbone(sessionToken, applicationId, permission);
         if (Objects.isNull(response) || !response.granted()) {
             logger.debug("Permission not held. applicationId={}, permission={}, reason={}", applicationId, permission,
@@ -60,6 +71,9 @@ public class ApplicationAuthorizationServiceImpl implements ApplicationAuthoriza
     public boolean isPlatformAdmin(String sessionToken) {
         if (Objects.isNull(sessionToken) || sessionToken.isBlank()) {
             return false;
+        }
+        if (sessionJwtService.getMachineCaller(sessionToken).isPresent()) {
+            return false;   // an application is never a platform administrator
         }
         UUID administering;
         try {

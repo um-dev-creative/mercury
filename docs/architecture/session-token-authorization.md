@@ -31,9 +31,10 @@ backbone's token itself.
 `POST /api/v1/auth/token` (`accessToken`) no longer takes a `session-token-bkd`: it is served by
 Mercury's own `AuthTokenController`, and `security-oauth`'s `AuthApiController` (which required
 that header and also mapped the removed `/auth/session-token`) is excluded from the component
-scan in `MercuryApplication`. The caller authenticates with its registered alias/password
-(`umdc.mercury.login-clients`) alone and gets a token **without** a `uid`, for the pure M2M
-endpoints (`/api/v1/mail`, `/api/v1/verification-code`) only. `/api/v1/auth/session-token` no
+scan in `MercuryApplication`. The caller authenticates with the Backbone M2M token of its managed client
+(`Authorization: Bearer`, see `docs/tec/en/16-m2m-token-from-backbone.md`) and gets a token **without** a `uid`
+but with the application Backbone ties the client to (`aid`), for the pure M2M endpoints (`/api/v1/messages`,
+`/api/v1/mail`, `/api/v1/verification-code`, Telegram) and the templates of that application. `/api/v1/auth/session-token` no
 longer exists (404).
 
 ## Two extraction mechanisms — only one is safe
@@ -74,7 +75,7 @@ The old code decoded `sessionTokenBkd`'s `uid` without checking its signature, t
 embedded that value in a **newly minted, validly-signed** Mercury session token. Since
 Mercury and backbone-rest share `APP_TOKEN_SECRET`, that new token is indistinguishable
 from a genuine one everywhere else in the system. Net effect: any caller who could
-satisfy the static registered-login-client alias/password check (`LoginClientProperties`)
+satisfy the (since removed) registered-login-client alias/password check
 could mint a legitimate Mercury token for *any* `uid` of their choosing — full user
 impersonation, propagating to every endpoint that trusts a Mercury session token (e.g.
 the Template Management API, whose real authorization is delegated to backbone-rest's
@@ -180,14 +181,11 @@ Mercury only; log the user out at backbone-rest as well to invalidate the token 
 
 ## Authenticating client applications: `POST /api/v1/auth/token`
 
-Callers (e.g. directory-backend) authenticate with a registered alias/password
-(`umdc.mercury.login-clients`); no `session-token-bkd` is needed (an extra header is ignored). Because that
-credential is now the only barrier, failed attempts are **throttled** per alias + caller address
-(`umdc.security.login-throttle.max-attempts` = 5, `window` = 15m): beyond that the endpoint answers `429`
-with `Retry-After` without evaluating the password, a success clears the counter, and every success/failure
-is logged (alias + address, never the password). The counter is per instance (N replicas ⇒ up to N× the
-limit) and keyed by the address Spring sees: behind a proxy that hides it, all clients share one address, so
-size `max-attempts` accordingly.
+Client applications authenticate with the Backbone M2M token of their managed client, sent as
+`Authorization: Bearer` (no Mercury password; no `session-token-bkd`). The request goes through
+`ManagedClientSecurityConfig`: Backbone's introspection says whether the token is active, which scopes it holds and which
+application the client belongs to, and `MachineTokenExchange` issues Mercury's token with those. Brute force against a
+Mercury-held password is no longer possible: there is none. See `docs/tec/en/16-m2m-token-from-backbone.md`.
 
 ## Secrets
 

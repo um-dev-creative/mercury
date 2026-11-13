@@ -53,7 +53,7 @@ class TemplateContentControllerTest {
 
     @BeforeEach
     void setUp() {
-        lenient().when(sessionJwtService.getVerifiedUid(TOKEN)).thenReturn(Optional.of(requester));
+        lenient().when(sessionJwtService.getVerifiedActorId(TOKEN)).thenReturn(Optional.of(requester));
     }
 
     @Test
@@ -69,7 +69,7 @@ class TemplateContentControllerTest {
 
     @Test
     void anInvalidSessionIsRefused() {
-        when(sessionJwtService.getVerifiedUid("bad")).thenReturn(Optional.empty());
+        when(sessionJwtService.getVerifiedActorId("bad")).thenReturn(Optional.empty());
 
         assertThrows(InvalidSessionTokenException.class, () -> controller.get(id, "bad"));
         assertThrows(InvalidSessionTokenException.class, () -> controller.put(id, "\"a\"", null, false, "bad", new SaveTemplateContentRequest("x")));

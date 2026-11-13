@@ -80,12 +80,13 @@ class SecurityFilterChainsTest {
         doThrow(new BadOpaqueTokenException("inactive")).when(introspector).introspect(anyString());
         doReturn(principal("mercury:message:read")).when(introspector).introspect("read-token");
         doReturn(principal("mercury:message:write")).when(introspector).introspect("write-token");
+        doReturn(principal("some:other:scope")).when(introspector).introspect("other-token");
     }
 
     @Test
-    @DisplayName("templates, campaigns and channel-types reject a request with no Bearer (401)")
+    @DisplayName("campaigns and channel-types reject a request with no Bearer (401)")
     void bearerChain_noBearer_unauthorized() throws Exception {
-        for (String path : List.of("/api/v1/templates", "/api/v1/campaigns/x", "/api/v1/channel-types")) {
+        for (String path : List.of("/api/v1/campaigns/x", "/api/v1/channel-types")) {
             mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
         }
     }
@@ -130,10 +131,30 @@ class SecurityFilterChainsTest {
     }
 
     @Test
-    @DisplayName("/auth/token, /auth/logout and the M2M mail path are NOT behind the Bearer chain "
-            + "(their own credentials — alias/password, session-token — are checked elsewhere)")
+    @DisplayName("an application's M2M call to templates (no Authorization header) is not Bearer-checked here: TemplateCallerInterceptor checks its Mercury token")
+    void templatesWithoutAuthorizationHeaderFallToTheSessionTokenChain() throws Exception {
+        mockMvc.perform(get("/api/v1/templates")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/templates")).andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("/auth/token needs a Backbone Bearer (401 without or with an inactive one)")
+    void authToken_needsABackboneBearer() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/token")).andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/token").header("Authorization", "Bearer revoked")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("/auth/token accepts a Bearer with the Mercury read or write scope, and refuses one with neither (403)")
+    void authToken_needsAMercuryScope() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/token").header("Authorization", "Bearer read-token")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/token").header("Authorization", "Bearer write-token")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/auth/token").header("Authorization", "Bearer other-token")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("/auth/logout and the M2M mail path are NOT behind the Bearer chain (their session-token is checked by the interceptors)")
     void sessionTokenChain_isPermitAllAtFilterLevel() throws Exception {
-        mockMvc.perform(post("/api/v1/auth/token")).andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/auth/logout")).andExpect(status().isOk());
         mockMvc.perform(get("/api/v1/mail")).andExpect(status().isOk());
     }

@@ -34,6 +34,12 @@ public class SessionJwtServiceImpl implements SessionJwtService {
     private final BackboneSessionValidator backboneSessionValidator;
     private final SecretKey key;
     public static final String USER_ID = "uid";
+    /** Claim of a Mercury M2M token: the application its Backbone client belongs to. */
+    public static final String APPLICATION_ID = "aid";
+    /** Claim of a Mercury M2M token: the space-separated {@code mercury:*} scopes. */
+    public static final String SCOPE = "scope";
+    /** Claim of a Mercury M2M token: the Backbone client's name. */
+    public static final String CLIENT_NAME = "client_name";
 
     /**
      * Constructor to initialize SessionJwtService with JwtConfigProperties.
@@ -169,6 +175,69 @@ public class SessionJwtServiceImpl implements SessionJwtService {
         } catch (CertificateSecurityException e) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * The backend caller behind a Mercury M2M token (see {@link #getMachineClaims}): its Backbone client, application ({@code aid}) and scopes.
+     * Empty for anything else, and for a machine token without a valid {@code aid}.
+     *
+     * @param token the raw token
+     * @return the caller, or empty
+     */
+    public Optional<MachineCaller> getMachineCaller(String token) {
+        return getMachineClaims(token).flatMap(claims -> {
+            Object aid = claims.get(APPLICATION_ID);
+            if (!(aid instanceof String text)) {
+                return Optional.empty();
+            }
+            try {
+                Object scope = claims.get(SCOPE);
+                Set<String> scopes = scope instanceof String list && !list.isBlank() ? Set.copyOf(java.util.Arrays.asList(list.trim().split("\\s+"))) : Set.of();
+                return Optional.of(new MachineCaller(claims.getSubject(), String.valueOf(claims.get(CLIENT_NAME)), UUID.fromString(text), scopes));
+            } catch (IllegalArgumentException _) {
+                return Optional.empty();
+            }
+        });
+    }
+
+    /**
+     * Mints the Mercury M2M token of a Backbone managed client (decision: applications authenticate to Mercury with their Backbone token, never with a
+     * Mercury-specific password). No {@code uid}: it is not a person.
+     *
+     * @param clientId      the Backbone managed client UUID (subject)
+     * @param clientName    its name
+     * @param applicationId the application Backbone says it belongs to
+     * @param scopes        the {@code mercury:*} scopes it holds
+     * @return the signed token
+     */
+    public String generateMachineToken(String clientId, String clientName, UUID applicationId, Set<String> scopes) {
+        Map<String, String> parameters = new ConcurrentHashMap<>();
+        parameters.put(APPLICATION_ID, applicationId.toString());
+        parameters.put(SCOPE, String.join(" ", new java.util.TreeSet<>(scopes)));
+        if (Objects.nonNull(clientName)) {
+            parameters.put(CLIENT_NAME, clientName);
+        }
+        return generateSessionToken(clientId, parameters);
+    }
+
+    /**
+     * The identity a template or message action is recorded under: the person's verified {@code uid}, or the Backbone client's UUID for an M2M token.
+     *
+     * @param token the raw token
+     * @return the verified id, or empty
+     */
+    public Optional<UUID> getVerifiedActorId(String token) {
+        Optional<UUID> uid = getVerifiedUid(token);
+        if (uid.isPresent()) {
+            return uid;
+        }
+        return getMachineCaller(token).flatMap(caller -> {
+            try {
+                return Optional.of(UUID.fromString(caller.clientId()));
+            } catch (IllegalArgumentException _) {
+                return Optional.empty();
+            }
+        });
     }
 
     /**

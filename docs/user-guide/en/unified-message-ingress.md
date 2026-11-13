@@ -3,7 +3,7 @@
 Use this when your service must tell a person something (a verification code, a notice, an alert) and you want mercury to deliver it. You do not need Kafka and you do not wait for the delivery.
 
 ## 1. What you need
-1. A **login client** for your service in mercury (`docs/login-clients.md`): an alias and a password kept in your Vault.
+1. A **managed client in Backbone** for your application with the `mercury:message:write` scope (`docs/user-guide/en/m2m-applications.md`). No Mercury password.
 2. For e-mail: a **template** registered in mercury for your application (`docs/zerobound-mail-templates.md` shows how). You name it, you do **not** keep its id: send `template` (e.g. `zb_verification`), your `applicationId` and the `language`. Ask `GET /api/v1/messages/templates?applicationId=<uuid>` for what exists and in which languages.
 
 ## 2. The flow
@@ -14,8 +14,8 @@ sequenceDiagram
     participant S as Your service
     participant M as mercury
     participant P as Person
-    S->>M: POST /api/v1/auth/token (alias, password)
-    M-->>S: token (cache it until a minute before it expires)
+    S->>M: POST /api/v1/auth/token, Authorization: Bearer Backbone token
+    M-->>S: Mercury token (cache it until a minute before it expires)
     S->>M: POST /api/v1/messages with Idempotency-Key
     M-->>S: 202 id and OPENED (you are done)
     M-)P: mercury delivers, retries and archives

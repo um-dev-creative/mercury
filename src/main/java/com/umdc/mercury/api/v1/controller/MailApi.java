@@ -38,7 +38,7 @@ public interface MailApi {
      *
      * @param requestMail    the request document containing the email details
      * @param idempotencyKey optional key chosen by the caller (scoped to the caller)
-     * @param caller         login-client alias, set by the machine-token interceptor
+     * @param caller         application id, set by the machine-token interceptor
      * @return the id to ask for the delivery state, and its state
      */
     @Operation(description = "Accept an email for delivery (backend callers only). Send an Idempotency-Key header to "
@@ -61,7 +61,7 @@ public interface MailApi {
      * Delivery state of a mail the caller submitted.
      *
      * @param id     the id {@link #send} answered
-     * @param caller login-client alias, set by the machine-token interceptor
+     * @param caller application id, set by the machine-token interceptor
      * @return {@code OPENED}, {@code SENT} or {@code FAILED}; 404 for another caller's or an expired id
      */
     @Operation(description = "Delivery state of a mail this caller submitted.", operationId = "getMailStatus")
