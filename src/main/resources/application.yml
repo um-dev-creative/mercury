@@ -441,7 +441,7 @@ spring:
   # 500ing trying to fetch a JWKS from a host that no longer serves it. Explicitly
   # excluding both autoconfiguration classes below closes this regardless of what any
   # remote config source still serves for this key — safe because ManagedClientSecurityConfig
-  # injects its own BackboneOpaqueTokenIntrospector bean directly rather than relying on
+  # injects its own ApplicationAwareTokenIntrospector bean directly rather than relying on
   # either of these classes to supply one.
   autoconfigure:
     exclude:

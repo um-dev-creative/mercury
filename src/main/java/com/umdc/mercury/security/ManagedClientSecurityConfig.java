@@ -1,6 +1,5 @@
 package com.umdc.mercury.security;
 
-import com.umdc.security.introspection.BackboneOpaqueTokenIntrospector;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -17,7 +16,7 @@ import org.springframework.security.web.util.matcher.RequestHeaderRequestMatcher
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
- * Security chain for the requests that carry a Backbone-issued opaque M2M token (validated via {@link BackboneOpaqueTokenIntrospector}).
+ * Security chain for the requests that carry a Backbone-issued opaque M2M token (validated via {@link ApplicationAwareTokenIntrospector}).
  * <ul>
  *   <li>{@code POST /api/v1/auth/token}: the one door an application uses to get Mercury's own M2M token. Needs a Mercury scope (read or write).</li>
  *   <li>{@code /api/v1/campaigns/**} and {@code /api/v1/channel-types/**}: the service Bearer, as before.</li>
@@ -42,9 +41,9 @@ public class ManagedClientSecurityConfig {
     private static final String SCOPE_READ = "SCOPE_mercury:message:read";
     private static final String SCOPE_WRITE = "SCOPE_mercury:message:write";
 
-    private final BackboneOpaqueTokenIntrospector introspector;
+    private final ApplicationAwareTokenIntrospector introspector;
 
-    public ManagedClientSecurityConfig(BackboneOpaqueTokenIntrospector introspector) {
+    public ManagedClientSecurityConfig(ApplicationAwareTokenIntrospector introspector) {
         this.introspector = introspector;
     }
 

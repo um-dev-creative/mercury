@@ -1,7 +1,6 @@
 package com.umdc.mercury.security;
 
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
-import com.umdc.security.introspection.BackboneOpaqueTokenIntrospector;
 import com.umdc.security.jwt.JwtConfigProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -49,7 +48,7 @@ class MachineTokenExchangeTest {
         attributes.put("sub", CLIENT);
         attributes.put("client_name", "zerobound-rest");
         if (application != null) {
-            attributes.put(BackboneOpaqueTokenIntrospector.APPLICATION_ID_CLAIM, application);
+            attributes.put(ApplicationAwareTokenIntrospector.APPLICATION_ID_CLAIM, application);
         }
         List<org.springframework.security.core.GrantedAuthority> authorities = java.util.Arrays.stream(scopes)
                 .<org.springframework.security.core.GrantedAuthority>map(scope -> new SimpleGrantedAuthority("SCOPE_" + scope)).toList();

@@ -1,6 +1,5 @@
 package com.umdc.mercury.security;
 
-import com.umdc.security.introspection.BackboneOpaqueTokenIntrospector;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,7 +64,7 @@ class SecurityFilterChainsTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private BackboneOpaqueTokenIntrospector introspector;
+    private ApplicationAwareTokenIntrospector introspector;
 
     private static DefaultOAuth2AuthenticatedPrincipal principal(String... scopes) {
         return new DefaultOAuth2AuthenticatedPrincipal("svc", Map.of("client_id", "svc"),

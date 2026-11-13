@@ -8,7 +8,7 @@ Applications used to log in to Mercury with an alias and a password (`mercury.lo
 
 ```mermaid
 flowchart TD
-    A[POST /api/v1/auth/token<br/>Authorization: Bearer Backbone M2M] --> C[ManagedClientSecurityConfig<br/>BackboneOpaqueTokenIntrospector]
+    A[POST /api/v1/auth/token<br/>Authorization: Bearer Backbone M2M] --> C[ManagedClientSecurityConfig<br/>ApplicationAwareTokenIntrospector]
     C -->|inactive| X[401]
     C -->|active: client, scopes, application_id| D{Mercury scope?}
     D -->|none| Y[403]
@@ -21,7 +21,7 @@ flowchart TD
     I --> J[ApplicationAuthorizationServiceImpl<br/>aid == applicationId]
 ```
 
-- **Identity comes from Backbone.** backbone-rest's introspection returns the client's `applicationId` (every managed client belongs to one application) and `security-oauth` exposes it as the `application_id` claim of the principal. A client without it (older backbone-rest) is refused (`403`, fail closed).
+- **Identity comes from Backbone.** backbone-rest's introspection returns the client's `applicationId` (every managed client belongs to one application) and Mercury's own `ApplicationAwareTokenIntrospector` exposes it as the `application_id` claim of the principal. A client without it (older backbone-rest) is refused (`403`, fail closed).
 - **`MachineTokenExchange`** copies client (`sub`), name, application (`aid`) and the `mercury:*` scopes into a Mercury token (`SessionJwtServiceImpl.generateMachineToken`). Later calls need no round trip to Backbone. Revocation: the token lives `APP_TOKEN_EXPIRATION`; `POST /api/v1/auth/logout` revokes it locally.
 - **`MachineCaller`** (`getMachineCaller`) is what the interceptors read: it requires Mercury's own `iss`/`aud`, no `uid`, and a valid `aid`. A token without `aid` (the old alias/password kind) is not a machine token.
 - **Scopes per call:** `GET`/`HEAD`/`OPTIONS` need `mercury:message:read` or `write`; anything else needs `write` (`MachineCaller.allows`).
@@ -43,3 +43,10 @@ flowchart TD
 ## Tests
 
 `MachineTokenExchangeTest`, `TemplateCallerInterceptorTest`, `MachineTokenInterceptorTest`, `SessionJwtServiceImplTest` (machine token, actor id), `SecurityFilterChainsTest` (the real chains: `/auth/token` needs a Backbone Bearer and a Mercury scope; templates without `Authorization` fall to the session-token chain), `ApplicationAuthorizationServiceImplTest`, `TemplateApplicationServiceImplTest`, `MessageIngressServiceTest`.
+
+## Where the application claim comes from (no `security-oauth` release needed)
+
+`ApplicationAwareTokenIntrospector` (Mercury) replaces the shared library's `BackboneOpaqueTokenIntrospector` on the managed-client chain. It calls
+the same backbone-rest endpoint (`POST /api/v1/managed-clients/introspect`) through `BackboneIntrospectionClient` and a Mercury-owned
+`TokenIntrospectionResponse` that includes `applicationId`, which the published `security-oauth` 0.0.3 record drops. Mercury therefore compiles and
+runs against the unmodified `security-oauth` 0.0.3 from repsy; only backbone-rest must be upgraded (it returns `applicationId`).

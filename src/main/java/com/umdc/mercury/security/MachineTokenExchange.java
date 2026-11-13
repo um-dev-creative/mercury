@@ -1,7 +1,6 @@
 package com.umdc.mercury.security;
 
 import com.umdc.mercury.api.v1.exception.ForbiddenException;
-import com.umdc.security.introspection.BackboneOpaqueTokenIntrospector;
 import com.umdc.security.to.AuthResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +54,7 @@ public class MachineTokenExchange {
     }
 
     private static UUID applicationOf(OAuth2AuthenticatedPrincipal principal) {
-        Object raw = principal.getAttribute(BackboneOpaqueTokenIntrospector.APPLICATION_ID_CLAIM);
+        Object raw = principal.getAttribute(ApplicationAwareTokenIntrospector.APPLICATION_ID_CLAIM);
         if (Objects.isNull(principal.getName()) || !(raw instanceof String text)) {
             LOGGER.warn("M2M exchange refused: Backbone does not tie the client to an application. clientId={}", principal.getName());
             throw new ForbiddenException("The client is not tied to an application");
