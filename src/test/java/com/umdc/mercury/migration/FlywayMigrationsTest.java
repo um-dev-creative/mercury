@@ -47,6 +47,18 @@ class FlywayMigrationsTest {
     }
 
     @Test
+    @DisplayName("no migration contains a ${...} sequence: Flyway reads it as a placeholder, even inside a comment, and refuses to start")
+    void noFlywayPlaceholdersInScripts() throws IOException {
+        List<String> problems = new ArrayList<>();
+        for (Path file : migrationFiles()) {
+            if (Files.readString(file, StandardCharsets.UTF_8).contains("${")) {
+                problems.add(file.getFileName() + ": contains ${ (Flyway: No value provided for placeholder)");
+            }
+        }
+        assertTrue(problems.isEmpty(), "Flyway would fail to parse:\n  " + String.join("\n  ", problems));
+    }
+
+    @Test
     @DisplayName("versions are unique, so Flyway never sees two migrations for the same version")
     void versionsAreUnique() throws IOException {
         List<Integer> versions = versions();
