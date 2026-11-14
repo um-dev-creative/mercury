@@ -101,7 +101,10 @@ package com.umdc.mercury.processor;
                                     logger.debug("Saving message processed: {}", emailMessageDocument);
                                     // Get message status type
                                     var messageStatusTypeTO = messageStatusTypeService.findByName(emailMessageDocument.deliveryStatus().name());
-                                    var templateDefinedTO = templateDefinedService.find(emailMessageDocument.templateDefinedId());
+                                    var templateDefinedTO = findTemplateOrNull(emailMessageDocument);
+                                    if (templateDefinedTO == null) {
+                                        return; // one orphan document must not stop the reconciliation of the others
+                                    }
                                     // Create the message record
                                     logger.debug("Creating message record: {}", emailMessageDocument);
                                     var messageRecordTO = messageRecordService.create(messageRecordMapper.toMessageRecordTO(emailMessageDocument, messageStatusTypeTO));
@@ -119,6 +122,19 @@ package com.umdc.mercury.processor;
                                     emailService.delete(emailMessageDocument);
                                     logger.debug("Message processed saved and updated: {}", emailMessageDocument);
                                 });
+                    }
+
+                    /**
+                     * The template definition of a SENT document, or {@code null} (logged) when it no longer exists, so a single document
+                     * that points to a missing definition is skipped instead of aborting the whole scheduled run on every cycle.
+                     */
+                    private com.umdc.mercury.api.v1.to.TemplateDefinedTO findTemplateOrNull(EmailMessageDocument document) {
+                        try {
+                            return templateDefinedService.find(document.templateDefinedId());
+                        } catch (IllegalArgumentException e) {
+                            logger.error("Skipping SENT message {}: its template definition {} was not found", document.id(), document.templateDefinedId());
+                            return null;
+                        }
                     }
 
                     /**

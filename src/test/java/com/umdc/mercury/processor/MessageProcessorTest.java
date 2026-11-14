@@ -97,6 +97,34 @@ class MessageProcessorTest {
     }
 
     @Test
+    @DisplayName("updateMessageStatus skips a SENT document whose template definition is gone and still processes the others")
+    void updateMessageStatus_skipsOrphanDocument() {
+        UUID missing = UUID.randomUUID();
+        UUID present = UUID.randomUUID();
+        EmailMessageDocument orphan = new EmailMessageDocument("o", UUID.randomUUID(), missing, UUID.randomUUID(), "f@e.com", null, null, "s", "b",
+                LocalDateTime.now(), Map.of(), DeliveryStatusType.SENT);
+        EmailMessageDocument good = new EmailMessageDocument("g", UUID.randomUUID(), present, UUID.randomUUID(), "f@e.com", null, null, "s", "b",
+                LocalDateTime.now(), Map.of(), DeliveryStatusType.SENT);
+        TemplateTypeTO type = new TemplateTypeTO(UUID.randomUUID(), "n", "d", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "d", "l", "f", type, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateDefinedTO defined = new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(),
+                LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.SENT)).thenReturn(List.of(orphan, good));
+        when(messageStatusTypeService.findByName(anyString())).thenReturn(new MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
+        when(templateDefinedService.find(missing)).thenThrow(new IllegalArgumentException("Template defined not found"));
+        when(templateDefinedService.find(present)).thenReturn(defined);
+        MessageRecordTO record = new MessageRecordTO(UUID.randomUUID(), present, "f@e.com", "c", "s", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());
+        when(messageRecordMapper.toMessageRecordTO(eq(good), any())).thenReturn(record);
+        when(messageRecordService.create(any(MessageRecordTO.class))).thenReturn(record);
+
+        messageProcessor.updateMessageStatus();
+
+        verify(emailService).delete(good);
+        verify(emailService, org.mockito.Mockito.never()).delete(orphan);
+        verify(messageRecordService, org.mockito.Mockito.times(1)).create(any(MessageRecordTO.class));
+    }
+
+    @Test
     @DisplayName("updateMessageStatus should create message record, verification code when template matches, and delete the document")
     void updateMessageStatus_createsRecordAndVerificationCodeAndDeletes() {
         // Arrange
