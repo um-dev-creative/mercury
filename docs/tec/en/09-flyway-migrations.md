@@ -46,9 +46,10 @@ An **empty** schema is not baselined. The base schema (everything up to V2025) s
 1. Create `V<next number>__<snake_case>.sql` in `src/main/resources/db/migration`. The number is the highest one plus one.
 2. Use `IF NOT EXISTS` / `IF EXISTS` so it can be repeated.
 3. Never edit a script that was released: its checksum is stored and the start is refused. Fix it with a new script.
-4. Mention it in the `CHANGELOG`.
+4. Never write `${` in a script, not even in a comment: Flyway reads it as a placeholder and the start fails with `No value provided for placeholder`.
+5. Mention it in the `CHANGELOG`.
 
-`FlywayMigrationsTest` checks the name, the unique version, that the version is above the baseline and that the script is idempotent.
+`FlywayMigrationsTest` checks the name, the unique version, that the version is above the baseline and that the script is idempotent and that it has no `${` placeholder.
 
 ## Requirements and limits
 
