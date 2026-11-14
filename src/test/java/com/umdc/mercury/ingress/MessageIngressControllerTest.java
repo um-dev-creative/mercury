@@ -64,9 +64,9 @@ class MessageIngressControllerTest {
     void theTemplatesOfAnApplicationComeFromTheService() {
         var app = UUID.randomUUID();
         var entries = List.of(new TemplateNameResolver.Entry("zb_verification", List.of("en", "es")));
-        when(service.templates(app)).thenReturn(entries);
+        when(service.templates(app, app.toString())).thenReturn(entries);
 
-        assertEquals(entries, controller.templates(app).getBody());
+        assertEquals(entries, controller.templates(app, app.toString()).getBody());
     }
 
     @Test
@@ -77,6 +77,6 @@ class MessageIngressControllerTest {
         assertEquals(501, bare.send(request, null, null).getStatusCode().value());
         assertEquals(501, bare.channels().getStatusCode().value());
         assertEquals(501, bare.status(UUID.randomUUID(), null).getStatusCode().value());
-        assertEquals(501, bare.templates(UUID.randomUUID()).getStatusCode().value());
+        assertEquals(501, bare.templates(UUID.randomUUID(), null).getStatusCode().value());
     }
 }

@@ -1,5 +1,6 @@
 package com.umdc.mercury.ingress;
 
+import com.umdc.mercury.api.v1.exception.ForbiddenException;
 import com.umdc.mercury.api.v1.exception.MailNotFoundException;
 import com.umdc.mercury.api.v1.service.RequestHashes;
 import com.umdc.mercury.api.v1.service.TemplateDefinedService;
@@ -52,13 +53,15 @@ public class MessageIngressService {
      * @throws IllegalArgumentException unknown or disabled channel, invalid target, a field the channel needs, or an unknown template (400)
      * @throws IllegalStateException    the key was used with a different request (422)
      */
-    public Accepted accept(MessageRequest request, String caller, String idempotencyKey) {
+    public Accepted accept(MessageRequest original, String caller, String idempotencyKey) {
+        UUID application = CallerApplication.of(caller);
+        MessageRequest request = CallerApplication.apply(original, application);
         ChannelProvider provider = provider(request.channel());
         String target = request.target().strip();
         if (!provider.validTarget(target)) {
             throw new IllegalArgumentException("The target is not valid for the " + provider.code() + " channel");
         }
-        UUID templateId = templateOf(request);
+        UUID templateId = templateOf(request, application);
         UUID messageId = UUID.randomUUID();
         var message = new OutboundMessage(messageId, provider.code(), request.userId(), target, templateId, request.language(), request.from(),
                 request.subject(), request.body(), request.sendDate(), request.params(), request.options(), request.mediaUrl(), request.mediaType());
@@ -85,7 +88,7 @@ public class MessageIngressService {
     }
 
     /** The template to queue with: the one named (resolved by mercury, no fallback language) or the id given, checked to exist. */
-    private UUID templateOf(MessageRequest request) {
+    private UUID templateOf(MessageRequest request, UUID application) {
         boolean byName = Objects.nonNull(request.template()) && !request.template().isBlank();
         if (byName && Objects.nonNull(request.templateDefinedId())) {
             throw new IllegalArgumentException("Send either template or templateDefinedId, not both");
@@ -100,13 +103,17 @@ public class MessageIngressService {
             return names.resolve(request.applicationId(), request.template().strip(), request.language().strip());
         }
         if (Objects.nonNull(request.templateDefinedId())) {
-            templates.find(request.templateDefinedId());
+            var defined = templates.find(request.templateDefinedId());
+            if (Objects.nonNull(application) && !application.equals(defined.applicationId())) {
+                throw new ForbiddenException("The template belongs to another application");
+            }
         }
         return request.templateDefinedId();
     }
 
     /** The templates (and their languages) an application offers, for the callers to check what they need against. */
-    public List<TemplateNameResolver.Entry> templates(UUID applicationId) {
+    public List<TemplateNameResolver.Entry> templates(UUID applicationId, String caller) {
+        CallerApplication.assertOwn(CallerApplication.of(caller), applicationId);
         return names.catalogue(applicationId);
     }
 

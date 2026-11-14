@@ -35,7 +35,7 @@ public interface EmailService {
      * Accept an email from a backend caller.
      *
      * @param mail           the request
-     * @param caller         login-client alias (token subject)
+     * @param caller         id of the calling application (from the token)
      * @param idempotencyKey optional key; the same key and request is accepted once
      */
     default ResponseEntity<SendEmailResponse> sendMail(SendEmailRequest mail, String caller, String idempotencyKey) {

@@ -400,4 +400,50 @@ class SessionJwtServiceImplTest {
         assertThat(defaults.isAllowMissingClaims()).isFalse();
         assertThat(defaults.isValidateWithBackbone()).isTrue();
     }
+
+    @Test
+    void machineToken_roundTrips_clientApplicationAndScopes() {
+        UUID client = UUID.randomUUID();
+        UUID application = UUID.randomUUID();
+        String token = sessionJwtService.generateMachineToken(client.toString(), "svc", application,
+                java.util.Set.of("mercury:message:write", "mercury:message:read"));
+
+        MachineCaller caller = sessionJwtService.getMachineCaller(token).orElseThrow();
+
+        assertThat(caller.clientId()).isEqualTo(client.toString());
+        assertThat(caller.applicationId()).isEqualTo(application);
+        assertThat(caller.scopes()).containsExactlyInAnyOrder("mercury:message:write", "mercury:message:read");
+        assertThat(caller.allows(true)).isTrue();
+        assertThat(sessionJwtService.getVerifiedActorId(token)).contains(client);
+    }
+
+    @Test
+    void machineToken_withoutName_andNoScopes_stillParses() {
+        String token = sessionJwtService.generateMachineToken(UUID.randomUUID().toString(), null, UUID.randomUUID(), java.util.Set.of());
+
+        MachineCaller caller = sessionJwtService.getMachineCaller(token).orElseThrow();
+
+        assertThat(caller.scopes()).isEmpty();
+        assertThat(caller.allows(false)).isFalse();
+    }
+
+    @Test
+    void getMachineCaller_rejectsTokensThatAreNotCompleteMachineTokens() {
+        // a Mercury token with no aid (the old alias/password kind), a bad aid, and a person's token
+        assertThat(sessionJwtService.getMachineCaller(sessionJwtService.generateSessionToken("zerobound", new java.util.HashMap<>()))).isEmpty();
+        assertThat(sessionJwtService.getMachineCaller(sessionJwtService.generateSessionToken("svc", java.util.Map.of("aid", "not-a-uuid")))).isEmpty();
+        assertThat(sessionJwtService.getMachineCaller(sessionJwtService.generateSessionToken("alice", java.util.Map.of("uid", UUID.randomUUID().toString(), "aid", UUID.randomUUID().toString())))).isEmpty();
+        assertThat(sessionJwtService.getMachineCaller(null)).isEmpty();
+    }
+
+    @Test
+    void getVerifiedActorId_isTheUidOfAPerson_andEmptyForAMachineWhoseSubjectIsNotAUuid() {
+        UUID uid = UUID.randomUUID();
+        String person = sessionJwtService.generateSessionToken("alice", java.util.Map.of("uid", uid.toString()));
+        String odd = sessionJwtService.generateMachineToken("not-a-uuid", "svc", UUID.randomUUID(), java.util.Set.of("mercury:message:read"));
+
+        assertThat(sessionJwtService.getVerifiedActorId(person)).contains(uid);
+        assertThat(sessionJwtService.getVerifiedActorId(odd)).isEmpty();
+        assertThat(sessionJwtService.getVerifiedActorId(null)).isEmpty();
+    }
 }

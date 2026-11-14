@@ -258,7 +258,7 @@ one wrong shows up as `401`/`403`, or as the app refusing to start.
 |---|---|---|---|
 | A **client application** (a service, e.g. directory-backend) | Backbone opaque access token (scopes `mercury:message:read` / `:write`) | `Authorization: Bearer <token>` | `ManagedClientSecurityConfig`, via Backbone's introspection — paths `/api/v1/campaigns/**`, `/api/v1/channel-types/**`, `/api/v1/templates/**` |
 | An **end user** | The session JWT backbone-rest issued at login | `session-token` | `SessionJwtInterceptor` / `SessionJwtServiceImpl` — locally (HS256), plus backbone-rest's deny-list |
-| A **backend caller** of the M2M endpoints (`/api/v1/mail`, `/api/v1/verification-code`) | A Mercury-issued token, obtained with a registered alias/password at `POST /api/v1/auth/token` | `session-token` | `SessionJwtInterceptor` |
+| A **backend caller** of the M2M endpoints (`/api/v1/mail`, `/api/v1/verification-code`) | A Mercury M2M token, obtained by sending the Backbone M2M token as `Authorization: Bearer` to `POST /api/v1/auth/token` | `session-token` | `SessionJwtInterceptor` |
 
 User-scoped operations (campaigns by application, update/toggle/delete, `getById`, `getProgress`,
 `createCampaign`, all of Template Management) need **both** the Bearer (which service) and the
@@ -286,12 +286,8 @@ it the context fails with `Could not resolve placeholder 'APP_TOKEN_SECRET'`.
 | `APP_TOKEN_ALLOW_MISSING_CLAIMS` | `false` | `iss` and `aud` are **mandatory**. Set `true` only in an environment whose backbone-rest does not stamp them; a present-but-wrong claim is rejected either way. |
 | `APP_TOKEN_VALIDATE_WITH_BACKBONE` | `true` | Also ask backbone-rest whether a token it issued is still active (honours its logout / deny-list). |
 | `APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL` | `30s` | Positive answers are cached this long. It is the **worst-case delay** before a logout at backbone-rest is reflected here. |
-| `LOGIN_THROTTLE_MAX_ATTEMPTS` / `LOGIN_THROTTLE_WINDOW` | `5` / `15m` | Failed `POST /api/v1/auth/token` attempts per alias + caller address before `429` + `Retry-After`. Per instance. |
-| `DIRECTORY_BACKEND_LOGIN_ALIAS` / `_PASSWORD` | *(empty)* | A registered backend caller (`umdc.mercury.login-clients`) allowed to obtain an M2M token. Must match what that caller sends. |
-| `LOGIN_REGISTRY_PROPERTIES_ENABLED` | `true` | Whether an alias that is **not** in the `mercury.login_clients` table may still log in through the static `umdc.mercury.login-clients` list. Set `false` once every caller is in the table (see `docs/login-clients.md`). |
-| `LOGIN_CLIENTS_ADMIN_APPLICATION` | `iris` | `code_name` of the application in which `LOGIN_CLIENT_MANAGE` is checked for `/api/v1/login-clients`. Looked up through backbone-rest's applications API with the caller's session (Mercury never reads the `general` schema); exactly one must match or the endpoints answer `403`. Nothing needs to be set. |
+| `LOGIN_CLIENTS_ADMIN_APPLICATION` | `iris` | `code_name` of the administering application (Iris), in which `PLATFORM_ADMIN` is checked. Looked up through backbone-rest's applications API with the caller's session (Mercury never reads the `general` schema); exactly one must match or the endpoints answer `403`. Nothing needs to be set. |
 | `LOGIN_CLIENTS_ADMIN_APPLICATION_ID` | *(empty)* | Optional UUID that forces the application instead of the `code_name`. |
-| `LOGIN_CLIENT_MANAGE_PERMISSION` | `LOGIN_CLIENT_MANAGE` | Role/feature name backbone-rest must grant a user in that application to administer the login clients. |
 
 ### What must match across projects
 
@@ -301,7 +297,6 @@ it the context fails with `Could not resolve placeholder 'APP_TOKEN_SECRET'`.
 | `APP_TOKEN_TRUSTED_ISSUERS` | backbone-rest `JWT_ISSUER` (default `backbone-rest`) | Must contain it. |
 | `APP_TOKEN_TRUSTED_AUDIENCES` | backbone-rest `JWT_AUDIENCE` (default `backbone-rest-client`) | Must contain it. |
 | `umdc.backbone.base-url` | backbone-rest | Reachable from Mercury: introspection (`/managed-clients/introspect`) and session validation (`GET /api/v1/session/validate`, public, token in the `Authorization` header). |
-| `DIRECTORY_BACKEND_LOGIN_*` | directory-backend's Mercury `AuthRequest` alias/password | Same pair. |
 
 ### Other runtime dependencies this adds
 
@@ -424,7 +419,6 @@ not a template with placeholders; a working copy has live values. Only variable 
 | `AUTH_ROLE_ID`, `AUTH_URI`, `AUTH_CLIENT_ID`, `AUTH_CLIENT_SECRET`, `AUTH_CERT_URI` (commented out) | Decommissioned Keycloak-style OAuth2 property tree — kept commented as historical reference only; do not re-enable (see `docs/architecture/graalvm-native-image.md` finding 6). |
 | `SSL_KEYSTORE_LOCATION`, `SSL_KEYSTORE_PASSWORD`, `SSL_KEYSTORE_TYPE`, `SSL_TRUSTSTORE_LOCATION`, `SSL_TRUSTSTORE_PASSWORD`, `SSL_TRUSTSTORE_TYPE`, `SSL_KEY_ALIAS`, `SSL_KEY_PASSWORD` (commented out) | **Not read by `application.yml`** — these paths are hardcoded on purpose (§ 1 above). Left commented out as a historical warning, not a working override. |
 | `BACKBONE_BASE_URL` (commented out) | Backbone service base URL override. |
-| `DIRECTORY_BACKEND_LOGIN_ALIAS`, `DIRECTORY_BACKEND_LOGIN_PASSWORD` (commented out) | Credentials for `directory-backend` to authenticate to Mercury's own `POST /api/v1/auth/token` (see `LoginClientProperties`). |
 | `APP_PORT` | `8118`. |
 | `PRX_VERIFICATION_CODE_TEMPLATE_ID` (commented out) | Real verification-code template UUID override. |
 | `MAIL_HOST`, `MAIL_PASSWORD`, `MAIL_PORT`, `MAIL_PROPERTIES_*`, `MAIL_PROTOCOL`, `MAIL_USERNAME` (commented out) | Real SMTP credentials (e.g. a Gmail app password) for local email testing. |
@@ -490,7 +484,7 @@ These paths also need `Authorization: Bearer <opaque token>` with `mercury:messa
 
 ### ❌ `429` on `POST /api/v1/auth/token`
 
-Too many failed alias/password attempts from that address (`LOGIN_THROTTLE_*`). Wait `Retry-After` seconds. Behind a proxy that hides the caller's address, all clients share one counter.
+(No longer returned: the alias/password login and its throttle were removed.)
 
 ### ❌ `Node -1 disconnected` / `Cancelled in-flight API_VERSIONS request` in a loop
 

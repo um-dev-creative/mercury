@@ -59,7 +59,7 @@ class TemplateControllerTest {
     void setUp() {
         requesterId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
-        lenient().when(sessionJwtService.getVerifiedUid(SESSION_TOKEN)).thenReturn(Optional.of(requesterId));
+        lenient().when(sessionJwtService.getVerifiedActorId(SESSION_TOKEN)).thenReturn(Optional.of(requesterId));
     }
 
     private TemplateDetailResponse buildDetail(UUID id) {
@@ -181,7 +181,7 @@ class TemplateControllerTest {
         @DisplayName("getTemplateById rejects a session-token that fails signature verification")
         void getTemplateById_invalidToken() {
             UUID id = UUID.randomUUID();
-            when(sessionJwtService.getVerifiedUid("bad-token")).thenReturn(Optional.empty());
+            when(sessionJwtService.getVerifiedActorId("bad-token")).thenReturn(Optional.empty());
 
             assertThrows(InvalidSessionTokenException.class,
                     () -> templateController.getTemplateById(id, "bad-token"));

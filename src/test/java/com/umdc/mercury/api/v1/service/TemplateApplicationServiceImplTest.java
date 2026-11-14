@@ -22,7 +22,8 @@ class TemplateApplicationServiceImplTest {
 
     private final ApplicationDirectory applications = mock(ApplicationDirectory.class);
     private final ApplicationAuthorizationService authorization = mock(ApplicationAuthorizationService.class);
-    private final TemplateApplicationServiceImpl service = new TemplateApplicationServiceImpl(applications, authorization, PERMISSION);
+    private final com.umdc.mercury.security.SessionJwtServiceImpl sessions = mock(com.umdc.mercury.security.SessionJwtServiceImpl.class);
+    private final TemplateApplicationServiceImpl service = new TemplateApplicationServiceImpl(applications, authorization, sessions, PERMISSION);
 
     private final BackboneApplication sakn = application("SmartKind", "SAKN");
     private final BackboneApplication iris = application("Iris", "iris");
@@ -60,5 +61,17 @@ class TemplateApplicationServiceImplTest {
         when(applications.active(TOKEN)).thenReturn(List.of(sakn));
 
         assertTrue(service.listManageable(TOKEN).isEmpty());
+    }
+
+    @Test
+    void anApplicationsM2MTokenSeesOnlyItsOwnApplicationWithoutAskingTheDirectory() {
+        UUID own = UUID.randomUUID();
+        when(sessions.getMachineCaller(TOKEN)).thenReturn(java.util.Optional.of(new com.umdc.mercury.security.MachineCaller(
+                UUID.randomUUID().toString(), "svc", own, java.util.Set.of("mercury:message:read"))));
+
+        List<TemplateApplicationResponse> result = service.listManageable(TOKEN);
+
+        assertEquals(List.of(new TemplateApplicationResponse(own, null, null)), result);
+        org.mockito.Mockito.verifyNoInteractions(applications);
     }
 }

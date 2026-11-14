@@ -70,7 +70,7 @@ flowchart LR
     F -->|no| E[400 with the available languages]
 ```
 
-*Hardening left for later:* the application is named by the caller (as the template id was before, mercury never scoped templates per caller); binding each login client to its application would close that.
+*Scoped by application:* the Mercury M2M token carries the application Backbone ties the client to, so a caller can only name its own application or its own template definitions (`403` otherwise) and may leave `applicationId` out. See `docs/tec/en/16-m2m-token-from-backbone.md`.
 
 ## The channel is data plus a provider
 

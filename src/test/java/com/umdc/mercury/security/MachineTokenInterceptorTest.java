@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
-@DisplayName("Only Mercury-minted backend tokens reach /mail and /verification-code")
+@DisplayName("Only Mercury M2M tokens, with the right scope, reach the backend endpoints")
 class MachineTokenInterceptorTest {
 
     private static final String SECRET =
@@ -58,8 +58,18 @@ class MachineTokenInterceptorTest {
         return builder.issuer(issuer).audience().add(audience).and().compact();
     }
 
+    private static final UUID APP = UUID.fromString("81398159-1785-46a5-15ae-f491fd1dc509");
+
+    private String machine(java.util.Set<String> scopes) {
+        return jwt.generateMachineToken(UUID.randomUUID().toString(), "svc", APP, scopes);
+    }
+
     private MockHttpServletRequest requestWith(String token) {
-        var request = new MockHttpServletRequest("POST", "/api/v1/mail");
+        return requestWith("POST", token);
+    }
+
+    private MockHttpServletRequest requestWith(String method, String token) {
+        var request = new MockHttpServletRequest(method, "/api/v1/messages");
         if (token != null) {
             request.addHeader("session-token", token);
         }
@@ -67,12 +77,27 @@ class MachineTokenInterceptorTest {
     }
 
     @Test
-    @DisplayName("a token minted by /auth/token passes and names its caller")
+    @DisplayName("a token issued by the Backbone exchange passes and names its application as the caller")
     void machineTokenPasses() {
-        var request = requestWith(jwt.generateSessionToken("zerobound", Map.of()));
+        var request = requestWith(machine(java.util.Set.of(MachineCaller.SCOPE_WRITE)));
 
         assertThat(interceptor.preHandle(request, new MockHttpServletResponse(), new Object())).isTrue();
-        assertThat(request.getAttribute(MachineTokenInterceptor.CALLER)).isEqualTo("zerobound");
+        assertThat(request.getAttribute(MachineTokenInterceptor.CALLER)).isEqualTo(APP.toString());
+        assertThat(request.getAttribute(MachineTokenInterceptor.MACHINE)).isInstanceOf(MachineCaller.class);
+    }
+
+    @Test
+    @DisplayName("changing things needs the write scope; a read-only token may only look")
+    void writeNeedsTheWriteScope() {
+        var readOnly = machine(java.util.Set.of(MachineCaller.SCOPE_READ));
+
+        assertThatThrownBy(() -> interceptor.preHandle(requestWith("POST", readOnly), new MockHttpServletResponse(), new Object()))
+                .isInstanceOf(com.umdc.mercury.api.v1.exception.ForbiddenException.class);
+        assertThat(interceptor.preHandle(requestWith("GET", readOnly), new MockHttpServletResponse(), new Object())).isTrue();
+        assertThat(interceptor.preHandle(requestWith("HEAD", readOnly), new MockHttpServletResponse(), new Object())).isTrue();
+        assertThat(interceptor.preHandle(requestWith("OPTIONS", readOnly), new MockHttpServletResponse(), new Object())).isTrue();
+        assertThatThrownBy(() -> interceptor.preHandle(requestWith("GET", machine(java.util.Set.of())), new MockHttpServletResponse(), new Object()))
+                .isInstanceOf(com.umdc.mercury.api.v1.exception.ForbiddenException.class);
     }
 
     @Test
@@ -95,6 +120,15 @@ class MachineTokenInterceptorTest {
     }
 
     @Test
+    @DisplayName("a Mercury token with no application (the old alias/password tokens) is refused")
+    void tokenWithoutApplicationIsRefused() {
+        var legacy = jwt.generateSessionToken("zerobound", Map.of());
+
+        assertThatThrownBy(() -> interceptor.preHandle(requestWith(legacy), new MockHttpServletResponse(), new Object()))
+                .isInstanceOf(InvalidSessionTokenException.class);
+    }
+
+    @Test
     @DisplayName("missing, blank, garbage and subject-less tokens are refused")
     void unusableTokensAreRefused() {
         var noSubject = token("mercury", "mercury", null, null);
@@ -105,11 +139,11 @@ class MachineTokenInterceptorTest {
     }
 
     @Test
-    @DisplayName("the configurer guards exactly /mail and /verification-code")
-    void configurerRegistersTheInterceptor() {
+    @DisplayName("the configurer registers the backend and the template interceptors")
+    void configurerRegistersTheInterceptors() {
         var registry = new org.springframework.web.servlet.config.annotation.InterceptorRegistry();
-        new MachineTokenWebConfigurer(interceptor).addInterceptors(registry);
+        new MachineTokenWebConfigurer(interceptor, new TemplateCallerInterceptor(jwt)).addInterceptors(registry);
 
-        assertThat(registry).extracting("registrations").asList().hasSize(1);
+        assertThat(registry).extracting("registrations").asList().hasSize(2);
     }
 }

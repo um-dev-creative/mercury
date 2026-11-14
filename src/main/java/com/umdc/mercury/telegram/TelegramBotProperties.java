@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Telegram bot settings bound at {@code umdc.mercury.telegram.*} (T-111, zerobound decision D-11).
  *
- * <p>{@code application} is the login-client alias whose users the bot serves (links are stored under it); {@code mode} is
+ * <p>{@code application} is the id (UUID) of the Backbone application whose users the bot serves (links are stored under it); {@code mode} is
  * {@code poll} (dev/QA) or {@code webhook} (production, posts to {@code webhookUrl}).
  *
  * <p>{@code botToken} and {@code webhookSecret} are Vault-owned and empty by default: with an empty
