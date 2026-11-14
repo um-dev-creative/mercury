@@ -16,7 +16,7 @@ import java.util.UUID;
  *
  * @param id            {@code caller:key} when the caller sent an {@code Idempotency-Key}, else the message id
  * @param messageId     the id returned to the caller
- * @param caller        login-client alias that submitted it
+ * @param caller        id of the application that submitted it
  * @param requestHash   SHA-256 of the canonical request, to tell a replay from a reused key
  * @param status        last known delivery state
  * @param createdAt     when it was accepted; the TTL index drops the row after the retention period

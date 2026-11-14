@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
 import java.util.UUID;
 
-/** The channel-agnostic, asynchronous ingress (backend callers only: a token Mercury minted for a registered login client). */
+/** The channel-agnostic, asynchronous ingress (backend callers only: a Mercury M2M token, got by exchanging the application's Backbone token). */
 @Tag(name = "messages", description = "One asynchronous ingress for every channel (backend callers only)")
 public interface MessageIngressApi {
 
@@ -30,6 +30,7 @@ public interface MessageIngressApi {
             @ApiResponse(responseCode = "202", description = "Queued (OPENED), or the replay of an earlier request with the same Idempotency-Key (Idempotent-Replayed: true)."),
             @ApiResponse(responseCode = "400", description = "Unknown or disabled channel, invalid target, a missing field the channel needs, or an unknown template."),
             @ApiResponse(responseCode = "401", description = "Not a Mercury-minted backend token."),
+            @ApiResponse(responseCode = "403", description = "The token lacks the write scope, or the request names another application's template."),
             @ApiResponse(responseCode = "422", description = "The Idempotency-Key was already used with a different request.")
     })
     @PostMapping(produces = MediaType.APPLICATION_JSON_VALUE, consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -50,7 +51,8 @@ public interface MessageIngressApi {
             + "(a template is named by template + language; there is no fallback language).", operationId = "listMessageTemplates")
     @ApiResponse(responseCode = "200", description = "Template names with their languages, sorted.")
     @GetMapping(path = "/templates", produces = MediaType.APPLICATION_JSON_VALUE)
-    default ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId) {
+    default ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId,
+            @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
         return ResponseEntity.status(501).build();
     }
 

@@ -117,10 +117,15 @@ MultiChannelScheduler (fixed-rate)
 Full detail: `docs/architecture/session-token-authorization.md` and
 `docs/tec/en/06-environment-configuration.md#-authentication--token-configuration-essential`.
 
-- **Two credentials.** A client *application* sends `Authorization: Bearer <Backbone opaque token>` (scopes
-  `mercury:message:read`/`write`, enforced by `ManagedClientSecurityConfig` on `/campaigns`, `/channel-types`,
-  `/templates`). An end *user* sends `session-token: <session JWT issued by backbone-rest>`. User-scoped
-  operations need both. `session-token-bkd` is gone.
+- **Three credentials.** A client *application* proves who it is with the Backbone M2M token of its managed client
+  (`Authorization: Bearer`, scopes `mercury:message:read`/`write`) and exchanges it at `POST /api/v1/auth/token` for
+  **Mercury's M2M token** (`sub` = Backbone client, `aid` = the application Backbone ties it to, `scope`), which it sends in
+  `session-token` to manage its own templates (create/edit/delete) and to send (`/api/v1/messages`, `/mail`, ...). There is **no
+  alias/password** any more (login clients were removed). An end *user* (Iris) sends the service Bearer plus `session-token: <session JWT
+  issued by backbone-rest>` on `/templates`. `/templates/**` applies the Bearer chain only when `Authorization` is present;
+  without it `TemplateCallerInterceptor` requires a Mercury M2M token. `session-token-bkd` is gone.
+- **An application only acts on its own application** (`MachineCaller.applicationId`): `ApplicationAuthorizationServiceImpl` and
+  `MessageIngressService` refuse another one (403). `MachineTokenInterceptor.CALLER` is the application id.
 - **`APP_TOKEN_SECRET` is required and has no default** (base64, ≥ 256 bits, identical to backbone-rest's).
   Never reintroduce a default in `application.yml`; locally use `secrets/local.env`.
 - **`SessionJwtServiceImpl.getTokenClaims` is the only trust gate** (signature, `exp`, `type=session-token`,
@@ -135,7 +140,7 @@ Full detail: `docs/architecture/session-token-authorization.md` and
   Mercury serves several applications and does not restrict it.
 - **Fail closed:** MongoDB or backbone-rest unreachable ⇒ token rejected.
 - **`POST /api/v1/auth/token`** (own `AuthTokenController`; the jar's `AuthApiController` is excluded in
-  `MercuryApplication`) is throttled (`umdc.security.login-throttle.*`). **`POST /api/v1/auth/logout`** revokes
+  `MercuryApplication`) takes the Backbone Bearer, no body. **`POST /api/v1/auth/logout`** revokes
   the presented token locally.
 - **Test the real filter chains** with `SecurityFilterChainsTest` (`@WebMvcTest` + probe controllers) when changing
   anything in `security/`; mocks alone cannot catch wiring or header-contract mistakes.

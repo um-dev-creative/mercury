@@ -36,12 +36,15 @@ class ApplicationAuthorizationServiceImplTest {
     @Mock
     private AdministeringApplication administeringApplication;
 
+    @Mock
+    private com.umdc.mercury.security.SessionJwtServiceImpl sessions;
+
     private ApplicationAuthorizationServiceImpl service;
     private UUID applicationId;
 
     @BeforeEach
     void setUp() {
-        service = new ApplicationAuthorizationServiceImpl(backbonePermissionClient, administeringApplication, "PLATFORM_ADMIN");
+        service = new ApplicationAuthorizationServiceImpl(backbonePermissionClient, administeringApplication, sessions, "PLATFORM_ADMIN");
         applicationId = UUID.randomUUID();
     }
 
@@ -196,6 +199,38 @@ class ApplicationAuthorizationServiceImplTest {
             when(backbonePermissionClient.check(any(PermissionCheckRequest.class))).thenThrow(new RuntimeException("down"));
 
             assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("an application's M2M token")
+    class MachineCaller {
+
+        private com.umdc.mercury.security.MachineCaller caller(UUID application) {
+            return new com.umdc.mercury.security.MachineCaller(UUID.randomUUID().toString(), "svc", application,
+                    java.util.Set.of(com.umdc.mercury.security.MachineCaller.SCOPE_WRITE));
+        }
+
+        @Test
+        @DisplayName("holds the permission in its own application without asking Backbone")
+        void ownApplicationIsGranted() {
+            when(sessions.getMachineCaller(SESSION_TOKEN)).thenReturn(java.util.Optional.of(caller(applicationId)));
+
+            assertThat(service.holds(SESSION_TOKEN, applicationId, PERMISSION)).isTrue();
+            service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION);
+            org.mockito.Mockito.verifyNoInteractions(backbonePermissionClient);
+        }
+
+        @Test
+        @DisplayName("is refused in any other application, and is never a platform administrator")
+        void otherApplicationIsRefused() {
+            when(sessions.getMachineCaller(SESSION_TOKEN)).thenReturn(java.util.Optional.of(caller(UUID.randomUUID())));
+
+            assertThat(service.holds(SESSION_TOKEN, applicationId, PERMISSION)).isFalse();
+            assertThat(service.isPlatformAdmin(SESSION_TOKEN)).isFalse();
+            org.junit.jupiter.api.Assertions.assertThrows(com.umdc.mercury.api.v1.exception.ForbiddenException.class,
+                    () -> service.assertPermission(SESSION_TOKEN, applicationId, PERMISSION));
+            org.mockito.Mockito.verifyNoInteractions(backbonePermissionClient);
         }
     }
 }

@@ -135,7 +135,7 @@ public class TemplateContentController {
     }
 
     private UUID verified(String sessionToken) {
-        return sessionJwtService.getVerifiedUid(sessionToken).orElseThrow(() -> new InvalidSessionTokenException(INVALID_TOKEN_MESSAGE));
+        return sessionJwtService.getVerifiedActorId(sessionToken).orElseThrow(() -> new InvalidSessionTokenException(INVALID_TOKEN_MESSAGE));
     }
 
     /** @return the etag the caller expects ({@code ""} to create), or {@code null} if it sent no precondition. */

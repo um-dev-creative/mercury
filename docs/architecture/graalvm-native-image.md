@@ -542,7 +542,7 @@ end-to-end with real credentials against `vault.umdc-qa.tst`.
    `org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration`
    by fully-qualified class name — independent of, and in addition to, the
    existing component-scan exclusion. Verified safe:
-   `ManagedClientSecurityConfig` injects its own `BackboneOpaqueTokenIntrospector`
+   `ManagedClientSecurityConfig` injects its own `ApplicationAwareTokenIntrospector`
    bean directly via constructor, never relying on either excluded class to
    supply one.
 
@@ -554,7 +554,7 @@ end-to-end with real credentials against `vault.umdc-qa.tst`.
    `org.apache.hc.client5.http...` under a plain Spring `RestTemplate`
    (`BackendFeignClientInterceptor.getToken()`, fetching an M2M access
    token) and, separately, from Feign's own request transport
-   (`BackbonePublicClient`'s opaque-token introspection call — used on
+   (the opaque-token introspection call, `BackboneIntrospectionClient` — used on
    **every** M2M-authenticated request to `/api/v1/campaigns/**` and
    `/api/v1/channel-types/**` via `ManagedClientSecurityConfig`).
    **Cause:** both call sites built their own HTTP client with zero

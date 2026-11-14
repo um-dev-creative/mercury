@@ -10,39 +10,26 @@ paths:
     post:
       tags:
         - auth
-      summary: Generate a session token (M2M-only, no uid)
+      summary: Exchange a Backbone M2M token for a Mercury M2M token
       description: >-
-        Implemented by AuthTokenController. Checks the request body's alias/password
-        against Mercury's registered login-client registry (umdc.mercury.login-clients)
-        and mints a Mercury-signed session-token. The resulting token carries no uid
-        claim — it only authenticates the calling backend service, not an end user — so
-        it's only useful against pure M2M endpoints (/api/v1/mail,
-        /api/v1/verification-code). User-scoped endpoints (Template Management,
-        Campaign's getByApplication/updateCampaign/toggleCampaign/deleteCampaign) do NOT
-        use this token: the caller sends the end user's backbone-rest session token
-        directly in the session-token header.
+        Implemented by AuthTokenController. The application sends the Backbone token of its managed client as
+        `Authorization: Bearer <token>` (no body, no password). Mercury introspects it against Backbone and, when it is active and
+        holds the `mercury:message:read` or `mercury:message:write` scope, issues a Mercury token that carries the client, the
+        application Backbone ties it to (`aid`) and its Mercury scopes. That token goes in the `session-token` header of the backend
+        endpoints (`/api/v1/messages`, `/api/v1/mail`, `/api/v1/verification-code`, Telegram) and of `/api/v1/templates` (create, edit,
+        delete and read the templates of its own application, never another's). Write calls need `mercury:message:write`.
       operationId: accessToken
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AuthRequest'
       responses:
         '200':
-          description: Successfully generated session token.
+          description: Mercury M2M token issued.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Blank alias.
         '401':
-          description: Alias/password not in the registered login-client registry.
-        '429':
-          description: Too many failed attempts for this alias and address; see the Retry-After header.
-        '406':
-          description: Token generation unexpectedly produced a blank token.
+          description: Missing, inactive, expired or revoked Backbone token.
+        '403':
+          description: The client holds no Mercury scope, or Backbone does not tie it to an application.
 
   /api/v1/auth/logout:
     post:
@@ -285,8 +272,8 @@ paths:
         - mail
       summary: Accept an email for delivery
       description: |
-        Backend callers only: the `session-token` must be one Mercury minted for a registered login client
-        (`POST /api/v1/auth/token`); a user session issued by backbone-rest is refused with 401.
+        Backend callers only: the `session-token` must be a Mercury M2M token (exchange your Backbone token at `POST /api/v1/auth/token`)
+        (`POST /api/v1/auth/token`, Backbone token exchange); a user session issued by backbone-rest is refused with 401.
         The mail is queued (`OPENED`) and sent by the scheduler. With an `Idempotency-Key` (scoped to the caller)
         the same key and request is accepted once: a repeat answers the first message with the
         `Idempotent-Replayed: true` header, and the same key with a different request is 422.
@@ -1189,7 +1176,7 @@ paths:
         - telegram
       summary: Deep link to connect a user's Telegram chat
       description: |
-        Backend callers only (mercury-minted M2M token). The caller's login alias is the application. Returns
+        Backend callers only (mercury-minted M2M token). The caller is the application Backbone ties the client to. Returns
         `https://t.me/<bot>?start=<token>`: single use, valid 10 minutes; earlier tokens of the user stop working.
       operationId: createTelegramLink
       requestBody:
@@ -1331,20 +1318,6 @@ components:
         applicationId: {type: string, format: uuid}
         folder: {type: string, nullable: true}
         registered: {type: boolean}
-    AuthRequest:
-      type: object
-      description: >-
-        Credentials of a registered Mercury login client (umdc.mercury.login-clients)
-        — not an end user's credentials.
-      required:
-        - alias
-        - password
-      properties:
-        alias:
-          type: string
-        password:
-          type: string
-          format: password
     AuthResponse:
       type: object
       properties:

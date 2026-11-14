@@ -70,6 +70,9 @@ class TemplateServiceImplTest {
     private com.umdc.mercury.template.ApplicationTemplateFolders templateFolders;
 
     @Mock
+    private TemplateDefinitionRegistrar definitionRegistrar;
+
+    @Mock
     private TemplateMapper templateMapper;
 
     @Mock
@@ -85,7 +88,7 @@ class TemplateServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new TemplateServiceImpl(templateRepository, templateTypeRepository, severityTypeRepository,
-                applicationAuthorizationService, templateMapper, templateUpdateApplier, templateFolders, PERMISSION);
+                applicationAuthorizationService, templateMapper, templateUpdateApplier, templateFolders, definitionRegistrar, PERMISSION);
 
         requesterId = UUID.randomUUID();
         applicationId = UUID.randomUUID();
@@ -156,6 +159,8 @@ class TemplateServiceImplTest {
             assertThat(result).isSameAs(expected);
             verify(applicationAuthorizationService).assertPermission(SESSION_TOKEN, applicationId, PERMISSION);
             verify(templateRepository).save(any(TemplateEntity.class));
+            // the definition is what makes the template usable by campaigns and POST /api/v1/messages
+            verify(definitionRegistrar).register(any(TemplateEntity.class), eq(requesterId));
         }
 
         @Test
@@ -165,6 +170,7 @@ class TemplateServiceImplTest {
 
             assertThrows(ForbiddenException.class, () -> service.createTemplate(createRequest(), requesterId, SESSION_TOKEN));
             verify(templateRepository, never()).save(any());
+            verify(definitionRegistrar, never()).register(any(), any());
         }
 
         @Test
@@ -339,6 +345,7 @@ class TemplateServiceImplTest {
             assertThat(entity.getUpdatedAt()).isNotNull();
             verify(applicationAuthorizationService).assertPermission(SESSION_TOKEN, applicationId, PERMISSION);
             verify(templateRepository).save(entity);
+            verify(definitionRegistrar).deactivate(id);
         }
 
         @Test

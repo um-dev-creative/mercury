@@ -7,26 +7,8 @@ umdc:
     title: Mercury
     version: 0.0.3
   mercury:
-    # Backend callers allowed to obtain a Mercury session-token via
-    # POST /api/v1/auth/token — e.g. smartkin-backend, zerobound-rest — before they call
-    # /api/v1/mail or /api/v1/verification-code. Not the same registry as
-    # umdc.security.auth.clients below (that one is OUTBOUND — who Mercury
-    # authenticates AS when calling other services).
-    #
-    # They are looked up first in the mercury.login_clients table (bcrypt hash, see
-    # scripts/login-clients/add-login-client.sh); an alias that is NOT in the table falls back
-    # to the static list below. Set properties-enabled=false once every caller is in the table.
-    login-registry:
-      properties-enabled: ${LOGIN_REGISTRY_PROPERTIES_ENABLED:true}
-    login-clients:
-      - alias: ${DIRECTORY_BACKEND_LOGIN_ALIAS:}
-        password: ${DIRECTORY_BACKEND_LOGIN_PASSWORD:}
-      # zerobound-rest (T-71, zerobound decision D-8): its alias/password live in Vault; a client left
-      # empty never matches (AuthServiceImpl). Rotate by adding the next client before removing this one.
-      - alias: ${ZEROBOUND_LOGIN_ALIAS:}
-        password: ${ZEROBOUND_LOGIN_PASSWORD:}
-      - alias: ${ZEROBOUND_NEXT_LOGIN_ALIAS:}
-        password: ${ZEROBOUND_NEXT_LOGIN_PASSWORD:}
+    # Backend applications do NOT log in to Mercury with a password: they exchange the Backbone M2M token of their managed client for Mercury's own
+    # M2M token (POST /api/v1/auth/token, Authorization: Bearer <Backbone token>). Backbone says which application the client belongs to.
     # Telegram channel (T-111, zerobound decision D-11). Token and webhook secret are Vault-owned: empty
     # = the channel stays off. Never put them in an env file.
     telegram:
@@ -34,7 +16,7 @@ umdc:
       bot-token: ${TELEGRAM_BOT_TOKEN:}
       webhook-secret: ${TELEGRAM_WEBHOOK_SECRET:}
       api-base-url: ${TELEGRAM_API_BASE_URL:https://api.telegram.org}
-      # Login-client alias of the application whose users link their chat (ZEROBOUND_LOGIN_ALIAS), and how updates arrive:
+      # Id (UUID) of the application whose users link their chat (the Backbone application of the M2M client), and how updates arrive:
       # poll = getUpdates with a lease (dev/QA), webhook = Telegram posts to webhook-url (production).
       application: ${TELEGRAM_APPLICATION:}
       mode: ${TELEGRAM_MODE:poll}
@@ -182,10 +164,6 @@ umdc:
       # cached for this long, which is the worst-case delay before a logout is reflected.
       validate-with-backbone: ${APP_TOKEN_VALIDATE_WITH_BACKBONE:true}
       backbone-validation-cache-ttl: ${APP_TOKEN_BACKBONE_VALIDATION_CACHE_TTL:30s}
-    # Failed-login throttle for POST /api/v1/auth/token (LoginThrottleProperties)
-    login-throttle:
-      max-attempts: ${LOGIN_THROTTLE_MAX_ATTEMPTS:5}
-      window: ${LOGIN_THROTTLE_WINDOW:15m}
     permissions:
       # Role/feature name backbone-rest's general.role / general.feature must grant a caller
       # (via general.application_role_user, scoped to the request's applicationId) for
@@ -194,13 +172,11 @@ umdc:
       template-manage: ${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}
       # lists the templates an application can use in a campaign; point it at a broader role or feature so campaign authors do not need TEMPLATE_MANAGE
       template-read: ${TEMPLATE_READ_PERMISSION:${TEMPLATE_MANAGE_PERMISSION:TEMPLATE_MANAGE}}
-      # Permission a user needs to administer the login clients (/api/v1/login-clients); checked in the application below.
-      login-client-manage: ${LOGIN_CLIENT_MANAGE_PERMISSION:LOGIN_CLIENT_MANAGE}
       # Permission that makes a user a platform administrator: it is checked in the administering application (Iris) and, when held, grants
-      # every application's template permission and the login-client administration.
+      # every application's template permission.
       platform-admin: ${PLATFORM_ADMIN_PERMISSION:PLATFORM_ADMIN}
     login-clients:
-      # code_name of the backbone-rest application in which login-client-manage is checked (Iris). Mercury asks backbone-rest's
+      # code_name of the backbone-rest application in which platform-admin is checked (Iris). Mercury asks backbone-rest's
       # applications API with the caller's session (it never reads the general schema), so nothing has to be copied between services or environments. Exactly one application must have it.
       admin-application: ${LOGIN_CLIENTS_ADMIN_APPLICATION:iris}
       # Optional: force the application by id instead (wins over admin-application). Leave empty normally.
@@ -465,7 +441,7 @@ spring:
   # 500ing trying to fetch a JWKS from a host that no longer serves it. Explicitly
   # excluding both autoconfiguration classes below closes this regardless of what any
   # remote config source still serves for this key — safe because ManagedClientSecurityConfig
-  # injects its own BackboneOpaqueTokenIntrospector bean directly rather than relying on
+  # injects its own ApplicationAwareTokenIntrospector bean directly rather than relying on
   # either of these classes to supply one.
   autoconfigure:
     exclude:

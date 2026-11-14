@@ -47,8 +47,9 @@ public class MessageIngressController implements MessageIngressApi {
     }
 
     @Override
-    public ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId) {
-        return ResponseEntity.ok(service.templates(applicationId));
+    public ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId,
+            @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
+        return ResponseEntity.ok(service.templates(applicationId, caller));
     }
 
     @Override
