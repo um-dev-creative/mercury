@@ -211,7 +211,7 @@ session-token: <token>
 
 ## ✉️ E-mail subject
 
-The subject of an e-mail is part of the template (column `mercury.templates.subject`, migration `V2035`), one per language
+The subject of an e-mail is part of the template (column `mercury.templates.subject`, migration `V2036`), one per language
 version, edited from Iris with the rest of the template. No caller keeps it in its code.
 
 - It may use the message parameters as FreeMarker placeholders: `Your code is ${vc}`. It is rendered with the same hardened

@@ -40,7 +40,7 @@ SET template_type_id = :'verification_type_id'::uuid
 WHERE application_id = :'app_id'::uuid AND location LIKE 'zb\_verification\_%.ftl'
   AND template_type_id <> :'verification_type_id'::uuid;
 
--- The subject of each e-mail lives in the template (V2035; editable from Iris), not in zerobound-rest. Fill the ones that have none yet with the
+-- The subject of each e-mail lives in the template (V2036; editable from Iris), not in zerobound-rest. Fill the ones that have none yet with the
 -- subjects zerobound used to send; a subject already set (edited from Iris) is never overwritten.
 WITH subjects(kind, lang, subject) AS (VALUES
     ('verification', 'es', 'Verifica tu correo en ZeroBound'), ('verification', 'en', 'Verify your email on ZeroBound'),
