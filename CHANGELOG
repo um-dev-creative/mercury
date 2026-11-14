@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-11-14
+
+### Added
+- **The e-mail subject is defined by the template, edited from Iris, instead of by the caller's code.** `mercury.templates` gets a `subject` column (migration `V2035`, applied by Flyway at start); `CreateTemplateRequest`, `UpdateTemplateRequest` (null = unchanged, blank = remove) and `TemplateDetailResponse` carry it, so Iris can edit it with the rest of the template, one per language. `POST /api/v1/messages` (email) uses the template's subject, rendered with the message `params` (`Your code is ${vc}`) by the same hardened FreeMarker engine as the bodies and collapsed to one line (no header injection); a `subject` sent in the request still overrides it, a message with neither is a `400`, and a subject that cannot be rendered (a parameter the message did not send) is a `400` answered before anything is queued. **Action:** none in Vault; the migration runs on start. Iris needs a **Subject** field in its template editor (backend contract: `subject`), and each template (language) must have its subject filled before the callers stop sending theirs. **Not done:** `POST /api/v1/mail` and campaigns still take the subject in the request. See `docs/template-management-api.md#-e-mail-subject` and `docs/user-guide/en/template-subject.md`.
+
 ## [Unreleased] - 2026-11-10
 
 ### Security

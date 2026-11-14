@@ -50,7 +50,7 @@ flowchart LR
 ```
 
 `202 {"id": "...", "status": "OPENED", "message": "Queued"}`. A repeat with the same key and body answers the first message with `Idempotent-Replayed: true`; the same key with another body is `422`.
-`400`: unknown or disabled channel (the answer lists the available codes), a target that is not valid for the channel, a field the channel needs (e-mail: `templateDefinedId`, `from`, `subject`), or an unknown template.
+`400`: unknown or disabled channel (the answer lists the available codes), a target that is not valid for the channel, a field the channel needs (e-mail: `templateDefinedId`, `from`, and a `subject` sent in the request **or** defined by the template — see `docs/template-management-api.md#-e-mail-subject`), or an unknown template.
 `GET /api/v1/messages/{id}` returns `OPENED`, `SENT` or `FAILED` (the channel's own document when it has one, else the tracking row); `404` for an unknown id or another caller's message.
 
 ## Templates by name (decision D-15)

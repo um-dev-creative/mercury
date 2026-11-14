@@ -51,7 +51,7 @@ class TemplateUpdateApplierTest {
         @Test
         @DisplayName("returns false and changes nothing when every field is null")
         void allNull_noChange() {
-            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null));
+            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, null));
 
             assertThat(changed).isFalse();
             assertThat(entity.getDescription()).isEqualTo("Old description");
@@ -62,7 +62,7 @@ class TemplateUpdateApplierTest {
         @Test
         @DisplayName("blank description/location/fileFormat are treated as unset")
         void blankFields_noChange() {
-            boolean changed = applier.apply(entity, new UpdateTemplateRequest(" ", " ", " ", null, null));
+            boolean changed = applier.apply(entity, new UpdateTemplateRequest(" ", " ", " ", null, null, null));
 
             assertThat(changed).isFalse();
             assertThat(entity.getDescription()).isEqualTo("Old description");
@@ -76,7 +76,7 @@ class TemplateUpdateApplierTest {
         @Test
         @DisplayName("applies description, location and fileFormat")
         void appliesTextFields() {
-            var request = new UpdateTemplateRequest("New description", "new/loc", "HTML", null, null);
+            var request = new UpdateTemplateRequest("New description", "new/loc", "HTML", null, null, null);
 
             boolean changed = applier.apply(entity, request);
 
@@ -92,6 +92,27 @@ class TemplateUpdateApplierTest {
     class TemplateTypeUpdates {
 
         @Test
+        @DisplayName("sets the subject, trimmed")
+        void appliesSubject() {
+            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, "  Tu código es ${vc} "));
+
+            assertThat(changed).isTrue();
+            assertThat(entity.getSubject()).isEqualTo("Tu código es ${vc}");
+        }
+
+        @Test
+        @DisplayName("a blank subject removes it; null and an equal one change nothing")
+        void blankSubjectRemovesIt() {
+            entity.setSubject("Hola");
+
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, null))).isFalse();
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, " Hola "))).isFalse();
+            assertThat(entity.getSubject()).isEqualTo("Hola");
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, "  "))).isTrue();
+            assertThat(entity.getSubject()).isNull();
+        }
+
+        @Test
         @DisplayName("resolves and applies an active template type")
         void appliesActiveTemplateType() {
             UUID typeId = UUID.randomUUID();
@@ -100,7 +121,7 @@ class TemplateUpdateApplierTest {
             type.setActive(true);
             when(templateTypeRepository.findById(typeId)).thenReturn(Optional.of(type));
 
-            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null));
+            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null, null));
 
             assertThat(changed).isTrue();
             assertThat(entity.getTemplateType()).isSameAs(type);
@@ -113,7 +134,7 @@ class TemplateUpdateApplierTest {
             when(templateTypeRepository.findById(typeId)).thenReturn(Optional.empty());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null)));
+                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null, null)));
         }
 
         @Test
@@ -126,7 +147,7 @@ class TemplateUpdateApplierTest {
             when(templateTypeRepository.findById(typeId)).thenReturn(Optional.of(type));
 
             assertThrows(IllegalArgumentException.class,
-                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null)));
+                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, typeId, null, null)));
         }
     }
 
@@ -143,7 +164,7 @@ class TemplateUpdateApplierTest {
             severity.setActive(true);
             when(severityTypeRepository.findById(severityId)).thenReturn(Optional.of(severity));
 
-            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId));
+            boolean changed = applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId, null));
 
             assertThat(changed).isTrue();
             assertThat(entity.getSeverityType()).isSameAs(severity);
@@ -156,7 +177,7 @@ class TemplateUpdateApplierTest {
             when(severityTypeRepository.findById(severityId)).thenReturn(Optional.empty());
 
             assertThrows(IllegalArgumentException.class,
-                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId)));
+                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId, null)));
         }
 
         @Test
@@ -169,7 +190,7 @@ class TemplateUpdateApplierTest {
             when(severityTypeRepository.findById(severityId)).thenReturn(Optional.of(severity));
 
             assertThrows(IllegalArgumentException.class,
-                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId)));
+                    () -> applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, severityId, null)));
         }
     }
 }

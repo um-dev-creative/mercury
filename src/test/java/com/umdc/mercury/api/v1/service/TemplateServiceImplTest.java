@@ -100,7 +100,7 @@ class TemplateServiceImplTest {
     }
 
     private CreateTemplateRequest createRequest() {
-        return new CreateTemplateRequest("desc", "loc", "HTML", templateTypeId, applicationId, severityTypeId);
+        return new CreateTemplateRequest("desc", "loc", "HTML", templateTypeId, applicationId, severityTypeId, null);
     }
 
     private TemplateTypeEntity activeTemplateType() {
@@ -146,7 +146,7 @@ class TemplateServiceImplTest {
                 return e;
             });
             TemplateDetailResponse expected = new TemplateDetailResponse(
-                    newId, "desc", "loc", "HTML", templateTypeId, "Type", applicationId, severityTypeId, "High",
+                    newId, "desc", "loc", "HTML", templateTypeId, "Type", applicationId, severityTypeId, "High", null,
                     true, LocalDateTime.now(), LocalDateTime.now());
             when(templateMapper.toDetailResponse(any(TemplateEntity.class))).thenReturn(expected);
 
@@ -253,11 +253,11 @@ class TemplateServiceImplTest {
             when(templateUpdateApplier.apply(any(TemplateEntity.class), any(UpdateTemplateRequest.class))).thenReturn(true);
             when(templateRepository.save(any(TemplateEntity.class))).thenAnswer(inv -> inv.getArgument(0));
             TemplateDetailResponse mapped = new TemplateDetailResponse(
-                    id, "new", "loc", "HTML", null, null, null, null, null, true, null, null);
+                    id, "new", "loc", "HTML", null, null, null, null, null, null, true, null, null);
             when(templateMapper.toDetailResponse(entity)).thenReturn(mapped);
 
             TemplateDetailResponse result = service.updateTemplate(
-                    id, new UpdateTemplateRequest("new", null, null, null, null), requesterId, SESSION_TOKEN);
+                    id, new UpdateTemplateRequest("new", null, null, null, null, null), requesterId, SESSION_TOKEN);
 
             assertThat(result).isSameAs(mapped);
             assertThat(entity.getUpdatedAt()).isNotNull();
@@ -273,11 +273,11 @@ class TemplateServiceImplTest {
             when(templateRepository.findById(id)).thenReturn(Optional.of(entity));
             when(templateUpdateApplier.apply(any(TemplateEntity.class), any(UpdateTemplateRequest.class))).thenReturn(false);
             TemplateDetailResponse mapped = new TemplateDetailResponse(
-                    id, "desc", null, null, null, null, null, null, null, true, null, null);
+                    id, "desc", null, null, null, null, null, null, null, null, true, null, null);
             when(templateMapper.toDetailResponse(entity)).thenReturn(mapped);
 
             TemplateDetailResponse result = service.updateTemplate(
-                    id, new UpdateTemplateRequest(null, null, null, null, null), requesterId, SESSION_TOKEN);
+                    id, new UpdateTemplateRequest(null, null, null, null, null, null), requesterId, SESSION_TOKEN);
 
             assertThat(result).isSameAs(mapped);
             verify(templateRepository, never()).save(any());
@@ -290,7 +290,7 @@ class TemplateServiceImplTest {
             when(templateRepository.findById(id)).thenReturn(Optional.empty());
 
             assertThrows(TemplateNotFoundException.class,
-                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null), requesterId, SESSION_TOKEN));
+                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null, null), requesterId, SESSION_TOKEN));
             verify(applicationAuthorizationService, never()).assertPermission(anyString(), any(), anyString());
         }
 
@@ -303,7 +303,7 @@ class TemplateServiceImplTest {
             when(templateRepository.findById(id)).thenReturn(Optional.of(entity));
 
             assertThrows(TemplateNotFoundException.class,
-                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null), requesterId, SESSION_TOKEN));
+                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null, null), requesterId, SESSION_TOKEN));
         }
 
         @Test
@@ -314,7 +314,7 @@ class TemplateServiceImplTest {
             stubForbidden();
 
             assertThrows(ForbiddenException.class,
-                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null), requesterId, SESSION_TOKEN));
+                    () -> service.updateTemplate(id, new UpdateTemplateRequest(null, null, null, null, null, null), requesterId, SESSION_TOKEN));
             verify(templateRepository, never()).save(any());
         }
     }
@@ -389,7 +389,7 @@ class TemplateServiceImplTest {
             TemplateEntity entity = activeEntity(id);
             when(templateRepository.findById(id)).thenReturn(Optional.of(entity));
             TemplateDetailResponse mapped = new TemplateDetailResponse(
-                    id, "desc", null, null, null, null, null, null, null, true, null, null);
+                    id, "desc", null, null, null, null, null, null, null, null, true, null, null);
             when(templateMapper.toDetailResponse(entity)).thenReturn(mapped);
 
             TemplateDetailResponse result = service.getById(id, requesterId, SESSION_TOKEN);
@@ -467,8 +467,8 @@ class TemplateServiceImplTest {
             TemplateEntity e2 = activeEntity(UUID.randomUUID());
             when(templateRepository.findAll(any(Specification.class), any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of(e1, e2)));
-            TemplateDetailResponse r1 = new TemplateDetailResponse(e1.getId(), "d1", null, null, null, null, null, null, null, true, null, null);
-            TemplateDetailResponse r2 = new TemplateDetailResponse(e2.getId(), "d2", null, null, null, null, null, null, null, true, null, null);
+            TemplateDetailResponse r1 = new TemplateDetailResponse(e1.getId(), "d1", null, null, null, null, null, null, null, null, true, null, null);
+            TemplateDetailResponse r2 = new TemplateDetailResponse(e2.getId(), "d2", null, null, null, null, null, null, null, null, true, null, null);
             when(templateMapper.toDetailResponse(e1)).thenReturn(r1);
             when(templateMapper.toDetailResponse(e2)).thenReturn(r2);
 

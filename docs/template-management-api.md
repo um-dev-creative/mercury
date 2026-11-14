@@ -135,10 +135,12 @@ session-token: <token>
   "fileFormat": "HTML",
   "templateTypeId": "66666666-6666-6666-6666-666666666666",
   "applicationId": "33333333-3333-3333-3333-333333333333",
-  "severityTypeId": "77777777-7777-7777-7777-777777777777"
+  "severityTypeId": "77777777-7777-7777-7777-777777777777",
+  "subject": "Your code is ${vc}"
 }
 ```
 
+- `subject` is optional (≤500 chars): the e-mail subject of this version of the template — see [E-mail subject](#-e-mail-subject).
 - `description`, `location` (≤500 chars), `fileFormat` (≤50 chars) are required and non-blank.
 - `templateTypeId`, `applicationId`, `severityTypeId` are required UUIDs; `templateTypeId` and
   `severityTypeId` must reference **existing, active** rows or the request is rejected with `400`.
@@ -197,12 +199,40 @@ session-token: <token>
   immutable once a template is created.
 - `templateTypeId` / `severityTypeId`, when provided, must reference an existing **active** row (`400`
   otherwise) and replace the current classification.
+- `subject`: `null`/omitted leaves it unchanged, a blank string removes it, anything else replaces it (trimmed, ≤500 chars).
 - `id` and `createdAt` are always preserved; `updatedAt` is refreshed only when at least one field actually
   changes (a request with no effective changes is a no-op — `200 OK`, no write).
 - An unknown id, **or an id that is already inactive**, both return `404` — reactivating a deactivated
   template is out of scope (see [state diagram](#-lifecycle)).
 
 **200 OK** — updated `TemplateDetailResponse`.
+
+---
+
+## ✉️ E-mail subject
+
+The subject of an e-mail is part of the template (column `mercury.templates.subject`, migration `V2035`), one per language
+version, edited from Iris with the rest of the template. No caller keeps it in its code.
+
+- It may use the message parameters as FreeMarker placeholders: `Your code is ${vc}`. It is rendered with the same hardened
+  engine as the bodies (`?new`/`?api` refused) and collapsed to a single line, so a parameter cannot inject a header.
+- `POST /api/v1/messages` (email): a `subject` **in the request wins** (compatibility for callers that still send it);
+  otherwise the template's subject is used; with neither the request is a `400`
+  (`subject is required for email: send it or define it in the template`). A subject that uses a parameter the message did
+  not send is a `400` too, answered immediately and nothing is queued.
+- Not covered: `POST /api/v1/mail` and campaigns still take the subject in the request.
+
+```mermaid
+flowchart TD
+    A[POST /api/v1/messages, channel email] --> B{subject in the request?}
+    B -- yes --> F[use it]
+    B -- no --> C{template defines a subject?}
+    C -- no --> E[400 subject is required]
+    C -- yes --> D[render with the message params]
+    D -- invalid or missing param --> G[400 cannot be rendered]
+    D -- ok --> F
+    F --> H[queue EmailMessageDocument OPENED]
+```
 
 ---
 

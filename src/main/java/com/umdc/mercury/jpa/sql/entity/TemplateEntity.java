@@ -36,6 +36,11 @@ public class TemplateEntity {
     @Column(name = "language", length = 16)
     private String language;
 
+    /** The e-mail subject of this version of the template, edited from Iris; may hold FreeMarker placeholders for the message parameters. {@code null}: none defined. */
+    @Size(max = 500)
+    @Column(name = "subject", length = 500)
+    private String subject;
+
     @NotNull
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "template_type_id", nullable = false)
@@ -150,6 +155,14 @@ public class TemplateEntity {
         this.active = isActive;
     }
 
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
 
     public String getLanguage() {
         return language;

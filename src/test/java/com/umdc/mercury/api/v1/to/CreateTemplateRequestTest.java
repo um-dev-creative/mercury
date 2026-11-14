@@ -35,7 +35,7 @@ class CreateTemplateRequestTest {
     private CreateTemplateRequest valid() {
         return new CreateTemplateRequest(
                 "Welcome email", "s3://templates/welcome.html", "HTML",
-                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+                UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null);
     }
 
     @Test
@@ -48,7 +48,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects blank description")
     void blankDescription_isRejected() {
         var request = new CreateTemplateRequest(
-                " ", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+                " ", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null);
         Set<ConstraintViolation<CreateTemplateRequest>> violations = validator.validate(request);
         assertThat(violations).anyMatch(v -> v.getPropertyPath().toString().equals("description"));
     }
@@ -57,7 +57,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects null description")
     void nullDescription_isRejected() {
         var request = new CreateTemplateRequest(
-                null, "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+                null, "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("description"));
     }
 
@@ -65,7 +65,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects location over the max length")
     void oversizedLocation_isRejected() {
         var request = new CreateTemplateRequest(
-                "desc", "x".repeat(501), "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+                "desc", "x".repeat(501), "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("location"));
     }
 
@@ -73,7 +73,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects fileFormat over the max length")
     void oversizedFileFormat_isRejected() {
         var request = new CreateTemplateRequest(
-                "desc", "loc", "x".repeat(51), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+                "desc", "loc", "x".repeat(51), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("fileFormat"));
     }
 
@@ -81,7 +81,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects null templateTypeId")
     void nullTemplateTypeId_isRejected() {
         var request = new CreateTemplateRequest(
-                "desc", "loc", "HTML", null, UUID.randomUUID(), UUID.randomUUID());
+                "desc", "loc", "HTML", null, UUID.randomUUID(), UUID.randomUUID(), null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("templateTypeId"));
     }
 
@@ -89,7 +89,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects null applicationId")
     void nullApplicationId_isRejected() {
         var request = new CreateTemplateRequest(
-                "desc", "loc", "HTML", UUID.randomUUID(), null, UUID.randomUUID());
+                "desc", "loc", "HTML", UUID.randomUUID(), null, UUID.randomUUID(), null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("applicationId"));
     }
 
@@ -97,7 +97,7 @@ class CreateTemplateRequestTest {
     @DisplayName("rejects null severityTypeId")
     void nullSeverityTypeId_isRejected() {
         var request = new CreateTemplateRequest(
-                "desc", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), null);
+                "desc", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), null, null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("severityTypeId"));
     }
 
@@ -107,7 +107,7 @@ class CreateTemplateRequestTest {
         UUID templateTypeId = UUID.randomUUID();
         UUID applicationId = UUID.randomUUID();
         UUID severityTypeId = UUID.randomUUID();
-        var request = new CreateTemplateRequest("desc", "loc", "HTML", templateTypeId, applicationId, severityTypeId);
+        var request = new CreateTemplateRequest("desc", "loc", "HTML", templateTypeId, applicationId, severityTypeId, null);
 
         assertThat(request.description()).isEqualTo("desc");
         assertThat(request.location()).isEqualTo("loc");
@@ -115,5 +115,13 @@ class CreateTemplateRequestTest {
         assertThat(request.templateTypeId()).isEqualTo(templateTypeId);
         assertThat(request.applicationId()).isEqualTo(applicationId);
         assertThat(request.severityTypeId()).isEqualTo(severityTypeId);
+    }
+
+    @Test
+    @DisplayName("the subject is optional and capped at 500 chars")
+    void subject_isOptionalAndCapped() {
+        assertThat(validator.validate(valid())).isEmpty();
+        var tooLong = new CreateTemplateRequest("d", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "x".repeat(501));
+        assertThat(validator.validate(tooLong)).anyMatch(v -> v.getPropertyPath().toString().equals("subject"));
     }
 }

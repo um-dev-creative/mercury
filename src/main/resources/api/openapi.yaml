@@ -1550,7 +1550,7 @@ components:
         subject:
           type: string
           maxLength: 500
-          description: The subject (required by e-mail) or the title (push).
+          description: The subject (e-mail) or the title (push). For e-mail it is optional when the template defines a subject (edited from Iris); sent here, it overrides the template's.
         body:
           type: string
           maxLength: 20000
@@ -1817,8 +1817,14 @@ components:
         severityTypeId:
           type: string
           format: uuid
+        subject:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: E-mail subject of this version of the template, edited from Iris. May use the message parameters as FreeMarker placeholders (`Your code is ${vc}`). Used when `POST /api/v1/messages` carries no `subject`.
       example:
         description: "Welcome email"
+        subject: "Welcome to ${appName}"
         location: "s3://mercury-templates/welcome.html"
         fileFormat: "HTML"
         templateTypeId: "66666666-6666-6666-6666-666666666666"
@@ -1842,6 +1848,11 @@ components:
         severityTypeId:
           type: string
           format: uuid
+        subject:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: Null leaves it unchanged, blank removes it. E-mail subject of this version of the template, edited from Iris. May use the message parameters as FreeMarker placeholders (`Your code is ${vc}`). Used when `POST /api/v1/messages` carries no `subject`.
       example:
         description: "Updated welcome email"
         fileFormat: "HTML"
@@ -1971,6 +1982,11 @@ components:
           format: uuid
         severityTypeName:
           type: string
+        subject:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: E-mail subject of this version of the template, edited from Iris. May use the message parameters as FreeMarker placeholders (`Your code is ${vc}`). Used when `POST /api/v1/messages` carries no `subject`.
         active:
           type: boolean
         createdAt:

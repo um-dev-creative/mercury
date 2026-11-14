@@ -88,7 +88,7 @@ class TemplateMapperTest {
         @DisplayName("toEntity maps every field and always forces active=true")
         void toEntity_mapsEveryField() {
             CreateTemplateRequest request = new CreateTemplateRequest(
-                    "desc", "loc", "HTML", templateType.getId(), applicationId, severityType.getId());
+                    "desc", "loc", "HTML", templateType.getId(), applicationId, severityType.getId(), "Hola ${name}");
             LocalDateTime now = LocalDateTime.of(2026, 1, 1, 10, 0);
 
             TemplateEntity entity = generated.toEntity(request, templateType, severityType, now);
@@ -98,6 +98,7 @@ class TemplateMapperTest {
                     () -> assertEquals("desc", entity.getDescription()),
                     () -> assertEquals("loc", entity.getLocation()),
                     () -> assertEquals("HTML", entity.getFileFormat()),
+                    () -> assertEquals("Hola ${name}", entity.getSubject()),
                     () -> assertSame(templateType, entity.getTemplateType()),
                     () -> assertEquals(applicationId, entity.getApplicationId()),
                     () -> assertSame(severityType, entity.getSeverityType()),
