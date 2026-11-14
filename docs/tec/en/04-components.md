@@ -94,6 +94,7 @@ List<T> findByDeliveryStatus(DeliveryStatusType status);
 - **Non-email messages aren't migrated to PostgreSQL nor purged from Mongo.** `ChannelService.updateStatus()` exists but has no real caller anywhere in the flow — there's no terminal-status reconciliation for SMS/Telegram/WhatsApp/Push.
 - **`EmailMessageDocument`/`EmailMessageTO` carry no `campaignId`.** The campaign↔email link doesn't exist while the message is in flight today; it's only reconstructed once it reaches `MessageRecord` in PostgreSQL.
 - **`ChannelConfigEntity` is defined but not wired** into any active read/write flow.
+- **An orphan SENT e-mail is skipped, not fatal.** `MessageProcessor.updateMessageStatus` logs `Skipping SENT message …` and moves on when the document's template definition no longer exists; it stays in MongoDB until someone fixes or deletes it.
 - **No delivery reconciliation** (`MessageDeliveryLogEntity` exists in the schema but nothing writes to it in the explored code).
 
 ---
