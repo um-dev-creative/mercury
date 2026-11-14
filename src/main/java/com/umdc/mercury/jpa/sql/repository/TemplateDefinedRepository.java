@@ -10,4 +10,7 @@ public interface TemplateDefinedRepository extends JpaRepository<TemplateDefined
 
     /** Active template definitions of an application. */
     java.util.List<TemplateDefinedEntity> findByApplicationIdAndIsActiveTrue(java.util.UUID applicationId);
+
+    /** Every definition (active or not) of a template. */
+    java.util.List<TemplateDefinedEntity> findByTemplateId(java.util.UUID templateId);
 }

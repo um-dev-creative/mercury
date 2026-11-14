@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] - 2026-11-13
+
+### Fixed
+- **Templates created through the API can now be sent: `template_defined` is written on create.** Nothing wrote `mercury.template_defined`, the table `POST /api/v1/messages`, campaigns and `GET /api/v1/messages/templates` read, so it stayed empty and every send by template name was refused with `The template '...' is not registered for this application`. `POST /api/v1/templates` now also registers an active definition (new `TemplateDefinitionRegistrar`: idempotent, reactivates instead of duplicating, `ON_DEMAND` frequency found or created, configurable with `umdc.template.default-frequency-type`), and `DELETE` switches it off. Migration `V2035` (applied by Flyway at start) seeds the frequency and gives every existing active template a definition. **Action:** none; redeploy and the migration runs. A template whose file name has no language suffix still cannot be found by name. See `docs/tec/en/15-template-definitions.md` and `docs/user-guide/en/template-definitions.md`.
+
 ## [Unreleased] - 2026-11-10
 
 ### Security

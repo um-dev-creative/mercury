@@ -15,7 +15,7 @@
 `location`, `fileFormat`, classification (`templateType`, `severityType`), owning `application`, and a
 soft-delete `active` flag.
 
-This is **not** `TemplateDefinedEntity`. That table represents an application/user-specific *usage* of a
+Creating a template also registers its active `TemplateDefinedEntity` (see `docs/tec/en/15-template-definitions.md`), which is what makes it usable by name; deleting it switches that definition off. This is **not** `TemplateDefinedEntity`. That table represents an application/user-specific *usage* of a
 base template and is referenced by campaigns and message records — its lifecycle, and the campaign/message
 flows that depend on it, are untouched by this API.
 
