@@ -31,30 +31,37 @@ class UpdateTemplateRequestTest {
     }
 
     @Test
+    @DisplayName("rejects a subject over 500 chars")
+    void longSubject_isRejected() {
+        var request = new UpdateTemplateRequest(null, null, null, null, null, "x".repeat(501));
+        assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("subject"));
+    }
+
+    @Test
     @DisplayName("an all-null request (no-op update) has no violations")
     void allNull_noViolations() {
-        var request = new UpdateTemplateRequest(null, null, null, null, null);
+        var request = new UpdateTemplateRequest(null, null, null, null, null, null);
         assertThat(validator.validate(request)).isEmpty();
     }
 
     @Test
     @DisplayName("a fully populated request has no violations")
     void fullyPopulated_noViolations() {
-        var request = new UpdateTemplateRequest("desc", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID());
+        var request = new UpdateTemplateRequest("desc", "loc", "HTML", UUID.randomUUID(), UUID.randomUUID(), null);
         assertThat(validator.validate(request)).isEmpty();
     }
 
     @Test
     @DisplayName("rejects location over the max length")
     void oversizedLocation_isRejected() {
-        var request = new UpdateTemplateRequest(null, "x".repeat(501), null, null, null);
+        var request = new UpdateTemplateRequest(null, "x".repeat(501), null, null, null, null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("location"));
     }
 
     @Test
     @DisplayName("rejects fileFormat over the max length")
     void oversizedFileFormat_isRejected() {
-        var request = new UpdateTemplateRequest(null, null, "x".repeat(51), null, null);
+        var request = new UpdateTemplateRequest(null, null, "x".repeat(51), null, null, null);
         assertThat(validator.validate(request)).anyMatch(v -> v.getPropertyPath().toString().equals("fileFormat"));
     }
 
@@ -63,7 +70,7 @@ class UpdateTemplateRequestTest {
     void accessorsExposeValues() {
         UUID templateTypeId = UUID.randomUUID();
         UUID severityTypeId = UUID.randomUUID();
-        var request = new UpdateTemplateRequest("desc", "loc", "HTML", templateTypeId, severityTypeId);
+        var request = new UpdateTemplateRequest("desc", "loc", "HTML", templateTypeId, severityTypeId, null);
 
         assertThat(request.description()).isEqualTo("desc");
         assertThat(request.location()).isEqualTo("loc");

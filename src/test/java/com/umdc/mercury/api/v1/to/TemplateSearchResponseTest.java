@@ -18,7 +18,7 @@ class TemplateSearchResponseTest {
     void accessorsExposeValues() {
         LocalDateTime now = LocalDateTime.now();
         var item = new TemplateDetailResponse(
-                UUID.randomUUID(), "d", "l", "HTML", null, null, null, null, null, true, now, now);
+                UUID.randomUUID(), "d", "l", "HTML", null, null, null, null, null, null, true, now, now);
         var response = new TemplateSearchResponse(List.of(item), 0, 20, 1L, 1);
 
         assertThat(response.items()).containsExactly(item);

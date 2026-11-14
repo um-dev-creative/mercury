@@ -22,7 +22,7 @@ class TemplateDetailResponseTest {
 
         var response = new TemplateDetailResponse(
                 id, "desc", "loc", "HTML", templateTypeId, "Marketing",
-                applicationId, severityTypeId, "High", true, now, now);
+                applicationId, severityTypeId, "High", null, true, now, now);
 
         assertThat(response.id()).isEqualTo(id);
         assertThat(response.description()).isEqualTo("desc");
@@ -43,8 +43,8 @@ class TemplateDetailResponseTest {
     void equalsAndHashCode() {
         UUID id = UUID.randomUUID();
         LocalDateTime now = LocalDateTime.now();
-        var r1 = new TemplateDetailResponse(id, "d", "l", "HTML", null, null, null, null, null, false, now, now);
-        var r2 = new TemplateDetailResponse(id, "d", "l", "HTML", null, null, null, null, null, false, now, now);
+        var r1 = new TemplateDetailResponse(id, "d", "l", "HTML", null, null, null, null, null, null, false, now, now);
+        var r2 = new TemplateDetailResponse(id, "d", "l", "HTML", null, null, null, null, null, null, false, now, now);
 
         assertThat(r1).isEqualTo(r2);
         assertThat(r1.hashCode()).isEqualTo(r2.hashCode());

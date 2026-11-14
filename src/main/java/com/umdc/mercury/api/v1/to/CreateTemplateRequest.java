@@ -16,6 +16,7 @@ import java.util.UUID;
  * @param templateTypeId UUID of an existing, active {@code TemplateTypeEntity}. Required.
  * @param applicationId  UUID of the application the template belongs to. Required, immutable once created.
  * @param severityTypeId UUID of an existing, active {@code SeverityTypeEntity}. Required.
+ * @param subject        e-mail subject of the template (may use FreeMarker placeholders for the message parameters). Optional, max 500 chars.
  */
 public record CreateTemplateRequest(
         @NotNull @NotBlank
@@ -29,6 +30,8 @@ public record CreateTemplateRequest(
         @NotNull
         UUID applicationId,
         @NotNull
-        UUID severityTypeId
+        UUID severityTypeId,
+        @Size(max = 500)
+        String subject
 ) {
 }

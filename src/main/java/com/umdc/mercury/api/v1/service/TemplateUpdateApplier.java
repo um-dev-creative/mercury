@@ -41,7 +41,21 @@ public class TemplateUpdateApplier {
         changed |= applyFileFormat(entity, request);
         changed |= applyTemplateType(entity, request);
         changed |= applySeverityType(entity, request);
+        changed |= applySubject(entity, request);
         return changed;
+    }
+
+    /** {@code null} leaves the subject alone; blank removes it (the template then defines none). */
+    private boolean applySubject(TemplateEntity entity, UpdateTemplateRequest request) {
+        if (Objects.isNull(request.subject())) {
+            return false;
+        }
+        String subject = request.subject().isBlank() ? null : request.subject().strip();
+        if (Objects.equals(subject, entity.getSubject())) {
+            return false;
+        }
+        entity.setSubject(subject);
+        return true;
     }
 
     private boolean applyDescription(TemplateEntity entity, UpdateTemplateRequest request) {

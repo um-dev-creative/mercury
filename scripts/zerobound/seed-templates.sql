@@ -40,6 +40,22 @@ SET template_type_id = :'verification_type_id'::uuid
 WHERE application_id = :'app_id'::uuid AND location LIKE 'zb\_verification\_%.ftl'
   AND template_type_id <> :'verification_type_id'::uuid;
 
+-- The subject of each e-mail lives in the template (V2036; editable from Iris), not in zerobound-rest. Fill the ones that have none yet with the
+-- subjects zerobound used to send; a subject already set (edited from Iris) is never overwritten.
+WITH subjects(kind, lang, subject) AS (VALUES
+    ('verification', 'es', 'Verifica tu correo en ZeroBound'), ('verification', 'en', 'Verify your email on ZeroBound'),
+    ('debt_due', 'es', 'Una deuda vence pronto'), ('debt_due', 'en', 'A debt is due soon'),
+    ('budget_exceeded', 'es', 'Superaste un presupuesto'), ('budget_exceeded', 'en', 'You went over a budget'),
+    ('goal_reached', 'es', 'Alcanzaste una meta'), ('goal_reached', 'en', 'You reached a goal'),
+    ('critical_insight', 'es', 'Aviso importante sobre tus finanzas'), ('critical_insight', 'en', 'Important notice about your finances'),
+    ('price_alert', 'es', 'Alerta de precio'), ('price_alert', 'en', 'Price alert'),
+    ('weekly_summary', 'es', 'Tu resumen semanal'), ('weekly_summary', 'en', 'Your weekly summary'))
+UPDATE mercury.templates t
+SET subject = s.subject
+FROM subjects s
+WHERE t.application_id = :'app_id'::uuid AND t.location = 'zb_' || s.kind || '_' || s.lang || '.ftl'
+  AND (t.subject IS NULL OR t.subject = '');
+
 INSERT INTO mercury.template_defined (template_id, user_id, application_id, frequency_type)
 SELECT t.id, :'owner_id'::uuid, :'app_id'::uuid, :'frequency_id'::uuid
 FROM mercury.templates t

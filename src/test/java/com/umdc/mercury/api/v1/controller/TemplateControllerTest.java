@@ -65,7 +65,7 @@ class TemplateControllerTest {
     private TemplateDetailResponse buildDetail(UUID id) {
         LocalDateTime now = LocalDateTime.now();
         return new TemplateDetailResponse(id, "desc", "loc", "HTML", UUID.randomUUID(), "Type",
-                applicationId, UUID.randomUUID(), "High", true, now, now);
+                applicationId, UUID.randomUUID(), "High", null, true, now, now);
     }
 
     @Nested
@@ -77,7 +77,7 @@ class TemplateControllerTest {
         void createTemplate_returns201() {
             UUID newId = UUID.randomUUID();
             TemplateDetailResponse response = buildDetail(newId);
-            var request = new CreateTemplateRequest("desc", "loc", "HTML", UUID.randomUUID(), applicationId, UUID.randomUUID());
+            var request = new CreateTemplateRequest("desc", "loc", "HTML", UUID.randomUUID(), applicationId, UUID.randomUUID(), null);
             when(templateService.createTemplate(eq(request), eq(requesterId), eq(SESSION_TOKEN)))
                     .thenReturn(CompletableFuture.completedFuture(response));
 
@@ -100,7 +100,7 @@ class TemplateControllerTest {
         void updateTemplate_returns200() {
             UUID id = UUID.randomUUID();
             TemplateDetailResponse response = buildDetail(id);
-            var request = new UpdateTemplateRequest("new", null, null, null, null);
+            var request = new UpdateTemplateRequest("new", null, null, null, null, null);
             when(templateService.updateTemplate(eq(id), eq(request), eq(requesterId), eq(SESSION_TOKEN))).thenReturn(response);
 
             ResponseEntity<TemplateDetailResponse> result = templateController.updateTemplate(id, SESSION_TOKEN, request);

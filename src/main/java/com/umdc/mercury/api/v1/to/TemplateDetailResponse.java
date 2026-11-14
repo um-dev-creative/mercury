@@ -19,6 +19,7 @@ import java.util.UUID;
  * @param applicationId    UUID of the owning application.
  * @param severityTypeId   UUID of the associated severity type.
  * @param severityTypeName name of the associated severity type.
+ * @param subject          e-mail subject of the template, or {@code null} when it defines none.
  * @param active           whether the template is currently active (soft-delete flag).
  * @param createdAt        timestamp when the template was created.
  * @param updatedAt        timestamp of the last update to the template.
@@ -33,6 +34,7 @@ public record TemplateDetailResponse(
         UUID applicationId,
         UUID severityTypeId,
         String severityTypeName,
+        String subject,
         Boolean active,
         @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime createdAt,

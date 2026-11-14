@@ -15,6 +15,7 @@ import java.util.UUID;
  * @param fileFormat     new file format, or {@code null} to leave unchanged. Max 50 chars.
  * @param templateTypeId UUID of a different existing, active {@code TemplateTypeEntity}, or {@code null} to leave unchanged.
  * @param severityTypeId UUID of a different existing, active {@code SeverityTypeEntity}, or {@code null} to leave unchanged.
+ * @param subject        new e-mail subject, {@code null} to leave unchanged, blank to remove it. Max 500 chars.
  */
 public record UpdateTemplateRequest(
         String description,
@@ -23,6 +24,8 @@ public record UpdateTemplateRequest(
         @Size(max = 50)
         String fileFormat,
         UUID templateTypeId,
-        UUID severityTypeId
+        UUID severityTypeId,
+        @Size(max = 500)
+        String subject
 ) {
 }

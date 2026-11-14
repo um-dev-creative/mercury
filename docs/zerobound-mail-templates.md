@@ -73,6 +73,12 @@ Templates are files (in the storage set by `TEMPLATE_STORAGE`; not baked into th
 the `template_defined` ids zerobound-rest needs. The schema is managed outside the application, so it was **not run** here: review it
 against the target database first. The `application` row of ZeroBound in `general.application` must already exist.
 
+**Subjects.** Since migration `V2036` the subject of each e-mail is a column of the template, edited from Iris (see
+`docs/template-management-api.md#-e-mail-subject`); zerobound-rest no longer sends one. The seed script fills the subject of the 14
+`zb_*` templates **only where it is still empty**, with the lines zerobound used before, so an edited subject is never overwritten.
+Run it (or fill the subjects from Iris) **before** deploying a zerobound-rest that stops sending the subject, or those messages are
+refused with `subject is required for email`.
+
 ## Telegram (T-116)
 
 The same kinds (all but `verification`) exist for Telegram as `zb_<kind>_tg_<es|en>.ftl`, with the same parameters (amounts arrive already
