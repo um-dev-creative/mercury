@@ -132,4 +132,43 @@ class TelegramMessageServiceTest {
         assertTrue(new TelegramMessageService(messages, links, templates, new TelegramBotProperties(true, "t", "", "", null, null, null))
                 .status(UUID.randomUUID(), APP).isEmpty());
     }
+
+    @Test
+    @DisplayName("by templateDefinedId: the template's own language is used and the id is stored; it is not read by kind")
+    void acceptsByTemplateDefinedId() {
+        var id = UUID.randomUUID();
+        when(templates.locate(APP, id)).thenReturn(Optional.of(new TelegramTemplateRenderer.Located("zb-debt-due-tg-en.html", "en")));
+
+        service.accept(APP, new TelegramMessageRequest(user, null, null, Map.of("name", "Visa"), null, id), null);
+
+        final var captor = ArgumentCaptor.forClass(TelegramMessageEntity.class);
+        verify(messages).saveAndFlush(captor.capture());
+        assertEquals("en", captor.getValue().getLanguage());
+        assertEquals(id, captor.getValue().getTemplateDefinedId());
+        assertEquals("zb-debt-due-tg-en.html", captor.getValue().getKind());
+    }
+
+    @Test
+    @DisplayName("an unknown or foreign templateDefinedId, both forms at once, or neither, are 400")
+    void templateDefinedIdValidation() {
+        var id = UUID.randomUUID();
+        when(templates.locate(APP, id)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.accept(APP, new TelegramMessageRequest(user, null, null, null, null, id), null));
+        assertThrows(IllegalArgumentException.class, () -> service.accept(APP, new TelegramMessageRequest(user, "debt_due", null, null, null, id), null));
+        assertThrows(IllegalArgumentException.class, () -> service.accept(APP, new TelegramMessageRequest(user, " ", null, null, null, null), null));
+        verify(messages, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("a long template file name is cut to the 50 characters of the kind column")
+    void longFileLabelIsCut() {
+        var id = UUID.randomUUID();
+        when(templates.locate(APP, id)).thenReturn(Optional.of(new TelegramTemplateRenderer.Located("f".repeat(70) + ".html", "es")));
+
+        service.accept(APP, new TelegramMessageRequest(user, null, null, null, null, id), null);
+
+        final var captor = ArgumentCaptor.forClass(TelegramMessageEntity.class);
+        verify(messages).saveAndFlush(captor.capture());
+        assertEquals(50, captor.getValue().getKind().length());
+    }
 }

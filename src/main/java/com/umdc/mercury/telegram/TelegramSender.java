@@ -75,7 +75,9 @@ public class TelegramSender {
         }
         final List<String> parts;
         try {
-            parts = TelegramTextSplitter.split(templates.render(message.kind(), message.language(), message.params()));
+            parts = TelegramTextSplitter.split(message.templateDefinedId() == null
+                    ? templates.render(message.kind(), message.language(), message.params())
+                    : templates.renderById(message.templateDefinedId(), message.params()));
         } catch (IllegalStateException e) {
             outbox.failed(message.id(), "template");
             return;

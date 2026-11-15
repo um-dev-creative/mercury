@@ -1,5 +1,8 @@
 ## [Unreleased] - 2026-11-13
 
+### Added
+- **Telegram messages can name their template by id.** `POST /api/v1/telegram/messages` accepts `templateDefinedId` (exactly one of it or `kind`); Mercury checks the definition is active, belongs to the caller's application and has its file, uses the template's own language, and renders it by id when sending. New column `telegram_messages.template_defined_id` (migration `V2037__telegram_template_defined_id.sql`); `kind` + `language` keeps working. Documented in `docs/telegram-channel.md` and `docs/user-guide/en/telegram.md`.
+
 ### Fixed
 - **One orphan SENT e-mail stopped the whole reconciliation.** `MessageProcessor.updateMessageStatus` threw `IllegalArgumentException: Template defined not found` for a SENT document whose template definition no longer exists, aborting the scheduled task on every cycle and leaving every other SENT message unreconciled. That document is now logged (`Skipping SENT message ...`) and skipped; the rest are processed.
 - **Mercury failed to start with `No value provided for placeholder: ${placeholders}` in `V2036__template_subject.sql`.** Flyway reads `${...}` as a placeholder even inside an SQL comment; the comment no longer contains it, and `FlywayMigrationsTest` now fails if any migration contains `${`. V2036 was never applied (the schema is at 2035), so no checksum changes.

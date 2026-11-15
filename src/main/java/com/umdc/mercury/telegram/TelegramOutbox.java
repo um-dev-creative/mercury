@@ -28,7 +28,12 @@ public class TelegramOutbox {
     private final Clock clock;
 
     public record Claimed(UUID id, String application, UUID userId, String kind, String language, Map<String, Object> params,
-                          boolean disableNotification, int attempts, int partsSent, LocalDateTime createdAt) { }
+                          boolean disableNotification, int attempts, int partsSent, LocalDateTime createdAt, UUID templateDefinedId) {
+        Claimed(UUID id, String application, UUID userId, String kind, String language, Map<String, Object> params,
+                boolean disableNotification, int attempts, int partsSent, LocalDateTime createdAt) {
+            this(id, application, userId, kind, language, params, disableNotification, attempts, partsSent, createdAt, null);
+        }
+    }
 
     @Autowired
     public TelegramOutbox(TelegramMessageRepository messages) {
@@ -47,7 +52,7 @@ public class TelegramOutbox {
             m.setNextAttemptAt(now.plus(LEASE));
             m.setUpdatedAt(now);
             return new Claimed(m.getId(), m.getApplication(), m.getUserId(), m.getKind(), m.getLanguage(), m.getParams(),
-                    m.isDisableNotification(), m.getAttempts(), m.getPartsSent(), m.getCreatedAt());
+                    m.isDisableNotification(), m.getAttempts(), m.getPartsSent(), m.getCreatedAt(), m.getTemplateDefinedId());
         }).toList();
     }
 

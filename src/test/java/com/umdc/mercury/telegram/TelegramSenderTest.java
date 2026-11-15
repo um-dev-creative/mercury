@@ -125,4 +125,18 @@ class TelegramSenderTest {
         new TelegramSender(new TelegramBotProperties(false, "t", "", "", null, null, null), outbox, links, templates, api, limiter).sendDue();
         verify(outbox, never()).claim(20);
     }
+
+    @Test
+    @DisplayName("a message queued by template id is rendered by id")
+    void rendersById() {
+        var template = UUID.randomUUID();
+        when(outbox.claim(20)).thenReturn(List.of(new TelegramOutbox.Claimed(id, "zerobound", user, "zb-debt-due-tg-es.html", "es", Map.of(), false, 0, 0, NOW, template)));
+        when(templates.renderById(eq(template), org.mockito.ArgumentMatchers.anyMap())).thenReturn("por id");
+
+        sender.sendDue();
+
+        verify(api).sendMessage(5L, "por id", false);
+        verify(templates, never()).render(anyString(), anyString(), org.mockito.ArgumentMatchers.anyMap());
+        verify(outbox).sent(id);
+    }
 }
