@@ -221,6 +221,141 @@ class MessageProcessorTest {
         assertFalse(result.isVerified());
     }
 
+    private TemplateDefinedTO definitionOfType(UUID typeId, String typeName, UUID applicationId) {
+        TemplateTypeTO type = new TemplateTypeTO(typeId, typeName, "d", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", type, applicationId, LocalDateTime.now(), LocalDateTime.now(), true);
+        return new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), applicationId, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+    }
+
+    private void reconcile(Map<String, Object> params, LocalDateTime sendDate, TemplateDefinedTO definition, UUID templateId, EmailMessageDocument[] out) {
+        EmailMessageDocument doc = new EmailMessageDocument("id-x", UUID.randomUUID(), templateId, UUID.randomUUID(), "from@example.com", null, null,
+                "subject", "body", sendDate, params, DeliveryStatusType.SENT);
+        out[0] = doc;
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.SENT)).thenReturn(List.of(doc));
+        when(messageStatusTypeService.findByName(anyString())).thenReturn(new MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        MessageRecordTO recordTO = new MessageRecordTO(UUID.randomUUID(), templateId, "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());
+        when(messageRecordMapper.toMessageRecordTO(eq(doc), any())).thenReturn(recordTO);
+        when(messageRecordService.create(any(MessageRecordTO.class))).thenReturn(recordTO);
+        messageProcessor.updateMessageStatus();
+    }
+
+    @Test
+    @DisplayName("a template type named VERIFICATION_CODE stores the code even when its id is not the configured one")
+    void updateMessageStatus_storesTheCodeWhenTheTypeIsNamedVerificationCode() {
+        UUID templateId = UUID.randomUUID();
+        var out = new EmailMessageDocument[1];
+        reconcile(Map.of("vc", "111222"), LocalDateTime.now(), definitionOfType(UUID.randomUUID(), " verification-code ", UUID.randomUUID()), templateId, out);
+
+        verify(verificationCodeService).create(any(VerificationCodeTO.class));
+        verify(emailService).delete(out[0]);
+    }
+
+    @Test
+    @DisplayName("another template type stores no code, and the message is still recorded and removed")
+    void updateMessageStatus_otherTypeStoresNoCode() {
+        UUID templateId = UUID.randomUUID();
+        var out = new EmailMessageDocument[1];
+        reconcile(Map.of("vc", "111222"), LocalDateTime.now(), definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID()), templateId, out);
+
+        verify(verificationCodeService, never()).create(any());
+        verify(messageRecordService).create(any(MessageRecordTO.class));
+        verify(emailService).delete(out[0]);
+    }
+
+    @Test
+    @DisplayName("a verification message without the vc parameter stores no code but does not abort the run")
+    void updateMessageStatus_missingCodeParameterStoresNothing() {
+        UUID templateId = UUID.randomUUID();
+        var out = new EmailMessageDocument[1];
+        reconcile(Map.of("other", "x"), LocalDateTime.now(), definitionOfType(verificationCodeTemplateId, "VERIFICATION_CODE", UUID.randomUUID()), templateId, out);
+
+        verify(verificationCodeService, never()).create(any());
+        verify(emailService).delete(out[0]);
+    }
+
+    @Test
+    @DisplayName("a message with no sendDate still stores its code (it lives from now)")
+    void updateMessageStatus_noSendDateStillStoresTheCode() {
+        UUID templateId = UUID.randomUUID();
+        var out = new EmailMessageDocument[1];
+        reconcile(Map.of("vc", "333444"), null, definitionOfType(verificationCodeTemplateId, "VERIFICATION_CODE", UUID.randomUUID()), templateId, out);
+
+        ArgumentCaptor<VerificationCodeTO> captor = ArgumentCaptor.forClass(VerificationCodeTO.class);
+        verify(verificationCodeService).create(captor.capture());
+        assertNotNull(captor.getValue().expiredAt());
+        assertEquals("333444", captor.getValue().verificationCode());
+    }
+
+    private EmailMessageDocument opened(UUID templateId, DeliveryStatusType status) {
+        return new EmailMessageDocument("id-p", UUID.randomUUID(), templateId, UUID.randomUUID(), "from@example.com", null, null, "subject", "body",
+                LocalDateTime.now(), Map.of("vc", "555666"), status);
+    }
+
+    @Test
+    @DisplayName("a verification e-mail that was just sent stores its code at once, without waiting for the periodic reconciliation")
+    void processMessage_storesTheVerificationCodeRightAfterSending() {
+        UUID templateId = UUID.randomUUID();
+        var definition = definitionOfType(verificationCodeTemplateId, "VERIFICATION_CODE", UUID.randomUUID());
+        var opened = opened(templateId, DeliveryStatusType.OPENED);
+        var sent = opened(templateId, DeliveryStatusType.SENT);
+        MessageRecordTO recordTO = new MessageRecordTO(UUID.randomUUID(), templateId, "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(opened));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(opened, definition)).thenReturn(sent);
+        when(messageStatusTypeService.findByName(anyString())).thenReturn(new MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
+        when(messageRecordMapper.toMessageRecordTO(eq(sent), any())).thenReturn(recordTO);
+        when(messageRecordService.create(any(MessageRecordTO.class))).thenReturn(recordTO);
+
+        messageProcessor.processMessage();
+
+        verify(verificationCodeService).create(any(VerificationCodeTO.class));
+        verify(emailService).delete(sent);
+    }
+
+    @Test
+    @DisplayName("an ordinary e-mail just sent is left for the periodic reconciliation")
+    void processMessage_anOrdinaryMailWaitsForTheReconciliation() {
+        UUID templateId = UUID.randomUUID();
+        var definition = definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID());
+        var opened = opened(templateId, DeliveryStatusType.OPENED);
+        var sent = opened(templateId, DeliveryStatusType.SENT);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(opened));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(opened, definition)).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(emailService).updateEmailStatus(sent);
+        verify(messageRecordService, never()).create(any());
+        verify(emailService, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("a verification e-mail that failed to send stores no code")
+    void processMessage_aFailedVerificationMailStoresNoCode() {
+        UUID templateId = UUID.randomUUID();
+        var definition = definitionOfType(verificationCodeTemplateId, "VERIFICATION_CODE", UUID.randomUUID());
+        var opened = opened(templateId, DeliveryStatusType.OPENED);
+        var failed = opened(templateId, DeliveryStatusType.FAILED);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(opened));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(opened, definition)).thenReturn(failed);
+
+        messageProcessor.processMessage();
+
+        verify(verificationCodeService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("a template without a type is not a verification code")
+    void isVerificationCode_noTypeIsFalse() {
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", null, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateDefinedTO definition = new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+
+        assertFalse(messageProcessor.isVerificationCode(definition));
+    }
+
     @Test
     @DisplayName("expiryOf follows expiresInMinutes, never beyond two days, and falls back to two days")
     void expiryOf_followsTheSendersMinutesWithinTheCeiling() {
