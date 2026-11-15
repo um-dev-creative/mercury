@@ -46,6 +46,9 @@ class EmailServiceImplTest {
     @Mock
     com.umdc.mercury.template.ApplicationTemplateFolders templateFolders;
 
+    @org.mockito.Spy
+    com.umdc.mercury.mail.MailRecipientPolicy recipientPolicy = com.umdc.mercury.mail.MailRecipientPolicy.passThrough();
+
     @InjectMocks
     EmailServiceImpl emailServiceImpl;
 
