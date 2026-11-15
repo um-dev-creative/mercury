@@ -19,6 +19,7 @@ flowchart LR
 - With `false`, copies (cc) are not sent either.
 - With `true` the list is used only when a message names no recipient.
 - If you set `false` and leave the list empty, or write an invalid address, Mercury does not start and the log says which setting to fix.
+- The override only starts in the `qa` and `dev` profiles (`SPRING_BOOT_PROFILE_ACTIVE`). In `prd`, `prod`, `production` or any other profile Mercury refuses to start with `MAIL_HONOR_REQUEST_RECIPIENTS=false`, so it cannot be turned on in production by mistake. `MAIL_RECIPIENT_OVERRIDE_PROFILES` (default `qa,dev`) changes which non-production profiles may use it; it can never include a production one.
 - Leave both unset in production.
 - The verification code is still stored for the user the application sent; only the mailbox that receives the message changes, so the person on
   the list reads the code and types it in QA.

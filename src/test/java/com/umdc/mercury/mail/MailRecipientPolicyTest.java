@@ -18,7 +18,7 @@ class MailRecipientPolicyTest {
     }
 
     private static MailRecipientPolicy policy(boolean honorRequest, String... defaults) {
-        return new MailRecipientPolicy(new MailRecipientProperties(List.of(defaults), honorRequest));
+        return new MailRecipientPolicy(new MailRecipientProperties(List.of(defaults), honorRequest), new String[]{"qa"});
     }
 
     @Test
@@ -89,5 +89,65 @@ class MailRecipientPolicyTest {
 
         assertTrue(error.getMessage().contains("MAIL_DEFAULT_RECIPIENTS"));
         assertThrows(IllegalStateException.class, () -> new MailRecipientProperties(null, false));
+    }
+
+    @Test
+    @DisplayName("the override runs in qa and dev, whatever the case")
+    void overrideAllowedInQaAndDev() {
+        var props = new MailRecipientProperties(List.of("qa@x.test"), false);
+
+        assertDoesNotThrow(() -> new MailRecipientPolicy(props, new String[]{"dev"}));
+        assertDoesNotThrow(() -> new MailRecipientPolicy(props, new String[]{"QA", "other"}));
+    }
+
+    @Test
+    @DisplayName("the override refuses to start in production, in an unlisted profile or with no profile")
+    void overrideRefusedOutsideQaAndDev() {
+        var props = new MailRecipientProperties(List.of("qa@x.test"), false);
+
+        for (var profile : List.of("prd", "prod", "production", "PRD", "staging")) {
+            var error = assertThrows(IllegalStateException.class, () -> new MailRecipientPolicy(props, new String[]{profile}));
+            assertTrue(error.getMessage().contains("only allowed in the profiles"), profile);
+        }
+        assertThrows(IllegalStateException.class, () -> new MailRecipientPolicy(props, new String[0]));
+        assertThrows(IllegalStateException.class, () -> new MailRecipientPolicy(props, (String[]) null));
+    }
+
+    @Test
+    @DisplayName("a production profile next to qa still refuses")
+    void productionAlongsideQaRefuses() {
+        var props = new MailRecipientProperties(List.of("qa@x.test"), false);
+
+        assertThrows(IllegalStateException.class, () -> new MailRecipientPolicy(props, new String[]{"qa", "prod"}));
+    }
+
+    @Test
+    @DisplayName("the profile only matters when the override is on")
+    void honoredRequestNeedsNoProfile() {
+        assertDoesNotThrow(() -> new MailRecipientPolicy(new MailRecipientProperties(List.of(), true), new String[]{"prd"}));
+    }
+
+    @Test
+    @DisplayName("the allowed profiles can be changed but never to a production one")
+    void allowedProfilesConfigurable() {
+        var props = new MailRecipientProperties(List.of("a@x.test"), false, List.of(" Staging ", ""));
+
+        assertEquals(List.of("staging"), props.overrideProfiles());
+        assertDoesNotThrow(() -> new MailRecipientPolicy(props, new String[]{"staging"}));
+        assertEquals(List.of("qa", "dev"), new MailRecipientProperties(List.of(), true, List.of(" ")).overrideProfiles());
+        for (var profile : List.of("prd", "prod", "Production")) {
+            assertThrows(IllegalStateException.class, () -> new MailRecipientProperties(List.of("a@x.test"), false, List.of("qa", profile)));
+        }
+    }
+
+    @Test
+    @DisplayName("the Spring constructor reads the active profiles from the environment")
+    void environmentConstructor() {
+        var environment = new org.springframework.mock.env.MockEnvironment();
+        environment.setActiveProfiles("prd");
+
+        assertThrows(IllegalStateException.class, () -> new MailRecipientPolicy(new MailRecipientProperties(List.of("a@x.test"), false), environment));
+        environment.setActiveProfiles("qa");
+        assertDoesNotThrow(() -> new MailRecipientPolicy(new MailRecipientProperties(List.of("a@x.test"), false), environment));
     }
 }

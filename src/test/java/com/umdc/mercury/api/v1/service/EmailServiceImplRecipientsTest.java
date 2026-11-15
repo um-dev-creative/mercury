@@ -61,7 +61,7 @@ class EmailServiceImplRecipientsTest {
     @Test
     @DisplayName("with the request honored the message goes to its own to and cc")
     void honoredRequest() throws Exception {
-        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa@x.test"), true)),
+        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa@x.test"), true), new String[]{"qa"}),
                 List.of(new EmailContact("real@x.test", "R", null)), List.of(new EmailContact("copy@x.test", "C", null)));
 
         assertEquals("real@x.test", addresses(message, Message.RecipientType.TO));
@@ -71,7 +71,7 @@ class EmailServiceImplRecipientsTest {
     @Test
     @DisplayName("with the request ignored the message goes only to the default list, with no cc")
     void ignoredRequest() throws Exception {
-        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa1@x.test", "qa2@x.test"), false)),
+        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa1@x.test", "qa2@x.test"), false), new String[]{"qa"}),
                 List.of(new EmailContact("real@x.test", "R", null)), List.of(new EmailContact("copy@x.test", "C", null)));
 
         assertEquals("qa1@x.test,qa2@x.test", addresses(message, Message.RecipientType.TO));
@@ -81,7 +81,7 @@ class EmailServiceImplRecipientsTest {
     @Test
     @DisplayName("a message with no recipient goes to the default list")
     void emptyRequestUsesDefaults() throws Exception {
-        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa@x.test"), true)), List.of(), List.of());
+        var message = send(new MailRecipientPolicy(new MailRecipientProperties(List.of("qa@x.test"), true), new String[]{"qa"}), List.of(), List.of());
 
         assertEquals("qa@x.test", addresses(message, Message.RecipientType.TO));
     }
