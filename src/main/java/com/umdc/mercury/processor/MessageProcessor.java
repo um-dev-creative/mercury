@@ -35,6 +35,7 @@ package com.umdc.mercury.processor;
                     private final MessageStatusTypeService messageStatusTypeService;
                     private final VerificationCodeService verificationCodeService;
     private final CampaignMetricsService campaignMetricsService;
+    private final org.springframework.transaction.support.TransactionTemplate perMessage;
 
                     /**
                      * ID of the verification code template, injected from application properties.
@@ -55,7 +56,11 @@ package com.umdc.mercury.processor;
                     public MessageProcessor(EmailService emailService, MessageRecordService messageRecordService,
                                             TemplateDefinedService templateDefinedService, MessageRecordMapper messageRecordMapper,
                                             MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService,
-                                            CampaignMetricsService campaignMetricsService) {
+                                            CampaignMetricsService campaignMetricsService,
+                                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                        // each message is recorded in its own transaction: one that the database refuses must not undo or block the others
+                        this.perMessage = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
+                        this.perMessage.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
                         this.campaignMetricsService = campaignMetricsService;
                         this.emailService = emailService;
                         this.messageRecordService = messageRecordService;
@@ -103,7 +108,7 @@ package com.umdc.mercury.processor;
                                     logger.debug("Email sent: {}", emailMessageDocument);
                                     // A verification code must be confirmable as soon as the e-mail leaves, not at the next (5 min) reconciliation
                                     if (sent != null && sent.deliveryStatus() == DeliveryStatusType.SENT && isVerificationCode(templateDefinedTO)) {
-                                        reconcileSent(sent, templateDefinedTO);
+                                        reconcileIsolated(sent, templateDefinedTO);
                                     }
                                 });
                     }
@@ -128,8 +133,29 @@ package com.umdc.mercury.processor;
                                     if (templateDefinedTO == null) {
                                         return; // one orphan document must not stop the reconciliation of the others
                                     }
-                                    reconcileSent(emailMessageDocument, templateDefinedTO);
+                                    reconcileIsolated(emailMessageDocument, templateDefinedTO);
                                 });
+                    }
+
+                    /**
+                     * {@link #reconcileSent} in its own transaction, and a failure (a database constraint, a lock) is logged with the message id and
+                     * leaves the document {@code SENT} in MongoDB, to be retried by the next reconciliation, without touching the other messages.
+                     * The insert is flushed inside, so the error shows here and not later at the commit of the whole run.
+                     */
+                    private void reconcileIsolated(EmailMessageDocument document, TemplateDefinedTO templateDefinedTO) {
+                        try {
+                            perMessage.executeWithoutResult(status -> reconcileSent(document, templateDefinedTO));
+                        } catch (RuntimeException e) {
+                            logger.error("Could not record message {} (it stays SENT in MongoDB and is retried): {}", document.messageId(), rootMessage(e));
+                        }
+                    }
+
+                    private static String rootMessage(Throwable throwable) {
+                        Throwable root = throwable;
+                        while (root.getCause() != null && root.getCause() != root) {
+                            root = root.getCause();
+                        }
+                        return root.getClass().getSimpleName() + ": " + root.getMessage();
                     }
 
                     /** Records a SENT message in PostgreSQL, stores its verification code when it is one, and removes the MongoDB document. */

@@ -4,6 +4,11 @@
 
 Este directorio contiene toda la documentación técnica y funcional para la implementación del Sistema de Gestión de Plantillas Dinámicas en el proyecto Mercury.
 
+## 🔌 Integración de aplicaciones
+
+- [user-guide/es/guia-integracion-aplicaciones.md](./user-guide/es/guia-integracion-aplicaciones.md): cómo una aplicación se integra con Mercury para enviar correos, Telegram y códigos de verificación (identidad, plantillas, envío, estados, errores, lista de producción, diagramas Mermaid).
+- [user-guide/es/guia-integracion-mercury.html](./user-guide/es/guia-integracion-mercury.html): la misma guía, interactiva (constructor de peticiones con validación, explorador de canales, recorrido de la verificación, simulador de errores y lista de verificación). Ábrela en el navegador.
+
 ## 📚 Documentos Principales
 
 ### 1. [REQUERIMIENTOS.md](./REQUERIMIENTOS.md)

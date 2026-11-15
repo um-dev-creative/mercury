@@ -17,7 +17,7 @@ import java.util.UUID;
 )
 public interface VerificationCodeMapper {
 
-    @Mapping(target = "modifiedBy", source = "modifiedAt")
+    @Mapping(target = "modifiedBy", source = "updatedBy")
     @Mapping(target = "expiresAt", source = "expiredAt")
     @Mapping(target = "userId", expression = "java(toUserEntity(verificationCodeTO))")
     @Mapping(target = "messageRecord", expression = "java(toMessageRecordEntity(verificationCodeTO))")
