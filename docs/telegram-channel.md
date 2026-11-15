@@ -62,7 +62,7 @@ logged. Commands: `/start <token>` (links; a new link replaces the old chat and 
 
 ## Sending (T-115)
 
-Run `V2030__telegram_messages.sql`. `POST /api/v1/telegram/messages` `{userId, kind, language?, params?, disableNotification?}` with an
+Run `V2030__telegram_messages.sql`. `POST /api/v1/telegram/messages` `{userId, templateDefinedId | kind, language?, params?, disableNotification?}` (name the template with exactly one of `templateDefinedId` — the `template_defined` id, preferred, its own language is used — or `kind`) with an
 `Idempotency-Key` (scoped to the caller) answers 202 `{id, status}` (a replay adds `Idempotent-Replayed: true`); 400 unknown template/language,
 409 `{code: TELEGRAM_NOT_LINKED | TELEGRAM_BLOCKED}`, 422 key reused with another request. `GET /api/v1/telegram/messages/{id}` →
 `QUEUED | SENT | FAILED | BLOCKED` (404 for another caller's).
@@ -105,3 +105,25 @@ Procedure (once per environment, secrets only in Vault, never in the shell histo
    any other path of the public host answers 404.
 4. Rotating the secret: change `TELEGRAM_WEBHOOK_SECRET` in Vault and restart (mercury re-registers with the new one). Rotating the token:
    BotFather `/revoke`, update Vault, restart. To go back to polling: `TELEGRAM_MODE=poll` (the poller deletes the webhook).
+
+## Template by id (V2037)
+
+A message may name its template by the `template_defined` id instead of by `kind`. Mercury checks that the definition is active, belongs to the
+caller's application and that its file exists in the template storage (folder of the application), and answers 400 `Unknown Telegram template or language`
+otherwise (the same text for an unknown id and for another application's id). The id is kept in `telegram_messages.template_defined_id` (migration
+`V2037__telegram_template_defined_id.sql`) and `TelegramSender` renders it with `TelegramTemplateRenderer.renderById`.
+
+```mermaid
+sequenceDiagram
+    participant App as Application (e.g. zerobound-rest)
+    participant API as POST /api/v1/telegram/messages
+    participant Svc as TelegramMessageService
+    participant DB as telegram_messages
+    participant Snd as TelegramSender
+    App->>API: {userId, templateDefinedId, params}
+    API->>Svc: accept(application, request)
+    Svc->>Svc: locate(application, id): active, own application, file exists
+    Svc->>DB: queue (template_defined_id, language of the template)
+    Snd->>DB: claim due
+    Snd->>Snd: renderById(id, params) -> Bot API sendMessage
+```

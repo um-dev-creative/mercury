@@ -62,7 +62,17 @@ public class TelegramMessageService {
      */
     public Result accept(String application, TelegramMessageRequest request, String idempotencyKey) {
         final String key = idempotencyKey == null || idempotencyKey.isBlank() ? null : idempotencyKey.strip();
-        final String language = request.language() == null || request.language().isBlank()
+        final boolean byId = request.templateDefinedId() != null;
+        final boolean byKind = request.kind() != null && !request.kind().isBlank();
+        if (byId == byKind) {
+            throw new IllegalArgumentException("Send either kind or templateDefinedId");
+        }
+        final Optional<TelegramTemplateRenderer.Located> located = byId ? templates.locate(application, request.templateDefinedId()) : Optional.empty();
+        if (byId && located.isEmpty()) {
+            throw new IllegalArgumentException("Unknown Telegram template or language");
+        }
+        final String language = byId ? located.get().language()
+                : request.language() == null || request.language().isBlank()
                 ? TelegramLinkService.DEFAULT_LANGUAGE : request.language().strip().toLowerCase(java.util.Locale.ROOT);
         final Map<String, Object> params = request.params() == null ? Map.of() : request.params();
         final String hash = hash(request, language, params);
@@ -73,7 +83,7 @@ public class TelegramMessageService {
                 return replay(earlier.get(), hash);
             }
         }
-        if (!properties.languages().contains(language) || !templates.exists(request.kind(), language)) {
+        if (byKind && (!properties.languages().contains(language) || !templates.exists(request.kind(), language))) {
             throw new IllegalArgumentException("Unknown Telegram template or language");
         }
         final Optional<TelegramLinkService.Target> target = links.targetOf(application, request.userId());
@@ -91,7 +101,8 @@ public class TelegramMessageService {
         entity.setUserId(request.userId());
         entity.setIdempotencyKey(key);
         entity.setRequestHash(hash);
-        entity.setKind(request.kind());
+        entity.setKind(byId ? fileLabel(located.get().location()) : request.kind());
+        entity.setTemplateDefinedId(request.templateDefinedId());
         entity.setLanguage(language);
         entity.setParams(params);
         entity.setDisableNotification(Boolean.TRUE.equals(request.disableNotification()));
@@ -106,6 +117,12 @@ public class TelegramMessageService {
             return key == null ? rethrow(e) : replay(messages.findByApplicationAndIdempotencyKey(application, key).orElseThrow(() -> e), hash);
         }
         return new Result.Accepted(entity.getId(), entity.getStatus(), false);
+    }
+
+    /** What the {@code kind} column shows for a message queued by template id: the template file, within the column's 50 characters. */
+    private static String fileLabel(String location) {
+        String file = com.umdc.mercury.template.storage.TemplateNames.fileOf(location);
+        return file.length() <= 50 ? file : file.substring(0, 50);
     }
 
     private static Result rethrow(DataIntegrityViolationException e) {
@@ -128,7 +145,7 @@ public class TelegramMessageService {
 
     /** SHA-256 over the request with the maps in key order, so equal requests hash equal. */
     static String hash(TelegramMessageRequest r, String language, Map<String, Object> params) {
-        final String canonical = r.userId() + "|" + r.kind() + "|" + language + "|" + Boolean.TRUE.equals(r.disableNotification())
+        final String canonical = r.userId() + "|" + r.kind() + "|" + (r.templateDefinedId() == null ? "" : r.templateDefinedId() + "|") + language + "|" + Boolean.TRUE.equals(r.disableNotification())
                 + "|" + new TreeMap<>(params);
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8)));

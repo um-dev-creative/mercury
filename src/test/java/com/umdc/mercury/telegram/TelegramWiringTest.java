@@ -24,6 +24,8 @@ class TelegramWiringTest {
                 .withBean(TelegramLinkTokenRepository.class, () -> Mockito.mock(TelegramLinkTokenRepository.class))
                 .withBean(TelegramInboxStateRepository.class, () -> Mockito.mock(TelegramInboxStateRepository.class))
                 .withBean(TelegramMessageRepository.class, () -> Mockito.mock(TelegramMessageRepository.class))
+                .withBean(com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository.class, () -> Mockito.mock(com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository.class))
+                .withBean(com.umdc.mercury.template.ApplicationTemplateFolders.class, () -> Mockito.mock(com.umdc.mercury.template.ApplicationTemplateFolders.class))
                 .withBean("getFreeMarkerConfiguration", Configuration.class, () -> Mockito.mock(Configuration.class))
                 .withBean("freeMarkerConfiguration", Configuration.class, () -> Mockito.mock(Configuration.class))
                 .withPropertyValues("umdc.mercury.telegram.application=zerobound", "umdc.mercury.telegram.mode=webhook")

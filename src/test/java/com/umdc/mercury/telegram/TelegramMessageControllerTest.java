@@ -31,7 +31,7 @@ class TelegramMessageControllerTest {
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new TelegramMessageController(service)).build();
+        mvc = MockMvcBuilders.standaloneSetup(new TelegramMessageController(service)).setControllerAdvice(new com.umdc.mercury.api.v1.controller.GlobalExceptionHandler()).build();
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder postBody(String body) {
@@ -63,8 +63,9 @@ class TelegramMessageControllerTest {
     }
 
     @Test
-    @DisplayName("a body without kind is a 400")
+    @DisplayName("a body with neither kind nor templateDefinedId is a 400 (the service refuses it)")
     void invalid() throws Exception {
+        when(service.accept(any(), any(), any())).thenThrow(new IllegalArgumentException("Send either kind or templateDefinedId"));
         mvc.perform(postBody("{\"userId\":\"" + user + "\"}")).andExpect(status().isBadRequest());
     }
 

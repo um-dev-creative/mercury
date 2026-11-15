@@ -48,3 +48,11 @@ Los servicios autorizados llaman a `POST /api/v1/telegram/messages` con una cabe
 | `422` | La `Idempotency-Key` ya se usó con otra petición |
 
 Si el usuario bloquea el bot, los envíos se detienen hasta que vuelva a vincular su cuenta. Los fallos temporales se reintentan hasta 6 veces en un máximo de 48 horas.
+
+**Nombrar la plantilla por id (recomendado).** En lugar de `kind` + `language` puede enviar el id de la definición de plantilla de su aplicación; se usa el idioma de esa plantilla:
+
+```json
+{ "userId": "00000000-0000-0000-0000-000000000002", "templateDefinedId": "00000000-0000-0000-0000-0000000000aa", "params": {} }
+```
+
+Envíe exactamente uno de `kind` o `templateDefinedId`. Un id inexistente, inactivo o de otra aplicación responde el mismo `400`.

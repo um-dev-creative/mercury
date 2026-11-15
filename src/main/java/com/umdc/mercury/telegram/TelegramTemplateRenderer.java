@@ -4,6 +4,9 @@ import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateNotFoundException;
 import com.umdc.mercury.template.storage.TemplateNames;
+import com.umdc.mercury.jpa.sql.repository.TemplateDefinedRepository;
+import com.umdc.mercury.template.ApplicationTemplateFolders;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -11,6 +14,9 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 /**
@@ -27,11 +33,70 @@ public class TelegramTemplateRenderer {
     private final Configuration freemarker;
     private final String folder;
 
+    private final TemplateDefinedRepository definitions;
+    private final ApplicationTemplateFolders folders;
+
+    /** A template found by its definition id: the file it is stored as and the language it is written in. */
+    public record Located(String location, String language) { }
+
     /** @param folder application folder of the ZeroBound templates in the storage ({@code umdc.templates.telegram-folder}) */
+    @Autowired
     public TelegramTemplateRenderer(@Qualifier("getFreeMarkerConfiguration") Configuration freemarker,
-                                    @Value("${umdc.templates.telegram-folder:zeronbou}") String folder) {
+                                    @Value("${umdc.templates.telegram-folder:zeronbou}") String folder,
+                                    TemplateDefinedRepository definitions, ApplicationTemplateFolders folders) {
         this.freemarker = freemarker;
         this.folder = folder;
+        this.definitions = definitions;
+        this.folders = folders;
+    }
+
+    /** By kind only (no lookup by definition id). */
+    TelegramTemplateRenderer(Configuration freemarker, String folder) {
+        this(freemarker, folder, null, null);
+    }
+
+    /**
+     * The template of the definition {@code id} when it is active, belongs to {@code application} and its file exists; empty otherwise
+     * (the caller answers the same 400 for all of them, so nothing says whether an id exists in another application).
+     */
+    public Optional<Located> locate(String application, UUID id) {
+        if (Objects.isNull(definitions) || Objects.isNull(id)) {
+            return Optional.empty();
+        }
+        return definitions.findById(id)
+                .filter(d -> Boolean.TRUE.equals(d.getIsActive()) && Objects.nonNull(d.getApplicationId()) && d.getApplicationId().toString().equals(application))
+                .filter(d -> Objects.nonNull(d.getTemplate()) && !Boolean.FALSE.equals(d.getTemplate().getActive())
+                        && Objects.nonNull(d.getTemplate().getLocation()) && Objects.nonNull(d.getTemplate().getLanguage()))
+                .map(d -> new Located(storageName(d.getApplicationId(), d.getTemplate().getLocation()), d.getTemplate().getLanguage().strip().toLowerCase(java.util.Locale.ROOT)))
+                .filter(l -> fileExists(l.location()));
+    }
+
+    private String storageName(UUID applicationId, String location) {
+        return folders.nameOf(applicationId, location);
+    }
+
+    private boolean fileExists(String name) {
+        try {
+            freemarker.getTemplate(name);
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    /** The message text of the definition {@code id}; throws {@link IllegalStateException} when it is gone or a parameter it needs is not there. */
+    public String renderById(UUID id, Map<String, Object> params) {
+        var definition = Objects.isNull(definitions) ? Optional.<com.umdc.mercury.jpa.sql.entity.TemplateDefinedEntity>empty() : definitions.findById(id);
+        if (definition.isEmpty() || Objects.isNull(definition.get().getTemplate())) {
+            throw new IllegalStateException("Telegram template could not be rendered: NotFound");
+        }
+        var d = definition.get();
+        try (var out = new StringWriter()) {
+            freemarker.getTemplate(storageName(d.getApplicationId(), d.getTemplate().getLocation())).process(params, out);
+            return out.toString();
+        } catch (IOException | TemplateException e) {
+            throw new IllegalStateException("Telegram template could not be rendered: " + e.getClass().getSimpleName(), e);
+        }
     }
 
     String name(String kind, String language) {
