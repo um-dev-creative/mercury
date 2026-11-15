@@ -387,6 +387,36 @@ class MessageProcessorTest {
     }
 
     @Test
+    @DisplayName("a document with no template definition is skipped and does not stop the e-mails behind it")
+    void processMessage_skipsADocumentWithoutTemplateAndContinues() {
+        UUID templateId = UUID.randomUUID();
+        var definition = definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID());
+        var malformed = new EmailMessageDocument("bad", UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, null, DeliveryStatusType.OPENED);
+        var good = opened(templateId, DeliveryStatusType.OPENED);
+        var sent = opened(templateId, DeliveryStatusType.SENT);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(malformed, good));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(good, definition)).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(emailService).updateEmailStatus(sent);
+        verify(templateDefinedService, never()).find(null);
+    }
+
+    @Test
+    @DisplayName("a SENT document with no template definition is skipped by the reconciliation")
+    void updateMessageStatus_skipsADocumentWithoutTemplate() {
+        var malformed = new EmailMessageDocument("bad", UUID.randomUUID(), null, UUID.randomUUID(), null, null, null, null, null, null, null, DeliveryStatusType.SENT);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.SENT)).thenReturn(List.of(malformed));
+
+        messageProcessor.updateMessageStatus();
+
+        verify(messageRecordService, never()).create(any());
+        verify(emailService, never()).delete(any());
+    }
+
+    @Test
     @DisplayName("a template without a type is not a verification code")
     void isVerificationCode_noTypeIsFalse() {
         TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", null, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);

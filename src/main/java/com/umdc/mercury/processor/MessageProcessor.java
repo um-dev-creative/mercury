@@ -78,6 +78,10 @@ package com.umdc.mercury.processor;
                         // Load the messages with the OPENED status from mongo db
                         emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)
                                 .forEach(emailMessageDocument -> {
+                                    if (emailMessageDocument.templateDefinedId() == null) {
+                                        logger.error("Skipping OPENED message {}: it has no template definition", emailMessageDocument.id());
+                                        return; // one malformed document must not stop the others
+                                    }
                                     // Load the template defined for each message
                                     var templateDefinedTO = templateDefinedService.find(emailMessageDocument.templateDefinedId());
                                     logger.debug("Sending email: {}", emailMessageDocument);
@@ -173,6 +177,10 @@ package com.umdc.mercury.processor;
                      * that points to a missing definition is skipped instead of aborting the whole scheduled run on every cycle.
                      */
                     private com.umdc.mercury.api.v1.to.TemplateDefinedTO findTemplateOrNull(EmailMessageDocument document) {
+                        if (document.templateDefinedId() == null) {
+                            logger.error("Skipping SENT message {}: it has no template definition", document.id());
+                            return null;
+                        }
                         try {
                             return templateDefinedService.find(document.templateDefinedId());
                         } catch (IllegalArgumentException e) {
