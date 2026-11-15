@@ -9,6 +9,7 @@ import com.umdc.mercury.api.v1.to.TemplateTO;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
 import com.umdc.mercury.jpa.nosql.repository.EmailMessageNSRepository;
+import com.umdc.mercury.mail.MailRecipientPolicy;
 import com.umdc.mercury.template.ApplicationTemplateFolders;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
@@ -50,6 +51,7 @@ public class EmailServiceImpl implements EmailService {
     private final JavaMailSender mailSender;
     private final MailTrackingService mailTracking;
     private final ApplicationTemplateFolders templateFolders;
+    private final MailRecipientPolicy recipientPolicy;
 
     /**
      * Constructs an EmailServiceImpl with required dependencies.
@@ -59,9 +61,11 @@ public class EmailServiceImpl implements EmailService {
      * @param mailSender               The JavaMailSender used to send emails
      * @param mailTracking             Accepts mail from backend callers and keeps its delivery log
      * @param templateFolders          Application folder of each template in the template storage
+     * @param recipientPolicy          Decides who receives the e-mail (the request's recipients or the configured test list)
      */
     public EmailServiceImpl(@Qualifier("getFreeMarkerConfiguration") Configuration freemarkerConfig, EmailMessageNSRepository emailMessageNSRepository, JavaMailSender mailSender,
-                            MailTrackingService mailTracking, ApplicationTemplateFolders templateFolders) {
+                            MailTrackingService mailTracking, ApplicationTemplateFolders templateFolders, MailRecipientPolicy recipientPolicy) {
+        this.recipientPolicy = recipientPolicy;
         this.templateFolders = templateFolders;
         this.mailTracking = mailTracking;
         this.freemarkerConfig = freemarkerConfig;
@@ -185,10 +189,11 @@ public class EmailServiceImpl implements EmailService {
             mimeMessageHelper.setText(body, true);
             mimeMessageHelper.setSubject(subject);
             mimeMessageHelper.setFrom(from);
-            mimeMessageHelper.setTo(to.stream().filter(Objects::nonNull).map(EmailContact::email).toArray(function));
-            if (!cc.isEmpty()) {
-                var ccList = cc.stream().filter(Objects::nonNull).map(EmailContact::email).toArray(function);
-                mimeMessageHelper.setCc(ccList);
+            var recipients = recipientPolicy.resolveTo(to);
+            mimeMessageHelper.setTo(recipients.toArray(function));
+            var ccList = recipientPolicy.resolveCc(cc);
+            if (!ccList.isEmpty()) {
+                mimeMessageHelper.setCc(ccList.toArray(function));
             }
 
             mailSender.send(mimeMessage);

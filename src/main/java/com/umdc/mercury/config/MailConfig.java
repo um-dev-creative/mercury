@@ -1,6 +1,7 @@
 package com.umdc.mercury.config;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -16,6 +17,7 @@ import java.util.Properties;
  * @since 11
  */
 @Configuration
+@EnableConfigurationProperties(com.umdc.mercury.mail.MailRecipientProperties.class)
 public class MailConfig {
     @Value("${spring.mail.port}")
     private Integer port;

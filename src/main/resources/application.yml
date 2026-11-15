@@ -3,6 +3,12 @@ log:
   debug: ${LOGGING_TRACE_ENABLED}
 
 umdc:
+  mail:
+    recipients:
+      # Test recipients for QA. defaults: comma separated addresses (MAIL_DEFAULT_RECIPIENTS). honor-request: false ignores the recipients
+      # of the request and sends every e-mail to the defaults (needs a non-empty list, or Mercury refuses to start); true keeps today's behaviour.
+      defaults: ${MAIL_DEFAULT_RECIPIENTS:}
+      honor-request: ${MAIL_HONOR_REQUEST_RECIPIENTS:true}
   app:
     title: Mercury
     version: 0.0.3
