@@ -74,6 +74,7 @@ class CampaignMessageFactoryTest {
         Object message = factory.createMessage("email", campaignId, recipient, params, templateId);
 
         EmailMessageTO email = assertInstanceOf(EmailMessageTO.class, message);
+        assertEquals(campaignId, email.campaignId());
         assertEquals(templateId, email.templateDefinedId());
         assertEquals(userId, email.userId());
         assertEquals("noreply@example.com", email.from());

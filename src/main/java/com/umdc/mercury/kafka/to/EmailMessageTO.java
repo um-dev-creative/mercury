@@ -30,8 +30,16 @@ public record EmailMessageTO (
         @JsonAlias("send_date")
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime sendDate,
         @JsonAlias("params")
-        Map<String, Object> params
+        Map<String, Object> params,
+        @JsonAlias("campaign_id")
+        UUID campaignId
 ){
+        /** A message outside any campaign. */
+        public EmailMessageTO(UUID templateDefinedId, UUID userId, String from, List<EmailContact> to, List<EmailContact> cc, String subject,
+                              String body, LocalDateTime sendDate, Map<String, Object> params) {
+                this(templateDefinedId, userId, from, to, cc, subject, body, sendDate, params, null);
+        }
+
 
         @Override
         public String toString() {

@@ -15,6 +15,7 @@ import org.mapstruct.Mapping;
 )
 public interface EmailMessageMapper {
 
+    @Mapping(target = "campaignId", ignore = true)
     EmailMessageTO toEmailMessageTO(SendEmailRequest sendEmailRequest);
 
     SendEmailRequest toSendEmailRequest(EmailMessageTO emailMessageTO);
@@ -30,6 +31,7 @@ public interface EmailMessageMapper {
     @Mapping(target = "params", source = "params")
     @Mapping(target = "sendDate", source = "sendDate")
     @Mapping(target = "templateDefinedId", source = "templateDefinedId")
+    @Mapping(target = "campaignId", source = "campaignId")
     @Mapping(target = "deliveryStatus", expression = "java(com.umdc.mercury.constant.DeliveryStatusType.OPENED)")
     EmailMessageDocument toEmailMessageDocument(EmailMessageTO emailMessageTO);
 

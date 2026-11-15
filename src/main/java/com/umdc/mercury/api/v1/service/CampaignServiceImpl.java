@@ -127,6 +127,7 @@ public class CampaignServiceImpl implements CampaignService {
                     .whenComplete((result, ex) -> {
                         if (ex != null) {
                             logger.error("Failed to send Kafka message. topic={}, campaignId={}", topic, campaignId, ex);
+                            countUnpublished(campaignId);
                         } else if (result != null) {
                             var meta = result.getRecordMetadata();
                             logger.debug("Message sent. topic={}, partition={}, offset={}", meta.topic(), meta.partition(), meta.offset());
@@ -269,4 +270,13 @@ public class CampaignServiceImpl implements CampaignService {
         return resolvedStatus;
     }
 
+
+    /** A recipient whose message never reached Kafka will never be sent: it counts as failed instead of staying pending forever. */
+    private void countUnpublished(UUID campaignId) {
+        try {
+            metricsRepository.incrementFailed(campaignId, LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
+        } catch (RuntimeException e) {
+            logger.warn("Unable to record the unpublished recipient. campaignId={}", campaignId, e);
+        }
+    }
 }

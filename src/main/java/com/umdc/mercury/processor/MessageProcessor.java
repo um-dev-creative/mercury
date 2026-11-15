@@ -25,6 +25,7 @@ package com.umdc.mercury.processor;
                     private static final Logger logger = LoggerFactory.getLogger(MessageProcessor.class);
                     /** What a verification code lived for before the sender could ask for less, and still the ceiling. */
                     public static final java.time.Duration MAX_CODE_LIFETIME = java.time.Duration.ofDays(2);
+    private static final String VERIFICATION_CODE_TYPE = "VERIFICATION_CODE";
 
                     private final EmailService emailService;
                     private final MessageRecordService messageRecordService;
@@ -32,6 +33,7 @@ package com.umdc.mercury.processor;
                     private final MessageRecordMapper messageRecordMapper;
                     private final MessageStatusTypeService messageStatusTypeService;
                     private final VerificationCodeService verificationCodeService;
+    private final CampaignMetricsService campaignMetricsService;
 
                     /**
                      * ID of the verification code template, injected from application properties.
@@ -51,7 +53,9 @@ package com.umdc.mercury.processor;
                      */
                     public MessageProcessor(EmailService emailService, MessageRecordService messageRecordService,
                                             TemplateDefinedService templateDefinedService, MessageRecordMapper messageRecordMapper,
-                                            MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService) {
+                                            MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService,
+                                            CampaignMetricsService campaignMetricsService) {
+                        this.campaignMetricsService = campaignMetricsService;
                         this.emailService = emailService;
                         this.messageRecordService = messageRecordService;
                         this.templateDefinedService = templateDefinedService;
@@ -78,8 +82,17 @@ package com.umdc.mercury.processor;
                                     var templateDefinedTO = templateDefinedService.find(emailMessageDocument.templateDefinedId());
                                     logger.debug("Sending email: {}", emailMessageDocument);
                                     // Send the email and update the status
-                                    emailService.updateEmailStatus(emailService.sendEmail(emailMessageDocument, templateDefinedTO));
+                                    var sent = emailService.sendEmail(emailMessageDocument, templateDefinedTO);
+                                    emailService.updateEmailStatus(sent);
+                                    // an e-mail of a campaign advances its counters once, when it reaches SENT or FAILED (no-op outside a campaign)
+                                    if (sent != null) {
+                                        campaignMetricsService.recordOutcome(sent.campaignId(), sent.deliveryStatus());
+                                    }
                                     logger.debug("Email sent: {}", emailMessageDocument);
+                                    // A verification code must be confirmable as soon as the e-mail leaves, not at the next (5 min) reconciliation
+                                    if (sent != null && sent.deliveryStatus() == DeliveryStatusType.SENT && isVerificationCode(templateDefinedTO)) {
+                                        reconcileSent(sent, templateDefinedTO);
+                                    }
                                 });
                     }
 
@@ -99,29 +112,60 @@ package com.umdc.mercury.processor;
                         emailService.findByDeliveryStatus(DeliveryStatusType.SENT)
                                 .forEach(emailMessageDocument -> {
                                     logger.debug("Saving message processed: {}", emailMessageDocument);
-                                    // Get message status type
-                                    var messageStatusTypeTO = messageStatusTypeService.findByName(emailMessageDocument.deliveryStatus().name());
                                     var templateDefinedTO = findTemplateOrNull(emailMessageDocument);
                                     if (templateDefinedTO == null) {
                                         return; // one orphan document must not stop the reconciliation of the others
                                     }
-                                    // Create the message record
-                                    logger.debug("Creating message record: {}", emailMessageDocument);
-                                    var messageRecordTO = messageRecordService.create(messageRecordMapper.toMessageRecordTO(emailMessageDocument, messageStatusTypeTO));
-                                    logger.debug("Message record created: {}", messageRecordTO);
-
-                                    // If a message type equal to verification code, create the verification code record
-                                    if (templateDefinedTO.template().templateType().id().equals(verificationCodeId)) {
-                                        // Create the verification code record
-                                        logger.debug("Creating verification code: {}", emailMessageDocument);
-                                        verificationCodeService.create(getVerificationCodeTO(emailMessageDocument, templateDefinedTO, messageRecordTO));
-                                        logger.debug("Verification code created: {}", emailMessageDocument);
-                                    }
-
-                                    // Delete the message from mongo db
-                                    emailService.delete(emailMessageDocument);
-                                    logger.debug("Message processed saved and updated: {}", emailMessageDocument);
+                                    reconcileSent(emailMessageDocument, templateDefinedTO);
                                 });
+                    }
+
+                    /** Records a SENT message in PostgreSQL, stores its verification code when it is one, and removes the MongoDB document. */
+                    private void reconcileSent(EmailMessageDocument emailMessageDocument, TemplateDefinedTO templateDefinedTO) {
+                        // Get message status type
+                        var messageStatusTypeTO = messageStatusTypeService.findByName(emailMessageDocument.deliveryStatus().name());
+                        // Create the message record
+                        logger.debug("Creating message record: {}", emailMessageDocument);
+                        var messageRecordTO = messageRecordService.create(messageRecordMapper.toMessageRecordTO(emailMessageDocument, messageStatusTypeTO));
+                        logger.debug("Message record created: {}", messageRecordTO);
+
+                        // If a message type equal to verification code, create the verification code record
+                        if (isVerificationCode(templateDefinedTO)) {
+                            createVerificationCode(emailMessageDocument, templateDefinedTO, messageRecordTO);
+                        } else {
+                            logger.debug("Message {} is not a verification code (template type {}), no code stored", emailMessageDocument.messageId(),
+                                    templateDefinedTO.template().templateType());
+                        }
+
+                        // Delete the message from mongo db
+                        emailService.delete(emailMessageDocument);
+                        logger.debug("Message processed saved and updated: {}", emailMessageDocument);
+                    }
+
+                    /**
+                     * Whether the template is a verification code one: its type is the configured id OR is named {@code VERIFICATION_CODE}. The
+                     * name is accepted too so that a deployment whose {@code PRX_VERIFICATION_CODE_TEMPLATE_ID} does not match the type id
+                     * in the database still stores the codes (before, the message was recorded, the document deleted and no code kept, silently).
+                     */
+                    boolean isVerificationCode(TemplateDefinedTO templateDefinedTO) {
+                        var type = templateDefinedTO.template().templateType();
+                        if (type == null) {
+                            return false;
+                        }
+                        boolean sameId = type.id() != null && type.id().equals(verificationCodeId);
+                        boolean sameName = type.name() != null
+                                && VERIFICATION_CODE_TYPE.equals(type.name().trim().toUpperCase(java.util.Locale.ROOT).replace('-', '_').replace(' ', '_'));
+                        return sameId || sameName;
+                    }
+
+                    private void createVerificationCode(EmailMessageDocument document, TemplateDefinedTO templateDefinedTO, MessageRecordTO messageRecordTO) {
+                        Object code = document.params() == null ? null : document.params().get("vc");
+                        if (code == null || code.toString().isBlank()) {
+                            logger.error("Message {} uses a verification code template but carries no 'vc' parameter: no code stored", document.messageId());
+                            return;
+                        }
+                        verificationCodeService.create(getVerificationCodeTO(document, templateDefinedTO, messageRecordTO));
+                        logger.info("Verification code stored for user {} (message {})", document.userId(), document.messageId());
                     }
 
                     /**
@@ -168,13 +212,14 @@ package com.umdc.mercury.processor;
 
                     private VerificationCodeTO getVerificationCodeTO(EmailMessageDocument emailMessageDocument,
                                                                      TemplateDefinedTO templateDefinedTO, MessageRecordTO messageRecordTO) {
+                        var sentAt = emailMessageDocument.sendDate() != null ? emailMessageDocument.sendDate() : java.time.LocalDateTime.now(java.time.ZoneOffset.UTC);
                         return new VerificationCodeTO(null,
                                 emailMessageDocument.userId(),
                                 templateDefinedTO.applicationId(),
                                 emailMessageDocument.params().get("vc").toString(),
-                                emailMessageDocument.sendDate(),
-                                emailMessageDocument.sendDate(),
-                                emailMessageDocument.sendDate().plus(expiryOf(emailMessageDocument.params())),
+                                sentAt,
+                                sentAt,
+                                sentAt.plus(expiryOf(emailMessageDocument.params())),
                                 null,
                                 false,
                                 0,
