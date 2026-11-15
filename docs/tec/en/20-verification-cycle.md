@@ -64,7 +64,7 @@ sequenceDiagram
     end
 
     U->>Z: POST /api/v1/auth/resend-verification
-    Note over Z,PG: same flow from step 4; the new code expires the pending ones of the user
+    Note over Z,PG: same flow from step 4, and the new code expires the pending ones of the user
 ```
 
 ## Where it can stop (and the log that tells)
