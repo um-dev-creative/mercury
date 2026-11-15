@@ -77,7 +77,7 @@ public class CampaignMessageFactory {
         ChannelType type = ChannelType.fromCode(channelCode);
 
         return switch (type) {
-            case EMAIL -> createEmailMessage(recipient, params, templateId,
+            case EMAIL -> createEmailMessage(campaignId, recipient, params, templateId,
                     LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
             case SMS, TELEGRAM, WHATSAPP, PUSH -> createNotificationEvent(type, campaignId, recipient, params, templateId);
         };
@@ -86,6 +86,7 @@ public class CampaignMessageFactory {
     // ── per-channel builders ──────────────────────────────────────────────────
 
     private EmailMessageTO createEmailMessage(
+            UUID campaignId,
             RecipientTO recipient,
             Map<String, Object> params,
             UUID templateId,
@@ -109,7 +110,8 @@ public class CampaignMessageFactory {
                 subject,
                 body,
                 now,
-                params
+                params,
+                campaignId
         );
     }
 

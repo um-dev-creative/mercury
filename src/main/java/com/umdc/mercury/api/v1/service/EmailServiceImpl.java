@@ -158,7 +158,8 @@ public class EmailServiceImpl implements EmailService {
                 emailMessageDocument.body(),
                 emailMessageDocument.sendDate(),
                 emailMessageDocument.params(),
-                result ? DeliveryStatusType.SENT : DeliveryStatusType.FAILED);
+                result ? DeliveryStatusType.SENT : DeliveryStatusType.FAILED,
+                emailMessageDocument.campaignId());
     }
 
     /**

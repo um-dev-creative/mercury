@@ -33,6 +33,7 @@ package com.umdc.mercury.processor;
                     private final MessageRecordMapper messageRecordMapper;
                     private final MessageStatusTypeService messageStatusTypeService;
                     private final VerificationCodeService verificationCodeService;
+    private final CampaignMetricsService campaignMetricsService;
 
                     /**
                      * ID of the verification code template, injected from application properties.
@@ -52,7 +53,9 @@ package com.umdc.mercury.processor;
                      */
                     public MessageProcessor(EmailService emailService, MessageRecordService messageRecordService,
                                             TemplateDefinedService templateDefinedService, MessageRecordMapper messageRecordMapper,
-                                            MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService) {
+                                            MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService,
+                                            CampaignMetricsService campaignMetricsService) {
+                        this.campaignMetricsService = campaignMetricsService;
                         this.emailService = emailService;
                         this.messageRecordService = messageRecordService;
                         this.templateDefinedService = templateDefinedService;
@@ -81,6 +84,10 @@ package com.umdc.mercury.processor;
                                     // Send the email and update the status
                                     var sent = emailService.sendEmail(emailMessageDocument, templateDefinedTO);
                                     emailService.updateEmailStatus(sent);
+                                    // an e-mail of a campaign advances its counters once, when it reaches SENT or FAILED (no-op outside a campaign)
+                                    if (sent != null) {
+                                        campaignMetricsService.recordOutcome(sent.campaignId(), sent.deliveryStatus());
+                                    }
                                     logger.debug("Email sent: {}", emailMessageDocument);
                                     // A verification code must be confirmable as soon as the e-mail leaves, not at the next (5 min) reconciliation
                                     if (sent != null && sent.deliveryStatus() == DeliveryStatusType.SENT && isVerificationCode(templateDefinedTO)) {

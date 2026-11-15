@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -144,6 +145,43 @@ class CampaignServiceImplTest {
             assertThat(result).isNotNull();
             assertThat(result.status()).isEqualTo("DRAFT");
             verify(kafkaTemplate).send(anyString(), any(Object.class));
+        }
+
+        @Test
+        @DisplayName("a recipient whose message Kafka rejects is counted as failed, not left pending")
+        void createCampaign_kafkaFailureCountsAsFailed() throws Exception {
+            UUID campaignId = UUID.randomUUID();
+            when(channelTypeRepository.findByCode("email")).thenReturn(Optional.of(defaultChannel));
+            stubTemplateAndMapper();
+            mockCampaignPersistence(campaignId);
+            when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(messageFactory.topicFor("email")).thenReturn("mercury-email-messages");
+            when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class), any(), any(UUID.class))).thenReturn(new Object());
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker down")));
+            when(campaignProgressService.getProgress(campaignId)).thenReturn(
+                    new CampaignProgressTO(campaignId, "Test Campaign", null, 1, 0, 0, 0, 1, 0, 0, 0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
+
+            campaignServiceImpl.createCampaign(makeCampaignTO()).get();
+
+            verify(metricsRepository).incrementFailed(eq(campaignId), any(LocalDateTime.class));
+        }
+
+        @Test
+        @DisplayName("a failure while counting the unpublished recipient does not break the creation")
+        void createCampaign_kafkaFailureCountingErrorIsSwallowed() throws Exception {
+            UUID campaignId = UUID.randomUUID();
+            when(channelTypeRepository.findByCode("email")).thenReturn(Optional.of(defaultChannel));
+            stubTemplateAndMapper();
+            mockCampaignPersistence(campaignId);
+            when(metricsRepository.save(any(CampaignMetricsEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(messageFactory.topicFor("email")).thenReturn("mercury-email-messages");
+            when(messageFactory.createMessage(anyString(), any(UUID.class), any(RecipientTO.class), any(), any(UUID.class))).thenReturn(new Object());
+            when(kafkaTemplate.send(anyString(), any(Object.class))).thenReturn(CompletableFuture.failedFuture(new IllegalStateException("broker down")));
+            when(metricsRepository.incrementFailed(eq(campaignId), any(LocalDateTime.class))).thenThrow(new IllegalStateException("db down"));
+            when(campaignProgressService.getProgress(campaignId)).thenReturn(
+                    new CampaignProgressTO(campaignId, "Test Campaign", null, 1, 0, 0, 0, 1, 0, 0, 0.0, 0.0, LocalDateTime.now(), LocalDateTime.now(), "DRAFT"));
+
+            assertThat(campaignServiceImpl.createCampaign(makeCampaignTO()).get()).isNotNull();
         }
 
         @Test

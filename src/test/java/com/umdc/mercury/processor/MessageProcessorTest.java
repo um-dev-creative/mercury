@@ -46,6 +46,9 @@ class MessageProcessorTest {
     @Mock
     private VerificationCodeService verificationCodeService;
 
+    @Mock
+    private com.umdc.mercury.api.v1.service.CampaignMetricsService campaignMetricsService;
+
     @InjectMocks
     private MessageProcessor messageProcessor;
 
@@ -345,6 +348,42 @@ class MessageProcessorTest {
         messageProcessor.processMessage();
 
         verify(verificationCodeService, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("an e-mail of a campaign advances the campaign counters with the status it reached")
+    void processMessage_recordsTheCampaignOutcome() {
+        UUID templateId = UUID.randomUUID();
+        UUID campaign = UUID.randomUUID();
+        var definition = definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID());
+        var opened = new EmailMessageDocument("c", UUID.randomUUID(), templateId, UUID.randomUUID(), "f@e.com", null, null, "s", "b", LocalDateTime.now(), Map.of(), DeliveryStatusType.OPENED, campaign);
+        var sent = new EmailMessageDocument("c", opened.messageId(), templateId, opened.userId(), "f@e.com", null, null, "s", "b", LocalDateTime.now(), Map.of(), DeliveryStatusType.SENT, campaign);
+        var failed = new EmailMessageDocument("c", opened.messageId(), templateId, opened.userId(), "f@e.com", null, null, "s", "b", LocalDateTime.now(), Map.of(), DeliveryStatusType.FAILED, campaign);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(opened));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(opened, definition)).thenReturn(sent, failed);
+
+        messageProcessor.processMessage();
+        messageProcessor.processMessage();
+
+        verify(campaignMetricsService).recordOutcome(campaign, DeliveryStatusType.SENT);
+        verify(campaignMetricsService).recordOutcome(campaign, DeliveryStatusType.FAILED);
+    }
+
+    @Test
+    @DisplayName("an e-mail outside a campaign reaches the metrics service with no campaign (which ignores it)")
+    void processMessage_noCampaignIsPassedAsNull() {
+        UUID templateId = UUID.randomUUID();
+        var definition = definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID());
+        var opened = opened(templateId, DeliveryStatusType.OPENED);
+        var sent = opened(templateId, DeliveryStatusType.SENT);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(opened));
+        when(templateDefinedService.find(templateId)).thenReturn(definition);
+        when(emailService.sendEmail(opened, definition)).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(campaignMetricsService).recordOutcome(null, DeliveryStatusType.SENT);
     }
 
     @Test

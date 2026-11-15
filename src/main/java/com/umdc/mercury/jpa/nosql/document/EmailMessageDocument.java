@@ -26,7 +26,15 @@ public record EmailMessageDocument(
         @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
         LocalDateTime sendDate,
         Map<String, Object> params,
-        DeliveryStatusType deliveryStatus) {
+        DeliveryStatusType deliveryStatus,
+        UUID campaignId) {
+
+    /** A message outside any campaign (a verification code, an API send): it advances no campaign counter. */
+    public EmailMessageDocument(String id, UUID messageId, UUID templateDefinedId, UUID userId, String from, List<EmailContact> to,
+                                List<EmailContact> cc, String subject, String body, LocalDateTime sendDate, Map<String, Object> params,
+                                DeliveryStatusType deliveryStatus) {
+        this(id, messageId, templateDefinedId, userId, from, to, cc, subject, body, sendDate, params, deliveryStatus, null);
+    }
 
     /** No recipients, subject, body or parameters: the processor logs the document and they are personal data. */
     @Override
