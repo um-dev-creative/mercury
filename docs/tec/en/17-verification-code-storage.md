@@ -65,3 +65,17 @@ now assigned (`MessageRecordService.create` gives one when none is set) and savi
 
 An SMTP failure (`MailSendException: Read timed out`) is no longer fatal for the run: that e-mail stays `OPENED` and is retried at the next run,
 and the others go on.
+
+## A second defect behind the first (found by running the whole flow)
+
+Once the record could be saved, creating the code failed with `TransientPropertyValueException: ... references an unsaved transient instance of
+MessageRecordEntity`: the record's `INSERT` is deferred until flush, and with an assigned id Hibernate cannot tell the not-yet-inserted record
+from a new one. `MessageRecordServiceImpl.create` therefore uses `saveAndFlush`.
+
+## How this was verified end to end
+
+The real `EmailChannelProvider`, `MessageProcessor`, services, mappers and repositories ran against a real PostgreSQL 17, a real MongoDB 8 and a
+fake SMTP server: e-mail accepted -> sent (subject from the template, code in the body) -> `message_record` row with `id` = message id ->
+`verification_codes` row -> wrong code `406` with `Attempts-Remaining: 2` -> right code `202` -> latest status `true` -> unknown user `404`;
+with SMTP down the e-mail stays `OPENED`, nothing else breaks, and it goes out once SMTP is back; a resend replaces the previous code.
+A foreign (SMS) document waiting in the same collection no longer blocks anything.

@@ -48,7 +48,9 @@ public class MessageRecordServiceImpl implements MessageRecordService {
         if (Objects.isNull(messageRecordEntity.getId())) {
             messageRecordEntity.setId(java.util.UUID.randomUUID());   // the id is assigned (see MessageRecordEntity)
         }
-        final var result = messageRecordRepository.save(messageRecordEntity);
+        // saveAndFlush: the verification code of this message references the record, and Hibernate treats a record whose INSERT has not run yet
+        // (assigned id, same transaction) as a transient instance ("references an unsaved transient instance of MessageRecordEntity")
+        final var result = messageRecordRepository.saveAndFlush(messageRecordEntity);
 
         return messageRecordMapper.toMessageRecordTO(result);
     }

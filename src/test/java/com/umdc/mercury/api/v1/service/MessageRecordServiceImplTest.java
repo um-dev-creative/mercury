@@ -55,7 +55,7 @@ class MessageRecordServiceImplTest {
         MessageRecordEntity savedEntity = new MessageRecordEntity();
 
         when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(messageRecordEntity);
-        when(messageRecordRepository.save(any(MessageRecordEntity.class))).thenReturn(savedEntity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(savedEntity);
         when(messageRecordMapper.toMessageRecordTO(any(MessageRecordEntity.class))).thenReturn(messageRecordTO);
 
         MessageRecordTO result = messageRecordServiceImpl.create(messageRecordTO);
@@ -63,7 +63,7 @@ class MessageRecordServiceImplTest {
         assertNotNull(result);
         assertEquals(messageRecordTO, result);
         verify(messageRecordMapper).toMessageRecordEntity(messageRecordTO);
-        verify(messageRecordRepository).save(messageRecordEntity);
+        verify(messageRecordRepository).saveAndFlush(messageRecordEntity);
         verify(messageRecordMapper).toMessageRecordTO(savedEntity);
     }
 
@@ -79,11 +79,11 @@ class MessageRecordServiceImplTest {
         MessageRecordEntity entity = new MessageRecordEntity();
         entity.setId(id);
         when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(entity);
-        when(messageRecordRepository.save(any(MessageRecordEntity.class))).thenReturn(entity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(entity);
 
         messageRecordServiceImpl.create(recordWithId(id));
 
-        verify(messageRecordRepository).save(entity);
+        verify(messageRecordRepository).saveAndFlush(entity);
         assertEquals(id, entity.getId());
     }
 
@@ -92,7 +92,7 @@ class MessageRecordServiceImplTest {
     void createAssignsAnIdWhenThereIsNone() {
         MessageRecordEntity entity = new MessageRecordEntity();
         when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(entity);
-        when(messageRecordRepository.save(any(MessageRecordEntity.class))).thenReturn(entity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(entity);
 
         messageRecordServiceImpl.create(recordWithId(null));
 
