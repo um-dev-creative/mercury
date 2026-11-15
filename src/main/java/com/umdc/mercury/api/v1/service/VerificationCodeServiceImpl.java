@@ -116,7 +116,7 @@ public class VerificationCodeServiceImpl implements VerificationCodeService {
         verificationCodeRepository.expirePending(verificationCodeTO.userId(), verificationCodeTO.applicationId(), LocalDateTime.now(UTC));
 
         return verificationCodeMapper.toVerificationCodeTO(
-                verificationCodeRepository.save(verificationCodeMapper
+                verificationCodeRepository.saveAndFlush(verificationCodeMapper
                         .toVerificationCodeEntity(verificationCodeTO)));
     }
 
