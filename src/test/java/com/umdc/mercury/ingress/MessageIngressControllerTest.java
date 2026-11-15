@@ -70,6 +70,15 @@ class MessageIngressControllerTest {
     }
 
     @Test
+    void theTemplateDefinitionsOfAnApplicationComeFromTheService() {
+        var app = UUID.randomUUID();
+        var definitions = List.of(new TemplateNameResolver.Definition(UUID.randomUUID(), "zb-debt-due-es.html", "es"));
+        when(service.templateDefinitions(app, app.toString())).thenReturn(definitions);
+
+        assertEquals(definitions, controller.templateDefinitions(app, app.toString()).getBody());
+    }
+
+    @Test
     void theApiInterfaceAnswers501UntilAControllerImplementsIt() {
         MessageIngressApi bare = new MessageIngressApi() {
         };
@@ -78,5 +87,6 @@ class MessageIngressControllerTest {
         assertEquals(501, bare.channels().getStatusCode().value());
         assertEquals(501, bare.status(UUID.randomUUID(), null).getStatusCode().value());
         assertEquals(501, bare.templates(UUID.randomUUID(), null).getStatusCode().value());
+        assertEquals(501, bare.templateDefinitions(UUID.randomUUID(), null).getStatusCode().value());
     }
 }

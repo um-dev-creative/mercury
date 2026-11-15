@@ -85,4 +85,18 @@ class TemplateNameResolverTest {
         assertEquals(List.of(new TemplateNameResolver.Entry("zb_debt_due", List.of("en")),
                 new TemplateNameResolver.Entry("zb_verification", List.of("en", "es"))), resolver.catalogue(app));
     }
+
+    @Test
+    void theDefinitionsCarryTheIdFileAndLanguageSortedAndOnlyUsableOnes() {
+        var a = UUID.randomUUID();
+        var b = UUID.randomUUID();
+        offer(
+                definition(b, "zb-verification-code-es.html", "ES", true),
+                definition(a, "zb-debt-due-en.html", "en", true),
+                definition(UUID.randomUUID(), "zb-off-es.html", "es", false),
+                definition(UUID.randomUUID(), "zb-nolang.html", null, true));
+
+        assertEquals(List.of(new TemplateNameResolver.Definition(a, "zb-debt-due-en.html", "en"),
+                new TemplateNameResolver.Definition(b, "zb-verification-code-es.html", "es")), resolver.definitions(app));
+    }
 }

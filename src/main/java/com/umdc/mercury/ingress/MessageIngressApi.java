@@ -23,6 +23,9 @@ import java.util.UUID;
 /** The channel-agnostic, asynchronous ingress (backend callers only: a Mercury M2M token, got by exchanging the application's Backbone token). */
 @Tag(name = "messages", description = "One asynchronous ingress for every channel (backend callers only)")
 public interface MessageIngressApi {
+    /** HTTP status code of a successful answer, shared by the operations below. */
+    String OK = "200";
+
 
     @Operation(description = "Accepts a message for any channel mercury has a provider for and answers at once; the delivery is asynchronous. "
             + "Send an Idempotency-Key so a retry is safe.", operationId = "sendMessage")
@@ -41,7 +44,7 @@ public interface MessageIngressApi {
     }
 
     @Operation(description = "The channel codes this mercury can deliver through now.", operationId = "listMessageChannels")
-    @ApiResponse(responseCode = "200", description = "The codes, sorted.")
+    @ApiResponse(responseCode = OK, description = "The codes, sorted.")
     @GetMapping(path = "/channels", produces = MediaType.APPLICATION_JSON_VALUE)
     default ResponseEntity<List<String>> channels() {
         return ResponseEntity.status(501).build();
@@ -49,15 +52,25 @@ public interface MessageIngressApi {
 
     @Operation(description = "The templates an application offers and the languages of each, so a caller can check what it needs against what mercury has "
             + "(a template is named by template + language; there is no fallback language).", operationId = "listMessageTemplates")
-    @ApiResponse(responseCode = "200", description = "Template names with their languages, sorted.")
+    @ApiResponse(responseCode = OK, description = "Template names with their languages, sorted.")
     @GetMapping(path = "/templates", produces = MediaType.APPLICATION_JSON_VALUE)
     default ResponseEntity<List<TemplateNameResolver.Entry>> templates(@RequestParam("applicationId") UUID applicationId,
             @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
         return ResponseEntity.status(501).build();
     }
 
+    @Operation(description = "The usable templates of the caller's application with their definition id (templateDefinedId), file (location) and language, so the caller can send by id "
+            + "and always sees the templates created, changed or switched off in mercury.", operationId = "listMessageTemplateDefinitions")
+    @ApiResponse(responseCode = OK, description = "The definitions, sorted by location and language.")
+    @ApiResponse(responseCode = "403", description = "The application is not the caller's own.")
+    @GetMapping(path = "/template-definitions", produces = MediaType.APPLICATION_JSON_VALUE)
+    default ResponseEntity<List<TemplateNameResolver.Definition>> templateDefinitions(@RequestParam("applicationId") UUID applicationId,
+            @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
+        return ResponseEntity.status(501).build();
+    }
+
     @Operation(description = "Delivery state of a message this caller submitted: OPENED, SENT or FAILED.", operationId = "getMessageStatus")
-    @ApiResponses({@ApiResponse(responseCode = "200", description = "The state."),
+    @ApiResponses({@ApiResponse(responseCode = OK, description = "The state."),
             @ApiResponse(responseCode = "404", description = "Unknown id, another caller's message, or past retention.")})
     @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     default ResponseEntity<MailStatusResponse> status(@PathVariable("id") UUID id,

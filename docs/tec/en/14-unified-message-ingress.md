@@ -85,3 +85,23 @@ The tracking row (`mail_tracking`, TTL `umdc.mail.tracking-retention`, 30 d) hol
 ## Tests
 
 `ChannelRegistryTest`, `ChannelProvidersTest`, `MessageIngressServiceTest` (idempotency, catalogue, validation, status, claim release on failure), `MessageIngressControllerTest`, `OpenApiSpecTest` (the three operations are documented in `src/main/resources/api/openapi.yaml`, which zerobound-rest validates against).
+
+## Template definitions for callers that send by id
+
+`GET /api/v1/messages/template-definitions?applicationId=<uuid>` (own application only, else 403) lists every **usable** template of the application
+as `{templateDefinedId, location, language}` (active definition, active template, language set), sorted by location and language. A caller keeps the answer
+in memory, refreshes it on a schedule and when it misses a template, and sends `templateDefinedId` to `POST /api/v1/messages` or `POST /api/v1/telegram/messages`.
+Nothing is copied into the caller's database, so a template created, changed or switched off in mercury is picked up by the next refresh.
+
+```mermaid
+sequenceDiagram
+    participant App as Application (e.g. zerobound-rest)
+    participant API as GET /api/v1/messages/template-definitions
+    participant R as TemplateNameResolver
+    App->>API: applicationId (M2M token)
+    API->>API: the application must be the caller's own (403)
+    API->>R: definitions(applicationId)
+    R-->>App: [{templateDefinedId, location, language}]
+    App->>App: keep in memory; refresh on schedule or on a miss
+    App->>API: POST /messages {templateDefinedId, ...}
+```

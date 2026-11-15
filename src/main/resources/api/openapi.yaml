@@ -398,6 +398,41 @@ paths:
         '401':
           description: Not a Mercury-minted backend token.
 
+  /api/v1/messages/template-definitions:
+    get:
+      tags:
+        - messages
+      summary: The usable templates of the caller's application with their definition ids
+      description: Lets the caller send by id (`templateDefinedId`) and see the templates created, changed or switched off in mercury without copying ids anywhere.
+      operationId: listMessageTemplateDefinitions
+      parameters:
+        - name: applicationId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The definitions, sorted by location and language.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    templateDefinedId:
+                      type: string
+                      format: uuid
+                    location:
+                      type: string
+                    language:
+                      type: string
+        '401':
+          description: Not a Mercury-minted backend token.
+        '403':
+          description: The application is not the caller's own.
   /api/v1/messages/templates:
     get:
       tags:

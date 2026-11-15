@@ -26,6 +26,10 @@ public class TemplateNameResolver {
         this.definitions = definitions;
     }
 
+    /** One usable template of the application, as a caller needs it to send: the definition id, the file and its language. */
+    public record Definition(UUID templateDefinedId, String location, String language) {
+    }
+
     /** What the application offers: template name and its languages. */
     public record Entry(String template, List<String> languages) {
     }
@@ -57,6 +61,17 @@ public class TemplateNameResolver {
                     .add(d.getTemplate().getLanguage());
         }
         return byName.entrySet().stream().map(e -> new Entry(e.getKey(), List.copyOf(e.getValue()))).toList();
+    }
+
+    /**
+     * Every usable template of the application with its definition id, sorted by file and language: what a caller keeps (in memory) to send by id
+     * and that follows the templates created, changed or switched off in mercury, with nothing to copy anywhere else.
+     */
+    public List<Definition> definitions(UUID applicationId) {
+        return usable(applicationId).stream()
+                .map(d -> new Definition(d.getId(), d.getTemplate().getLocation(), d.getTemplate().getLanguage().strip().toLowerCase(java.util.Locale.ROOT)))
+                .sorted(Comparator.comparing(Definition::location).thenComparing(Definition::language))
+                .toList();
     }
 
     private List<TemplateDefinedEntity> usable(UUID applicationId) {

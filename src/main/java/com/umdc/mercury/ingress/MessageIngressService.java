@@ -117,6 +117,12 @@ public class MessageIngressService {
         return names.catalogue(applicationId);
     }
 
+    /** The usable templates of the application with their definition ids (the application's own only). */
+    public List<TemplateNameResolver.Definition> templateDefinitions(UUID applicationId, String caller) {
+        CallerApplication.assertOwn(CallerApplication.of(caller), applicationId);
+        return names.definitions(applicationId);
+    }
+
     private ChannelProvider provider(String channel) {
         ChannelProvider provider = registry.find(channel)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown channel '" + channel + "'. Available: " + String.join(", ", channels())));
