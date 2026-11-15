@@ -26,6 +26,7 @@ package com.umdc.mercury.processor;
                     /** What a verification code lived for before the sender could ask for less, and still the ceiling. */
                     public static final java.time.Duration MAX_CODE_LIFETIME = java.time.Duration.ofDays(2);
     private static final String VERIFICATION_CODE_TYPE = "VERIFICATION_CODE";
+    private static final int SMTP_FAILURE_MAX = 600;
 
                     private final EmailService emailService;
                     private final MessageRecordService messageRecordService;
@@ -91,7 +92,7 @@ package com.umdc.mercury.processor;
                                         sent = emailService.sendEmail(emailMessageDocument, templateDefinedTO);
                                     } catch (org.springframework.mail.MailException e) {
                                         // the SMTP server timed out / refused the connection: keep the message OPENED for the next run and go on with the others
-                                        logger.warn("SMTP failure sending message {}, left OPENED to retry: {}", emailMessageDocument.messageId(), e.getClass().getSimpleName());
+                                        logger.warn("SMTP failure sending message {}, left OPENED to retry: {}", emailMessageDocument.messageId(), describeSmtpFailure(e));
                                         return;
                                     }
                                     emailService.updateEmailStatus(sent);
@@ -151,6 +152,47 @@ package com.umdc.mercury.processor;
                         // Delete the message from mongo db
                         emailService.delete(emailMessageDocument);
                         logger.debug("Message processed saved and updated: {}", emailMessageDocument);
+                    }
+
+                    /**
+                     * Explains an SMTP failure: the exception type, every cause down to the root (the SMTP server's own reply such as
+                     * {@code 535 5.7.8 Username and Password not accepted} lives there, not in the {@code MailSendException}), and a hint
+                     * for the replies Gmail sends most. Never contains the credentials (the SMTP reply does not echo them).
+                     */
+                    static String describeSmtpFailure(Throwable failure) {
+                        var text = new StringBuilder(failure.getClass().getSimpleName());
+                        var seen = new java.util.ArrayList<Throwable>();
+                        for (Throwable t = failure; t != null && !seen.contains(t) && seen.size() < 8; t = t.getCause()) {
+                            seen.add(t);
+                            if (t.getMessage() != null && !t.getMessage().isBlank()) {
+                                text.append(" | ").append(t == failure ? "" : t.getClass().getSimpleName() + ": ")
+                                        .append(t.getMessage().replaceAll("\\s+", " ").trim());
+                            } else if (t != failure) {
+                                text.append(" | ").append(t.getClass().getSimpleName());
+                            }
+                        }
+                        var full = text.length() > SMTP_FAILURE_MAX ? text.substring(0, SMTP_FAILURE_MAX) + "..." : text.toString();
+                        var hint = smtpHint(text.toString());
+                        return hint == null ? full : full + " -> " + hint;
+                    }
+
+                    private static String smtpHint(String detail) {
+                        if (detail.contains("535") || detail.contains("AuthenticationFailedException")) {
+                            return "the SMTP login was refused: use an app password (Google account with 2-step verification) or create a new one";
+                        }
+                        if (detail.contains("5.4.5") || detail.contains("quota")) {
+                            return "the daily sending limit of the account was exceeded: wait about 24 h or send fewer messages";
+                        }
+                        if (detail.contains("421") || detail.contains("454") || detail.contains("4.7.0")) {
+                            return "the server is rate limiting this account: retry later and lower the send rate";
+                        }
+                        if (detail.contains("534") || detail.contains("5.7.9")) {
+                            return "the provider blocked the sign-in as suspicious: confirm it from the account's security alert";
+                        }
+                        if (detail.contains("timed out") || detail.contains("ConnectException") || detail.contains("UnknownHostException")) {
+                            return "the SMTP server is unreachable from here: check MAIL_HOST/MAIL_PORT and the network";
+                        }
+                        return null;
                     }
 
                     /**
