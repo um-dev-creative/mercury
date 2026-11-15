@@ -440,6 +440,42 @@ class MessageProcessorTest {
     }
 
     @Test
+    @DisplayName("the SMTP failure log carries the root cause and a hint for Gmail's login refusal")
+    void describeSmtpFailure_showsTheRootCauseAndHint() {
+        var root = new jakarta.mail.AuthenticationFailedException("535 5.7.8 Username and Password not accepted");
+        var failure = new org.springframework.mail.MailAuthenticationException("Authentication failed", root);
+
+        var text = MessageProcessor.describeSmtpFailure(failure);
+
+        assertTrue(text.startsWith("MailAuthenticationException"));
+        assertTrue(text.contains("AuthenticationFailedException: 535 5.7.8 Username and Password not accepted"));
+        assertTrue(text.contains("app password"));
+    }
+
+    @Test
+    @DisplayName("each Gmail reply gets its own hint and an unknown one gets none")
+    void describeSmtpFailure_hintsPerReply() {
+        assertTrue(MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("550 5.4.5 Daily user sending quota exceeded")).contains("daily sending limit"));
+        assertTrue(MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("421 4.7.0 Try again later")).contains("rate limiting"));
+        assertTrue(MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("534-5.7.9 Application-specific password required")).contains("suspicious"));
+        assertTrue(MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("Read timed out")).contains("unreachable"));
+        var unknown = MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("something odd"));
+        assertFalse(unknown.contains("->"));
+    }
+
+    @Test
+    @DisplayName("a long multi-line SMTP failure is collapsed to one bounded line and a cause loop ends")
+    void describeSmtpFailure_boundedAndOneLine() {
+        var loopA = new RuntimeException("a\n\n   b");
+        var text = MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException("x".repeat(2000), loopA));
+
+        assertFalse(text.contains("\n"));
+        assertTrue(text.length() < 700);
+        assertTrue(text.endsWith("..."));
+        assertTrue(MessageProcessor.describeSmtpFailure(new org.springframework.mail.MailSendException(null, new IllegalStateException())).contains("IllegalStateException"));
+    }
+
+    @Test
     @DisplayName("a message the database refuses is logged and left SENT for the next run, and the other messages are still recorded")
     void updateMessageStatus_aRefusedMessageDoesNotStopTheOthers() {
         UUID badTemplate = UUID.randomUUID();
