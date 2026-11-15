@@ -43,8 +43,16 @@ Authorized services call `POST /api/v1/telegram/messages` with an `Idempotency-K
 | Response | Meaning |
 |---|---|
 | `202` | Accepted. Check the state with `GET /api/v1/telegram/messages/{id}`: `QUEUED`, `SENT`, `FAILED` or `BLOCKED` |
-| `400` | Unknown template or language |
+| `400` | Unknown template or language, or both / neither of `kind` and `templateDefinedId` |
 | `409` | The user is not linked (`TELEGRAM_NOT_LINKED`) or blocked the bot (`TELEGRAM_BLOCKED`) |
 | `422` | The `Idempotency-Key` was already used with another request |
 
 If the user blocks the bot, sending stops until they link their account again. Temporary failures are retried up to 6 times, within 48 hours at most.
+
+**Naming the template by id (recommended).** Instead of `kind` + `language` you can send the id of the template definition of your application; its own language is used:
+
+```json
+{ "userId": "00000000-0000-0000-0000-000000000002", "templateDefinedId": "00000000-0000-0000-0000-0000000000aa", "params": {} }
+```
+
+Send exactly one of `kind` or `templateDefinedId`. An id that does not exist, is inactive or belongs to another application answers the same `400`.

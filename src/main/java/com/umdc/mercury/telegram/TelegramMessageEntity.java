@@ -34,6 +34,8 @@ public class TelegramMessageEntity {
     private String requestHash;
     @Column(name = "kind", nullable = false, length = 50)
     private String kind;
+    @Column(name = "template_defined_id")
+    private UUID templateDefinedId;
     @Column(name = "language", nullable = false, length = 5)
     private String language;
     @JdbcTypeCode(SqlTypes.JSON)
@@ -96,6 +98,14 @@ public class TelegramMessageEntity {
 
     public void setRequestHash(String requestHash) {
         this.requestHash = requestHash;
+    }
+
+    public UUID getTemplateDefinedId() {
+        return templateDefinedId;
+    }
+
+    public void setTemplateDefinedId(UUID templateDefinedId) {
+        this.templateDefinedId = templateDefinedId;
     }
 
     public String getKind() {

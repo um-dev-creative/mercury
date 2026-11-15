@@ -2079,14 +2079,18 @@ components:
       type: object
       required:
         - userId
-        - kind
+      description: Name the template with exactly one of `templateDefinedId` (preferred) or `kind`.
       properties:
         userId:
           type: string
           format: uuid
+        templateDefinedId:
+          type: string
+          format: uuid
+          description: The `template_defined` id of an active template of the caller's application. Its own language is used (`language` is ignored). Another application's id answers the same 400 as an unknown one.
         kind:
           type: string
-          description: Template kind, e.g. debt_due (file zb_<kind>_tg_<language>).
+          description: Template kind, e.g. debt_due (file zb_<kind>_tg_<language>). Do not send together with templateDefinedId.
         language:
           type: string
         params:
