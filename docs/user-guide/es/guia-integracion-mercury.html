@@ -1,0 +1,1050 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Guía de integración con Mercury</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: sticky side index + one reading column. Teal signal on deep-ink neutrals, amber and red only for caution and errors. */
+:root {
+  --bg: #F3F7F8;
+  --surface: #FFFFFF;
+  --surface-2: #EAF1F3;
+  --ink: #10222A;
+  --ink-2: #48606A;
+  --line: #D2DFE3;
+  --accent: #0B7A75;
+  --accent-ink: #FFFFFF;
+  --accent-weak: #DCF1EF;
+  --warn: #9A4A06;
+  --warn-weak: #FBEBD3;
+  --err: #B42318;
+  --err-weak: #FCE4E1;
+  --ok: #17703F;
+  --ok-weak: #DAF3E4;
+  --code-bg: #0F1F26;
+  --code-ink: #D7EAEE;
+  --code-key: #7FD6CE;
+  --code-str: #F2C98B;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B161B; --surface: #11222A; --surface-2: #172C36; --ink: #E5F0F2; --ink-2: #9AB1B9; --line: #25404B;
+    --accent: #3DCBC0; --accent-ink: #062320; --accent-weak: #123C3C; --warn: #F5A524; --warn-weak: #3A2A10;
+    --err: #FF8A80; --err-weak: #3F1D1B; --ok: #62D494; --ok-weak: #153A27; --code-bg: #08121A; --code-ink: #D7EAEE;
+    --code-key: #7FD6CE; --code-str: #F2C98B; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B161B; --surface: #11222A; --surface-2: #172C36; --ink: #E5F0F2; --ink-2: #9AB1B9; --line: #25404B;
+  --accent: #3DCBC0; --accent-ink: #062320; --accent-weak: #123C3C; --warn: #F5A524; --warn-weak: #3A2A10;
+  --err: #FF8A80; --err-weak: #3F1D1B; --ok: #62D494; --ok-weak: #153A27; --code-bg: #08121A; --code-ink: #D7EAEE;
+  --code-key: #7FD6CE; --code-str: #F2C98B; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.6; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--surface); }
+h1, h2, h3 { font-family: var(--font-display); line-height: 1.2; text-wrap: balance; margin: 0; }
+h2 { font-size: 1.65rem; letter-spacing: -0.01em; }
+h3 { font-size: 1.1rem; margin-top: 1.6rem; }
+p { margin: 0.6rem 0; max-width: 68ch; }
+a { color: var(--accent); }
+code, kbd { font-family: var(--font-mono); font-size: 0.86em; background: var(--surface-2); padding: 0.1em 0.38em; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { font: inherit; color: inherit; }
+
+/* top bar */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line); margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding: 0.55rem max(16px, env(safe-area-inset-right, 0px)) 0.55rem max(16px, env(safe-area-inset-left, 0px)); display: flex; align-items: center; gap: 0.8rem; }
+.bar .brand { font-family: var(--font-display); font-weight: 700; display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; }
+.bar .dot { width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px var(--accent-weak); }
+.bar .spacer { flex: 1; }
+.progress-mini { font-size: 0.8rem; color: var(--ink-2); white-space: nowrap; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0.35rem 0.75rem; cursor: pointer; font-size: 0.85rem; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+.btn.small { padding: 0.2rem 0.55rem; font-size: 0.78rem; }
+#menu-btn { display: none; }
+
+.shell { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 2.5rem; max-width: 78rem; margin: 0 auto; padding-block: 1.2rem 4rem; }
+nav.toc { position: sticky; top: 4.2rem; align-self: start; max-height: calc(100vh - 5rem); overflow-y: auto; font-size: 0.86rem; padding-right: 0.5rem; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+nav.toc a { display: block; padding: 0.3rem 0.65rem; border-radius: 6px; color: var(--ink-2); text-decoration: none; border-left: 2px solid transparent; }
+nav.toc a:hover { background: var(--surface-2); color: var(--ink); }
+nav.toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-weak); font-weight: 600; }
+main { min-width: 0; }
+section { padding-block: 2.4rem; border-bottom: 1px solid var(--line); }
+section:last-of-type { border-bottom: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.4rem; }
+.lead { font-size: 1.05rem; color: var(--ink-2); }
+
+/* hero */
+.hero { padding-block: 1.6rem 2rem; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.02em; max-width: 18ch; }
+.hero .lead { max-width: 60ch; margin-top: 0.9rem; }
+.steps5 { display: grid; grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr)); gap: 0.7rem; margin-top: 1.6rem; padding: 0; list-style: none; counter-reset: s; }
+.steps5 li a { display: block; height: 100%; padding: 0.8rem 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; text-decoration: none; color: var(--ink); }
+.steps5 li a:hover { border-color: var(--accent); }
+.steps5 b { display: block; font-family: var(--font-display); }
+.steps5 span { font-size: 0.82rem; color: var(--ink-2); }
+.steps5 li { counter-increment: s; }
+.steps5 li a::before { content: counter(s); font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 0.2rem; }
+
+/* generic blocks */
+.callout { border: 1px solid var(--line); border-left: 4px solid var(--accent); background: var(--surface); border-radius: 8px; padding: 0.75rem 1rem; margin: 1rem 0; }
+.callout.warn { border-left-color: var(--warn); background: var(--warn-weak); }
+.callout.err { border-left-color: var(--err); background: var(--err-weak); }
+.callout strong:first-child { display: block; margin-bottom: 0.15rem; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+th, td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { background: var(--surface-2); font-family: var(--font-display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.02em; }
+tr:last-child td { border-bottom: 0; }
+.pill { display: inline-block; font-family: var(--font-mono); font-size: 0.72rem; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+.pill.ok { background: var(--ok-weak); color: var(--ok); border-color: transparent; }
+.pill.warn { background: var(--warn-weak); color: var(--warn); border-color: transparent; }
+.pill.err { background: var(--err-weak); color: var(--err); border-color: transparent; }
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; margin: 1.1rem 0; }
+.diagram pre.mermaid { margin: 0; min-width: 34rem; text-align: center; background: transparent; }
+.diagram figcaption, .cap { font-size: 0.8rem; color: var(--ink-2); margin-top: 0.5rem; }
+pre.code { background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 0.9rem 1rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.82rem; line-height: 1.55; margin: 0; tab-size: 2; }
+.codebox { position: relative; margin: 0.9rem 0; }
+.codebox .copy { position: absolute; top: 0.45rem; right: 0.5rem; background: rgba(255,255,255,0.12); color: var(--code-ink); border: 1px solid rgba(255,255,255,0.22); }
+.codebox .copy:hover { border-color: var(--code-key); }
+.tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-top: 0.8rem; }
+.tabs button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px 8px 0 0; padding: 0.35rem 0.9rem; cursor: pointer; font-size: 0.84rem; }
+.tabs button[aria-selected="true"] { background: var(--code-bg); color: var(--code-ink); border-color: var(--code-bg); }
+.tabpanel .codebox { margin-top: 0; }
+.tabpanel pre.code { border-top-left-radius: 0; }
+
+/* channel explorer */
+.channels { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: 0.6rem; margin: 1.1rem 0 0.8rem; }
+.chan { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0.7rem 0.8rem; cursor: pointer; display: grid; gap: 0.25rem; }
+.chan[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.chan b { font-family: var(--font-display); }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1rem 1.1rem; }
+.panel h3 { margin-top: 0; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1.2rem; }
+.kv { display: grid; gap: 0.2rem; margin: 0.5rem 0; }
+.kv span { color: var(--ink-2); font-size: 0.8rem; }
+.live { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-top: 0.6rem; }
+ul.tight { margin: 0.4rem 0; padding-left: 1.1rem; }
+ul.tight li { margin: 0.15rem 0; }
+
+/* builder */
+.builder { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.2rem; align-items: start; }
+.field { display: grid; gap: 0.2rem; margin-bottom: 0.65rem; }
+.field label, .field .lab { font-size: 0.78rem; font-weight: 600; color: var(--ink-2); }
+input[type="text"], select, textarea { font: inherit; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 0.42rem 0.6rem; width: 100%; min-width: 0; }
+input[type="text"]:focus, select:focus { border-color: var(--accent); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); padding: 0.35rem 0.8rem; cursor: pointer; font-size: 0.84rem; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.params-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.4rem; margin-bottom: 0.35rem; }
+.checks { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.3rem; font-size: 0.85rem; }
+.checks li { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.35rem 0.55rem; border-radius: 7px; background: var(--surface-2); }
+.checks li.ok { background: var(--ok-weak); }
+.checks li.warn { background: var(--warn-weak); }
+.checks li.err { background: var(--err-weak); }
+.checks .ic { font-family: var(--font-mono); font-weight: 700; }
+.checks li.ok .ic { color: var(--ok); } .checks li.warn .ic { color: var(--warn); } .checks li.err .ic { color: var(--err); }
+
+/* stepper */
+.stepper { display: grid; grid-template-columns: 15rem minmax(0, 1fr); gap: 1rem; margin: 1rem 0; }
+.stepper ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.stepper ol button { width: 100%; text-align: left; border: 1px solid transparent; background: transparent; padding: 0.4rem 0.6rem; border-radius: 8px; cursor: pointer; font-size: 0.84rem; color: var(--ink-2); }
+.stepper ol button[aria-current="step"] { background: var(--accent-weak); border-color: var(--accent); color: var(--ink); font-weight: 600; }
+.stepper ol button.done { color: var(--ink); }
+.stepcard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.2rem; display: grid; gap: 0.6rem; align-content: start; }
+.stepcard .who { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.stepcard h3 { margin: 0; }
+.nav2 { display: flex; gap: 0.5rem; margin-top: 0.4rem; }
+
+/* error simulator */
+.errgrid { display: grid; grid-template-columns: 11rem minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
+.errgrid .codes { display: grid; gap: 0.3rem; align-content: start; }
+.errgrid .codes button { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 0.4rem 0.7rem; cursor: pointer; text-align: left; font-family: var(--font-mono); font-size: 0.86rem; }
+.errgrid .codes button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-weak); }
+
+/* checklist */
+.meter { height: 0.6rem; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin: 0.6rem 0 1.2rem; }
+.meter > i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
+.group { margin-bottom: 1.2rem; }
+.group h3 { margin: 0 0 0.4rem; }
+.item { display: flex; gap: 0.6rem; align-items: flex-start; padding: 0.35rem 0.2rem; }
+.item input { margin-top: 0.3rem; accent-color: var(--accent); width: 1.05rem; height: 1.05rem; }
+.item label { cursor: pointer; }
+.item input:checked + label { color: var(--ink-2); text-decoration: line-through; text-decoration-color: var(--line); }
+
+/* troubleshooting */
+details.tr { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 0.5rem; }
+details.tr summary { cursor: pointer; padding: 0.65rem 0.9rem; font-weight: 500; list-style: none; display: flex; gap: 0.6rem; align-items: baseline; }
+details.tr summary::-webkit-details-marker { display: none; }
+details.tr summary::before { content: "+"; font-family: var(--font-mono); color: var(--accent); }
+details.tr[open] summary::before { content: "−"; }
+details.tr .body { padding: 0 0.9rem 0.8rem 2.1rem; display: grid; gap: 0.3rem; }
+.search { max-width: 26rem; margin: 0.6rem 0 1rem; }
+.chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.6rem 0; }
+.chips button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 0.2rem 0.75rem; cursor: pointer; font-size: 0.8rem; }
+.chips button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.empty { color: var(--ink-2); font-style: italic; padding: 0.6rem 0; }
+footer { padding-block: 2rem; color: var(--ink-2); font-size: 0.82rem; max-width: 78rem; margin: 0 auto; }
+
+@media (max-width: 62rem) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  nav.toc { display: none; position: fixed; inset: 3.2rem 0 0 0; z-index: 25; background: var(--surface); max-height: none; padding: 1rem max(16px, env(safe-area-inset-right, 0px)) 1rem max(16px, env(safe-area-inset-left, 0px)); }
+  nav.toc.open { display: block; }
+  #menu-btn { display: inline-block; }
+  .builder, .stepper, .errgrid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .meter > i { transition: none; } }
+</style>
+
+<header class="bar">
+  <button id="menu-btn" class="btn small" aria-expanded="false" aria-controls="toc">Índice</button>
+  <div class="brand"><span class="dot"></span>Mercury · Guía de integración</div>
+  <div class="spacer"></div>
+  <span class="progress-mini" id="mini-progress" title="Avance de tu lista de verificación"></span>
+  <button id="theme-btn" class="btn small" aria-label="Cambiar tema">Tema: auto</button>
+</header>
+
+<div class="shell">
+<nav class="toc" id="toc" aria-label="Secciones">
+  <ol>
+    <li><a href="#inicio">Inicio</a></li>
+    <li><a href="#mapa">Cómo encaja todo</a></li>
+    <li><a href="#canales">Canales</a></li>
+    <li><a href="#requisitos">Antes de empezar</a></li>
+    <li><a href="#token">1 · Identidad y tokens</a></li>
+    <li><a href="#plantillas">2 · Plantillas</a></li>
+    <li><a href="#enviar">3 · Enviar un mensaje</a></li>
+    <li><a href="#estado">4 · Estado del mensaje</a></li>
+    <li><a href="#verificacion">Códigos de verificación</a></li>
+    <li><a href="#telegram">Telegram</a></li>
+    <li><a href="#masivo">SMS, WhatsApp, Push y campañas</a></li>
+    <li><a href="#errores">Errores y reintentos</a></li>
+    <li><a href="#seguridad">Seguridad y métricas</a></li>
+    <li><a href="#lista">Lista de producción</a></li>
+    <li><a href="#problemas">Resolución de problemas</a></li>
+    <li><a href="#referencia">Referencia de endpoints</a></li>
+    <li><a href="#zerobound">Ejemplo: ZeroBound</a></li>
+    <li><a href="#glosario">Glosario</a></li>
+  </ol>
+</nav>
+
+<main>
+<section id="inicio" class="hero">
+  <div class="eyebrow">Guía para equipos de aplicaciones</div>
+  <h1>Envía mensajes por cualquier canal sin hablar con ningún proveedor</h1>
+  <p class="lead">Tu aplicación le pide a Mercury que envíe. Mercury entrega, reintenta y registra. Esta guía te lleva de cero a producción con las llamadas exactas, los diagramas del flujo y los errores que ya hemos visto.</p>
+  <ol class="steps5">
+    <li><a href="#token"><b>Identifícate</b><span>Token de Backbone por token de Mercury</span></a></li>
+    <li><a href="#plantillas"><b>Prepara plantillas</b><span>Una por mensaje y por idioma</span></a></li>
+    <li><a href="#enviar"><b>Envía</b><span>POST con clave de idempotencia</span></a></li>
+    <li><a href="#estado"><b>Consulta</b><span>OPENED, SENT o FAILED</span></a></li>
+    <li><a href="#verificacion"><b>Verifica</b><span>Confirma códigos y activa usuarios</span></a></li>
+  </ol>
+  <div class="callout"><strong>Cuatro reglas que ahorran días</strong>
+    <ul class="tight">
+      <li>Tu aplicación solo actúa sobre <b>sí misma</b>: el <code>applicationId</code> de otra devuelve <code>403</code>.</li>
+      <li><code>202</code> significa «aceptado», no «entregado». La entrega es asíncrona.</li>
+      <li>Mercury <b>nunca cambia de idioma</b> por su cuenta: sin plantilla en ese idioma, la petición se rechaza.</li>
+      <li>El asunto del correo vive en la <b>plantilla</b>, no en tu código.</li>
+    </ul>
+  </div>
+</section>
+
+<section id="mapa">
+  <div class="eyebrow">Visión general</div>
+  <h2>Cómo encaja todo</h2>
+  <p class="lead">Tus aplicaciones se identifican con Backbone y envían a Mercury. Mercury guarda el mensaje, lo entrega por el canal y deja el registro en PostgreSQL.</p>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart LR
+    subgraph APPS["Tus aplicaciones"]
+        A1["ZeroBound"]
+        A2["Smartkin"]
+        A3["Directory"]
+        A4["Tu servicio nuevo"]
+    end
+    BB["Backbone&lt;br/&gt;identidad y tokens"]
+    subgraph MER["Mercury"]
+        API["API REST&lt;br/&gt;/api/v1/..."]
+        MG[("MongoDB&lt;br/&gt;mensajes en vuelo")]
+        PGS[("PostgreSQL&lt;br/&gt;registros, plantillas, códigos")]
+        PROC["Procesadores&lt;br/&gt;cada 60 s"]
+        TPL[["Almacén de plantillas"]]
+    end
+    subgraph CH["Canales"]
+        EM["Correo SMTP"]
+        TG["Telegram Bot API"]
+        SM["SMS"]
+        WA["WhatsApp"]
+        PU["Push"]
+    end
+    IR["Iris&lt;br/&gt;edición de plantillas"]
+    A1 &amp; A2 &amp; A3 &amp; A4 --&gt;|"1 pide token"| BB
+    A1 &amp; A2 &amp; A3 &amp; A4 --&gt;|"2 envía mensajes"| API
+    API --&gt; MG
+    API --&gt; PGS
+    PROC --&gt; MG
+    PROC --&gt; PGS
+    PROC --&gt; TPL
+    PROC --&gt; EM
+    PROC --&gt; TG
+    PROC -.-&gt;|"sin proveedor aún"| SM
+    PROC -.-&gt;|"sin proveedor aún"| WA
+    PROC -.-&gt;|"sin proveedor aún"| PU
+    IR --&gt; API
+    API -.-&gt;|"valida tokens"| BB
+    EM --&gt; P1(("Persona"))
+    TG --&gt; P1</pre><figcaption>Las líneas punteadas son canales que Mercury acepta pero todavía no entrega (sin proveedor conectado).</figcaption></figure>
+  <h3>¿Qué necesito usar?</h3>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart TD
+    Q(["¿Qué necesitas enviar?"]) --&gt; T1{"¿A una persona&lt;br/&gt;concreta, ahora?"}
+    T1 -- "sí" --&gt; T2{"¿Por qué canal?"}
+    T1 -- "no, a muchas" --&gt; CAMP["Campaña&lt;br/&gt;POST /api/v1/campaigns&lt;br/&gt;y GET .../progress"]
+    T2 -- "correo" --&gt; EM["POST /api/v1/messages&lt;br/&gt;channel=email"]
+    T2 -- "Telegram" --&gt; T3{"¿La persona vinculó&lt;br/&gt;su Telegram?"}
+    T3 -- "sí" --&gt; TG["POST /api/v1/telegram/messages"]
+    T3 -- "no" --&gt; LK["POST /api/v1/telegram/links&lt;br/&gt;y muestra el enlace"]
+    T2 -- "SMS, WhatsApp, Push" --&gt; SP["POST /api/v1/messages&lt;br/&gt;se acepta y queda OPENED&lt;br/&gt;(sin proveedor todavía)"]
+    EM --&gt; V{"¿Es un código&lt;br/&gt;de verificación?"}
+    V -- "sí" --&gt; VC["plantilla VERIFICATION_CODE&lt;br/&gt;params vc + expiresInMinutes&lt;br/&gt;confirma con /verification-code"]
+    V -- "no" --&gt; OK(["Listo: 202 y guarda el id"])</pre></figure>
+</section>
+
+<section id="canales">
+  <div class="eyebrow">Canales</div>
+  <h2>Qué canales hay y cuáles entregan hoy</h2>
+  <p class="lead">Elige un canal para ver cómo se escribe el destino, qué exige y un ejemplo. Prueba un destino en el campo de abajo.</p>
+  <div class="channels" id="chan-list" role="group" aria-label="Canales"></div>
+  <div class="panel" id="chan-panel" aria-live="polite"></div>
+  <p class="cap">Pregunta siempre a <code>GET /api/v1/messages/channels</code> qué canales acepta tu Mercury en este momento.</p>
+</section>
+
+<section id="requisitos">
+  <div class="eyebrow">Antes de empezar</div>
+  <h2>Qué necesitas antes de escribir código</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>#</th><th>Qué</th><th>Quién</th><th>Cómo se comprueba</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Un <b>cliente gestionado en Backbone</b> con scopes <code>mercury:message:write</code> (enviar y gestionar) y, para solo consultar, <code>mercury:message:read</code></td><td>Administración de Backbone</td><td><code>POST /api/v1/auth/token</code> responde <code>200</code></td></tr>
+      <tr><td>2</td><td>El cliente <b>ligado a una sola aplicación</b> (tu <code>applicationId</code>)</td><td>Administración de Backbone</td><td>Si no, <code>/auth/token</code> responde <code>403</code></td></tr>
+      <tr><td>3</td><td><b>Plantillas</b> para cada mensaje e idioma</td><td>Tu equipo (Iris o API)</td><td><code>GET …/messages/template-definitions</code> las lista</td></tr>
+      <tr><td>4</td><td>Remitente (<code>from</code>) permitido por el servidor de correo</td><td>Plataforma</td><td>El correo de prueba llega</td></tr>
+      <tr><td>5</td><td>Para Telegram: el bot configurado</td><td>Plataforma</td><td>Log de Mercury: <code>Telegram bot @nombre reachable</code></td></tr>
+    </tbody></table></div>
+  <div class="callout warn"><strong>No existe usuario ni contraseña en Mercury</strong>Si tu servicio todavía manda <code>{"alias":…,"password":…}</code> a <code>/auth/token</code>, recibirá <code>401</code>. Cambia a Bearer de Backbone.</div>
+</section>
+
+<section id="token">
+  <div class="eyebrow">Paso 1</div>
+  <h2>Identidad y tokens</h2>
+  <p class="lead">Dos tokens, cada uno para una cosa. El de Backbone solo se usa para pedir el de Mercury.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Token</th><th>Lo emite</th><th>Para qué</th><th>Cabecera</th></tr></thead>
+    <tbody>
+      <tr><td>Backbone</td><td>Backbone (client credentials)</td><td>Demostrar quién eres</td><td><code>Authorization: Bearer …</code> solo en <code>/auth/token</code></td></tr>
+      <tr><td>Mercury</td><td>Mercury</td><td>Plantillas, mensajes, códigos</td><td><code>session-token: …</code></td></tr>
+    </tbody></table></div>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant A as Tu aplicación
+    participant B as Backbone
+    participant M as Mercury
+    A-&gt;&gt;B: client_credentials (client id + secret)
+    B--&gt;&gt;A: token M2M de Backbone
+    A-&gt;&gt;M: POST /api/v1/auth/token&lt;br/&gt;Authorization: Bearer token de Backbone
+    M-&gt;&gt;B: introspección: ¿activo? ¿qué aplicación? ¿qué scopes?
+    B--&gt;&gt;M: cliente, aplicación, scopes
+    M--&gt;&gt;A: 200 {"token": "token de Mercury"}
+    Note over A: guarda el token en memoria&lt;br/&gt;y renuévalo 1 minuto antes de que venza
+    A-&gt;&gt;M: POST /api/v1/messages&lt;br/&gt;session-token: token de Mercury
+    alt el token venció o fue revocado
+        M--&gt;&gt;A: 401
+        A-&gt;&gt;M: pide un token nuevo y repite UNA vez
+    end</pre></figure>
+  <div class="tabs" role="tablist" aria-label="Lenguaje del ejemplo" id="tabs-token"></div>
+  <div class="tabpanel" id="tabpanel-token"></div>
+  <div class="cols">
+    <div class="callout"><strong>Qué debe hacer tu código</strong>
+      <ul class="tight"><li>Guardar el token <b>en memoria</b> (dura 1 hora por defecto).</li><li>Renovarlo 1 minuto antes de que venza.</li><li>Ante un <code>401</code>, pedir uno nuevo y repetir <b>una sola vez</b>.</li><li>No registrar nunca tokens ni secretos.</li></ul></div>
+    <div class="callout err"><strong>Si <code>/auth/token</code> falla</strong>
+      <ul class="tight"><li><code>401</code>: el token de Backbone falta, venció o fue revocado.</li><li><code>403</code>: el cliente no tiene scope <code>mercury:*</code> o no está ligado a una aplicación.</li></ul></div>
+  </div>
+</section>
+
+<section id="plantillas">
+  <div class="eyebrow">Paso 2</div>
+  <h2>Plantillas</h2>
+  <p class="lead">Una plantilla es el archivo del mensaje más su metadato: idioma, tipo, severidad y, en correo, el asunto. Cada idioma es una plantilla distinta.</p>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart TD
+    S(["Quieres enviar un mensaje con plantilla"]) --&gt; C{"¿Existe la plantilla&lt;br/&gt;en Mercury?"}
+    C -- "no" --&gt; CR["Créala: Iris o POST /api/v1/templates&lt;br/&gt;nombre con idioma, tipo, severidad, asunto"]
+    CR --&gt; DEF["Mercury registra su definición activa&lt;br/&gt;(ON_DEMAND) automáticamente"]
+    C -- "sí" --&gt; DEF
+    DEF --&gt; LANG{"¿Tiene versión&lt;br/&gt;en el idioma pedido?"}
+    LANG -- "no" --&gt; L2["Crea la versión en ese idioma&lt;br/&gt;(Mercury nunca cambia de idioma solo)"]
+    L2 --&gt; DEF
+    LANG -- "sí" --&gt; HOW{"¿Cómo la nombras&lt;br/&gt;al enviar?"}
+    HOW -- "por nombre" --&gt; N["template + applicationId + language"]
+    HOW -- "por id (recomendado)" --&gt; ID["GET /messages/template-definitions&lt;br/&gt;guarda la lista en memoria&lt;br/&gt;y envía templateDefinedId"]
+    N --&gt; SEND(["POST /api/v1/messages"])
+    ID --&gt; SEND</pre></figure>
+  <div class="cols">
+    <div class="panel"><h3>Crear</h3>
+      <ul class="tight"><li>Desde <b>Iris</b>, o <code>POST /api/v1/templates</code>.</li><li>Archivo con idioma como sufijo: <code>welcome_es.ftl</code>. Se envía como <code>welcome</code>.</li><li>Mercury registra la <b>definición activa</b> al crearla; al borrarla, la apaga.</li><li>Asunto en la plantilla, hasta 500 caracteres, con <code>${nombre}</code> si lo necesitas.</li><li>Los códigos de verificación usan el tipo <b><code>VERIFICATION_CODE</code></b>.</li></ul></div>
+    <div class="panel"><h3>Descubrir</h3>
+      <div class="kv"><span>Por nombre</span><code>GET /api/v1/messages/templates?applicationId=…</code></div>
+      <div class="kv"><span>Por id (recomendado)</span><code>GET /api/v1/messages/template-definitions?applicationId=…</code></div>
+      <p class="cap">Devuelve <code>{templateDefinedId, location, language}</code>. Solo para tu propia aplicación.</p></div>
+  </div>
+  <div class="callout"><strong>Recomendado: ids en memoria, no en tu configuración</strong>Carga la lista al primer uso, refréscala cada pocos minutos y también cuando una plantilla no aparezca (con un mínimo entre intentos). Si Mercury no responde, conserva la última lista buena. Si falta una plantilla, rechaza el envío <b>antes</b> de llamar a Mercury con un mensaje claro.</div>
+</section>
+
+<section id="enviar">
+  <div class="eyebrow">Paso 3</div>
+  <h2>Enviar un mensaje</h2>
+  <p class="lead">Arma una petición y mira al instante si Mercury la aceptaría. La validación sigue las mismas reglas que Mercury; los ejemplos usan datos inventados.</p>
+  <div class="builder">
+    <div class="panel">
+      <div class="field"><label for="b-channel">Canal</label>
+        <select id="b-channel"><option value="email">email</option><option value="telegram">telegram</option><option value="sms">sms</option><option value="whatsapp">whatsapp</option><option value="push">push</option></select></div>
+      <div class="field"><span class="lab">Cómo nombras la plantilla</span>
+        <div class="seg" role="group" aria-label="Modo de plantilla"><button id="b-mode-id" aria-pressed="true" type="button">Por id</button><button id="b-mode-name" aria-pressed="false" type="button">Por nombre</button></div></div>
+      <div class="field" id="f-id"><label for="b-defid">templateDefinedId</label><input type="text" id="b-defid" value="33333333-3333-4333-8333-333333333333" autocomplete="off"></div>
+      <div id="f-name" hidden>
+        <div class="field"><label for="b-name">template (nombre, sin idioma)</label><input type="text" id="b-name" value="welcome" autocomplete="off"></div>
+        <div class="field"><label for="b-app">applicationId (el tuyo)</label><input type="text" id="b-app" value="11111111-1111-4111-8111-111111111111" autocomplete="off"></div>
+      </div>
+      <div class="field"><label for="b-lang">language</label><input type="text" id="b-lang" value="es" autocomplete="off"></div>
+      <div class="field"><label for="b-user">userId</label><input type="text" id="b-user" value="22222222-2222-4222-8222-222222222222" autocomplete="off"></div>
+      <div class="field"><label for="b-target" id="b-target-lab">target</label><input type="text" id="b-target" value="ana@example.com" autocomplete="off"></div>
+      <div class="field" id="f-from"><label for="b-from">from</label><input type="text" id="b-from" value="no-reply@tuapp.com" autocomplete="off"></div>
+      <div class="field"><span class="lab">params</span><div id="b-params"></div><button class="btn small" id="b-addparam" type="button">Agregar parámetro</button></div>
+      <div class="field"><label for="b-key">Idempotency-Key</label>
+        <div style="display:flex;gap:.4rem"><input type="text" id="b-key" value="DEBT-DUE:22222222:2026-11-15" autocomplete="off"><button class="btn small" id="b-suggest" type="button">Sugerir</button></div></div>
+    </div>
+    <div>
+      <div class="lab" style="font-size:.78rem;font-weight:600;color:var(--ink-2);margin-bottom:.3rem">Validación</div>
+      <ul class="checks" id="b-checks" aria-live="polite"></ul>
+      <div class="lab" style="font-size:.78rem;font-weight:600;color:var(--ink-2)">Cuerpo de la petición</div>
+      <div class="codebox"><button class="btn small copy" data-copy="b-json" type="button">Copiar</button><pre class="code" id="b-json"></pre></div>
+      <div class="lab" style="font-size:.78rem;font-weight:600;color:var(--ink-2)">curl</div>
+      <div class="codebox"><button class="btn small copy" data-copy="b-curl" type="button">Copiar</button><pre class="code" id="b-curl"></pre></div>
+    </div>
+  </div>
+  <h3>Qué pasa después de enviar</h3>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">sequenceDiagram
+    autonumber
+    participant S as Tu servicio
+    participant M as Mercury API
+    participant MG as MongoDB
+    participant P as Procesador (60 s)
+    participant X as Proveedor (SMTP / Telegram)
+    actor U as Persona
+    S-&gt;&gt;M: POST /api/v1/messages&lt;br/&gt;Idempotency-Key: REGISTER-CODE:{usuario}:{ventana}
+    M-&gt;&gt;M: valida canal, destino, plantilla, idioma
+    M-&gt;&gt;MG: documento OPENED
+    M--&gt;&gt;S: 202 {id, status: OPENED}
+    Note over S: terminaste. No esperes la entrega
+    P-&gt;&gt;MG: lee los OPENED
+    P-&gt;&gt;X: entrega (plantilla + params)
+    X--&gt;&gt;U: mensaje
+    P-&gt;&gt;MG: SENT (o FAILED)
+    P-&gt;&gt;M: registra message_record en PostgreSQL
+    opt consultas el estado
+        S-&gt;&gt;M: GET /api/v1/messages/{id}
+        M--&gt;&gt;S: OPENED | SENT | FAILED
+    end</pre></figure>
+  <h3>Campos de la petición</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Campo</th><th>Obligatorio</th><th>Descripción</th></tr></thead>
+    <tbody>
+      <tr><td><code>channel</code></td><td>sí</td><td><code>email</code>, <code>sms</code>, <code>whatsapp</code>, <code>telegram</code>, <code>push</code></td></tr>
+      <tr><td><code>userId</code></td><td>sí</td><td>UUID del usuario</td></tr>
+      <tr><td><code>target</code></td><td>sí</td><td>Destino en ese canal</td></tr>
+      <tr><td><code>templateDefinedId</code> o <code>template</code></td><td>correo</td><td>Una de las dos, no ambas. Con <code>template</code>: también <code>applicationId</code> y <code>language</code></td></tr>
+      <tr><td><code>from</code></td><td>correo</td><td>Remitente</td></tr>
+      <tr><td><code>subject</code></td><td>no</td><td>Si lo envías, gana sobre el de la plantilla</td></tr>
+      <tr><td><code>params</code></td><td>no</td><td>Hasta 50 claves, las que use la plantilla</td></tr>
+      <tr><td><code>sendDate</code></td><td>no</td><td><code>yyyy-MM-dd HH:mm:ss</code> en UTC</td></tr>
+    </tbody></table></div>
+  <div class="callout"><strong>Una clave por evento, no por intento</strong>Con la misma <code>Idempotency-Key</code> y el mismo mensaje, Mercury responde <code>202</code> con <code>Idempotent-Replayed: true</code> y no envía un segundo mensaje. Con un mensaje distinto responde <code>422</code>. Ejemplos de claves: <code>REGISTER-CODE:&lt;usuario&gt;:&lt;ventana&gt;</code>, <code>DEBT-DUE:&lt;usuario&gt;:&lt;fecha&gt;</code>.</div>
+</section>
+
+<section id="estado">
+  <div class="eyebrow">Paso 4</div>
+  <h2>Saber qué pasó con el mensaje</h2>
+  <div class="codebox"><button class="btn small copy" data-copy="c-status" type="button">Copiar</button><pre class="code" id="c-status">curl -sS "$MERCURY/api/v1/messages/$ID" \
+  -H "session-token: $MERCURY_TOKEN"
+# => {"id":"…","status":"SENT","createdAt":"…","updatedAt":"…"}</pre></div>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">stateDiagram-v2
+    [*] --&gt; OPENED: Mercury acepta el mensaje (202)
+    OPENED --&gt; OPENED: el proveedor no responde,&lt;br/&gt;se reintenta en el siguiente ciclo
+    OPENED --&gt; SENT: entregado al proveedor
+    OPENED --&gt; FAILED: el proveedor lo rechaza
+    SENT --&gt; [*]: registrado en PostgreSQL
+    FAILED --&gt; [*]
+    note right of SENT
+        SENT no es "lo leyó la persona".
+        Significa "Mercury lo entregó al proveedor".
+    end note</pre></figure>
+  <ul class="tight"><li>Solo ves mensajes que <b>tu aplicación</b> envió. Otro, o uno pasado el plazo de 30 días: <code>404</code>.</li><li>No consultes cada mensaje; hazlo cuando tu negocio dependa del resultado.</li><li>Si se queda mucho en <code>OPENED</code>, la entrega falla (por ejemplo, el SMTP). Mercury reintenta cada ciclo: avisa a la plataforma.</li></ul>
+</section>
+
+<section id="verificacion">
+  <div class="eyebrow">Caso completo</div>
+  <h2>Códigos de verificación</h2>
+  <p class="lead">Así activa una cuenta nueva ZeroBound, Smartkin o Directory. Tu aplicación genera el código y no lo guarda. Mercury lo envía y lo recuerda para poder confirmarlo.</p>
+  <div class="stepper">
+    <ol id="vs-list" aria-label="Pasos"></ol>
+    <div class="stepcard" id="vs-card" aria-live="polite"></div>
+  </div>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Persona
+    participant Z as Tu aplicación
+    participant B as Backbone
+    participant M as Mercury
+    participant PG as PostgreSQL
+    U-&gt;&gt;Z: se registra
+    Z-&gt;&gt;B: crea el usuario INACTIVO
+    Z-&gt;&gt;Z: genera el código de 6 dígitos (no lo guarda)
+    Z-&gt;&gt;M: POST /api/v1/messages&lt;br/&gt;plantilla de tipo VERIFICATION_CODE&lt;br/&gt;params: vc, expiresInMinutes
+    M--&gt;&gt;Z: 202
+    M--&gt;&gt;U: correo con el código (en ~1 minuto)
+    M-&gt;&gt;PG: verification_codes: código, vencimiento, 3 intentos
+    U-&gt;&gt;Z: escribe el código
+    Z-&gt;&gt;M: POST /api/v1/verification-code&lt;br/&gt;{applicationId, userId, code}
+    alt código correcto
+        M--&gt;&gt;Z: 202
+        Z-&gt;&gt;B: activa al usuario
+        Z--&gt;&gt;U: cuenta activa
+    else código incorrecto
+        M--&gt;&gt;Z: 406 + Attempts-Remaining
+        Z--&gt;&gt;U: quedan N intentos
+    else no existe, venció o se agotaron los intentos
+        M--&gt;&gt;Z: 404
+        Z--&gt;&gt;U: pide uno nuevo
+    end</pre></figure>
+  <div class="cols">
+    <div class="panel"><h3>Al enviar el código</h3>
+      <div class="codebox"><button class="btn small copy" data-copy="v-send" type="button">Copiar</button><pre class="code" id="v-send">{
+  "channel": "email",
+  "userId": "&lt;id del usuario&gt;",
+  "target": "ana@example.com",
+  "templateDefinedId": "&lt;verification-code en su idioma&gt;",
+  "language": "es",
+  "from": "no-reply@tuapp.com",
+  "params": { "vc": "482913", "expiresInMinutes": "30" }
+}</pre></div>
+      <ul class="tight"><li><code>vc</code> es obligatorio con ese nombre.</li><li>La plantilla debe ser del tipo <code>VERIFICATION_CODE</code>.</li><li><code>expiresInMinutes</code>: lo que dice el correo y lo que Mercury aplica (máx. 2 días).</li></ul></div>
+    <div class="panel"><h3>Al confirmar</h3>
+      <div class="codebox"><button class="btn small copy" data-copy="v-confirm" type="button">Copiar</button><pre class="code" id="v-confirm">curl -sS -i -X POST "$MERCURY/api/v1/verification-code" \
+  -H "session-token: $MERCURY_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"applicationId":"&lt;tuApp&gt;","userId":"&lt;id&gt;","code":"482913"}'</pre></div>
+      <div class="tablewrap" style="margin:.4rem 0"><table><tbody>
+        <tr><td><span class="pill ok">202</span></td><td>Correcto: activa al usuario</td></tr>
+        <tr><td><span class="pill warn">406</span></td><td>Incorrecto: <code>Attempts-Remaining</code> dice cuántos quedan</td></tr>
+        <tr><td><span class="pill err">404</span></td><td>No hay código vigente: pide uno nuevo</td></tr>
+      </tbody></table></div></div>
+  </div>
+  <div class="callout warn"><strong>Si el usuario escribe el código y siempre da 404</strong>No hay fila en <code>verification_codes</code>. Revisa que la plantilla sea del tipo <code>VERIFICATION_CODE</code>, que <code>params.vc</code> exista y que hayan pasado ~1 minuto del envío. Son 3 intentos por código y «reenviar» invalida el anterior.</div>
+</section>
+
+<section id="telegram">
+  <div class="eyebrow">Canal</div>
+  <h2>Telegram</h2>
+  <p class="lead">La persona debe vincular su chat antes de recibir mensajes. Mercury es dueño del bot y del <code>chat_id</code>; tu aplicación nunca lo ve.</p>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">sequenceDiagram
+    autonumber
+    actor U as Persona
+    participant A as Tu aplicación
+    participant M as Mercury
+    participant T as Telegram
+    A-&gt;&gt;M: POST /api/v1/telegram/links {userId, language}
+    M--&gt;&gt;A: 201 {deepLink, expiresAt (10 min)}
+    A--&gt;&gt;U: muestra el enlace t.me/bot?start=token
+    U-&gt;&gt;T: abre el enlace y pulsa Iniciar
+    T-&gt;&gt;M: /start token
+    M-&gt;&gt;M: vincula el chat con el usuario (un chat por usuario)
+    A-&gt;&gt;M: GET /api/v1/telegram/links/{userId}
+    M--&gt;&gt;A: ACTIVE
+    A-&gt;&gt;M: POST /api/v1/telegram/messages&lt;br/&gt;{userId, templateDefinedId, params}
+    alt vinculado
+        M--&gt;&gt;A: 202 {id, status: QUEUED}
+        M-&gt;&gt;T: sendMessage (1 por segundo por chat)
+        T--&gt;&gt;U: mensaje
+    else no vinculado o bloqueado
+        M--&gt;&gt;A: 409 TELEGRAM_NOT_LINKED o TELEGRAM_BLOCKED
+        A--&gt;&gt;U: ofrece volver a vincular
+    end</pre></figure>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Qué</th><th>Llamada</th><th>Respuesta</th></tr></thead>
+    <tbody>
+      <tr><td>Crear enlace</td><td><code>POST /api/v1/telegram/links</code> <code>{userId, language}</code></td><td><code>201 {deepLink, expiresAt}</code> (10 min, un uso)</td></tr>
+      <tr><td>Estado</td><td><code>GET /api/v1/telegram/links/{userId}</code></td><td><code>NONE</code> · <code>PENDING</code> · <code>ACTIVE</code> · <code>BLOCKED</code></td></tr>
+      <tr><td>Desvincular</td><td><code>DELETE /api/v1/telegram/links/{userId}</code></td><td><code>204</code></td></tr>
+      <tr><td>Enviar</td><td><code>POST /api/v1/telegram/messages</code> + <code>Idempotency-Key</code></td><td><code>202 {id, status: QUEUED}</code></td></tr>
+      <tr><td>Ver envío</td><td><code>GET /api/v1/telegram/messages/{id}</code></td><td><code>QUEUED</code> · <code>SENT</code> · <code>FAILED</code> · <code>BLOCKED</code></td></tr>
+    </tbody></table></div>
+  <ul class="tight"><li>Nombra la plantilla con <b>una</b> de dos formas: <code>templateDefinedId</code> (recomendado) o <code>kind</code>.</li><li><code>409</code> con <code>TELEGRAM_NOT_LINKED</code> o <code>TELEGRAM_BLOCKED</code>: ofrece volver a vincular.</li><li>Límites: 1 mensaje por segundo por chat y 30 por segundo por bot. Reintentos a 1 min, 5 min, 30 min, 2 h y 12 h; el sexto fallo o 48 h es <code>FAILED</code>.</li></ul>
+</section>
+
+<section id="masivo">
+  <div class="eyebrow">Otros canales</div>
+  <h2>SMS, WhatsApp, Push y campañas</h2>
+  <div class="callout warn"><strong>Sin proveedor conectado</strong>Mercury acepta y guarda estos mensajes como <code>OPENED</code>, pero no los entrega todavía (falta Twilio, WhatsApp Cloud API, FCM/APNs). Integra ya con el contrato definitivo: cuando haya proveedor, tu código no cambia. No trates el <code>OPENED</code> como error de negocio.</div>
+  <div class="cols">
+    <div class="panel"><h3>Destinos</h3><ul class="tight"><li><code>sms</code>, <code>whatsapp</code>: <code>+34600112233</code> (E.164, hasta 15 dígitos).</li><li><code>push</code>: token del dispositivo.</li></ul></div>
+    <div class="panel"><h3>Campañas</h3><ul class="tight"><li><code>POST /api/v1/campaigns</code> con <code>name</code>, <code>channelTypeCode</code>, <code>templateId</code>, <code>recipients</code>.</li><li><code>GET /api/v1/campaigns/{id}/progress</code> da <code>totalSent</code>, <code>failed</code>, <code>pending</code>.</li><li>Correo y Telegram avanzan los contadores; un destinatario que no se pudo publicar cuenta como <code>failed</code>.</li></ul></div>
+  </div>
+</section>
+
+<section id="errores">
+  <div class="eyebrow">Errores</div>
+  <h2>Errores, reintentos e idempotencia</h2>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart TD
+    A(["Llamada a Mercury"]) --&gt; R{"Respuesta"}
+    R -- "202" --&gt; OK(["Hecho. Guarda el id"])
+    R -- "202 + Idempotent-Replayed" --&gt; OK2(["Ya lo habías enviado. No hagas nada más"])
+    R -- "400" --&gt; E1["Corrige la petición&lt;br/&gt;(no reintentes igual)"]
+    R -- "401" --&gt; E2["Token nuevo y repite UNA vez"]
+    R -- "403" --&gt; E3["Revisa scope y aplicación&lt;br/&gt;(no reintentes)"]
+    R -- "409 Telegram" --&gt; E4["Vuelve a vincular al usuario"]
+    R -- "422" --&gt; E5["Esa clave ya se usó con otro mensaje&lt;br/&gt;usa una clave nueva"]
+    R -- "5xx, timeout, sin respuesta" --&gt; E6["Reintenta con la MISMA clave&lt;br/&gt;espera 1 s, 5 s, 30 s, 2 min"]
+    E6 --&gt; A</pre></figure>
+  <p>Elige un código de respuesta para ver qué significa y qué debe hacer tu aplicación.</p>
+  <div class="errgrid">
+    <div class="codes" id="er-codes" role="group" aria-label="Códigos de respuesta"></div>
+    <div class="panel" id="er-card" aria-live="polite"></div>
+  </div>
+  <div class="callout"><strong>Aislamiento</strong>El envío de un mensaje nunca debe tumbar la operación de negocio que lo originó. Si Mercury no responde, tu registro o tu alta siguen: el mensaje queda pendiente y se puede reenviar.</div>
+</section>
+
+<section id="seguridad">
+  <div class="eyebrow">Operación</div>
+  <h2>Seguridad, privacidad y métricas</h2>
+  <div class="cols">
+    <div class="panel"><h3>Seguridad</h3><ul class="tight"><li>Mínimo privilegio: <code>read</code> solo si consultas.</li><li>Un cliente gestionado por aplicación.</li><li>Secretos en tu Vault y en memoria; nunca en el repositorio, en logs ni en respuestas.</li><li>No pongas en <code>params</code> datos que la plantilla no imprima.</li><li>No registres <code>target</code>, <code>params</code>, códigos ni tokens.</li><li>El código de verificación es de un solo uso, caduca y tiene 3 intentos.</li></ul></div>
+    <div class="panel"><h3>Qué medir</h3><ul class="tight"><li>Mensajes entregados a Mercury por resultado (aceptado, repetido, fallido).</li><li>Plantillas que faltan (ZeroBound: <code>zerobound_mercury_templates_missing</code>, <code>-1</code> = no se pudo consultar).</li><li>Intercambios de token fallidos por paso.</li><li>Respuestas <code>Idempotent-Replayed</code>.</li></ul>
+      <p class="cap">Mercury deja trazas claras: <code>Verification code stored for user …</code> y <code>Could not record message &lt;id&gt; … (it stays SENT in MongoDB and is retried)</code>.</p></div>
+  </div>
+</section>
+
+<section id="lista">
+  <div class="eyebrow">Salida a producción</div>
+  <h2>Lista de verificación</h2>
+  <p class="lead">Marca lo que ya cumples. Tu avance se guarda en este navegador.</p>
+  <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="ck-meter"><i></i></div>
+  <div id="ck-groups"></div>
+  <button class="btn" id="ck-reset" type="button">Reiniciar lista</button>
+</section>
+
+<section id="problemas">
+  <div class="eyebrow">Diagnóstico</div>
+  <h2>Resolución de problemas</h2>
+  <p class="lead">Problemas reales de las primeras integraciones. Busca por síntoma, por código o por palabra.</p>
+  <input type="text" class="search" id="tr-search" placeholder="Buscar: 404, idioma, Telegram, token…" aria-label="Buscar problemas" autocomplete="off">
+  <div id="tr-list"></div>
+</section>
+
+<section id="referencia">
+  <div class="eyebrow">Referencia</div>
+  <h2>Endpoints</h2>
+  <p>Todas las llamadas llevan <code>session-token</code>, salvo <code>/auth/token</code> (Bearer de Backbone). El contrato completo está en el OpenAPI de Mercury.</p>
+  <div class="chips" id="ep-chips" role="group" aria-label="Filtrar por área"></div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Área</th><th>Método y ruta</th><th>Scope</th><th>Notas</th></tr></thead>
+    <tbody id="ep-body"></tbody></table></div>
+</section>
+
+<section id="zerobound">
+  <div class="eyebrow">Implementación de referencia</div>
+  <h2>Ejemplo: ZeroBound</h2>
+  <p class="lead">ZeroBound ya está integrado. Copia sus prácticas.</p>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">flowchart LR
+    subgraph ZB["ZeroBound (implementación de referencia)"]
+        MC["MercuryClient&lt;br/&gt;token Backbone + token Mercury en caché"]
+        TR["TemplateIdRegistry&lt;br/&gt;definiciones en memoria"]
+        MM["MercuryMailer&lt;br/&gt;arma el mensaje y lo envía"]
+        RM["RegistrationMails&lt;br/&gt;genera el código"]
+        VS["VerificationService&lt;br/&gt;confirma y activa"]
+        TC["TemplateCatalogCheck&lt;br/&gt;métrica de plantillas faltantes"]
+    end
+    RM --&gt; MM
+    MM --&gt; TR
+    MM --&gt; MC
+    VS --&gt; MC
+    TR --&gt; MC
+    TC --&gt; TR
+    MC --&gt; M["Mercury"]</pre></figure>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Pieza</th><th>Qué hace</th><th>Lección</th></tr></thead>
+    <tbody>
+      <tr><td><code>MercuryClient</code></td><td>Pide el token de Backbone y lo cambia por el de Mercury; ambos en memoria; un reintento ante <code>401</code></td><td>Un solo lugar para los tokens</td></tr>
+      <tr><td><code>TemplateIdRegistry</code></td><td>Lee <code>template-definitions</code>, refresca cada 5 min y ante una que falta (mínimo 30 s)</td><td>Sin ids copiados</td></tr>
+      <tr><td><code>MercuryMailer</code></td><td>Arma el mensaje con <code>templateDefinedId</code>, usa <code>Idempotency-Key</code> y rechaza antes si falta la plantilla</td><td>Falla temprano y claro</td></tr>
+      <tr><td><code>RegistrationMails</code></td><td>Genera el código y lo envía con una clave con ventana de tiempo</td><td>Reenviar no duplica</td></tr>
+      <tr><td><code>VerificationService</code></td><td>Confirma con Mercury y activa en Backbone; recupera con <code>latest-status</code></td><td>Tolera fallos a medias</td></tr>
+      <tr><td><code>TemplateCatalogCheck</code></td><td>Publica cuántas plantillas faltan</td><td>Alerta antes que el usuario</td></tr>
+    </tbody></table></div>
+  <p>Nombres de ZeroBound: <code>zb-&lt;tipo&gt;-&lt;idioma&gt;.html</code> (correo) y <code>zb-&lt;tipo&gt;-tg-&lt;idioma&gt;.html</code> (Telegram).</p>
+  <h3>Fases de una integración nueva</h3>
+  <figure class="diagram" style="margin-inline:0"><pre class="mermaid">gantt
+    title Integración de una aplicación nueva
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d/%m
+    section Identidad
+    Cliente gestionado en Backbone (scopes y aplicación)   :a1, 2026-01-01, 1d
+    Intercambio de token funcionando                       :a2, after a1, 1d
+    section Contenido
+    Plantillas creadas (idiomas, tipo, asunto)             :b1, after a1, 2d
+    Lista de definiciones en memoria                       :b2, after b1, 1d
+    section Envío
+    Primer mensaje con Idempotency-Key                     :c1, after a2, 1d
+    Manejo de errores y reintentos                         :c2, after c1, 2d
+    section Casos especiales
+    Código de verificación de punta a punta                :d1, after c2, 2d
+    Telegram: vínculo y envío                              :d2, after c2, 2d
+    section Salida
+    Métricas, alertas y lista de producción                :e1, after d1, 1d</pre><figcaption>Los días son una referencia de tamaño, no un compromiso.</figcaption></figure>
+</section>
+
+<section id="glosario">
+  <div class="eyebrow">Glosario</div>
+  <h2>Términos</h2>
+  <div class="tablewrap"><table><tbody>
+    <tr><td><b>Aplicación</b></td><td>Sistema cliente de Mercury (ZeroBound, Smartkin…). Se identifica con su <code>applicationId</code>.</td></tr>
+    <tr><td><b>Cliente gestionado</b></td><td>Credenciales de máquina que Backbone entrega a una aplicación.</td></tr>
+    <tr><td><b>Definición de plantilla</b></td><td><code>templateDefinedId</code>: el registro activo que hace enviable a una plantilla.</td></tr>
+    <tr><td><b>OPENED · SENT · FAILED</b></td><td>Aceptado, entregado al proveedor, fallido.</td></tr>
+    <tr><td><b>Idempotencia</b></td><td>Repetir la petición con la misma clave no genera un segundo mensaje.</td></tr>
+    <tr><td><b>VERIFICATION_CODE</b></td><td>Tipo de plantilla cuyo código Mercury guarda para poder confirmarlo.</td></tr>
+    <tr><td><b>Vinculación</b></td><td>Asociar el chat de Telegram de una persona con su usuario mediante un enlace de un solo uso.</td></tr>
+    <tr><td><b>Iris</b></td><td>La interfaz donde se administran las plantillas.</td></tr>
+  </tbody></table></div>
+</section>
+</main>
+</div>
+<footer>Guía de integración con Mercury. Los ejemplos usan identificadores inventados. La referencia completa es el OpenAPI de Mercury y el documento <code>docs/user-guide/es/guia-integracion-aplicaciones.md</code>.</footer>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) { return null; } }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function el(tag, cls, html) { var e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; }
+  function copyText(text, btn) {
+    var done = function () { var o = btn.textContent; btn.textContent = "Copiado"; setTimeout(function () { btn.textContent = o; }, 1200); };
+    var fallback = function () {
+      var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); done(); } catch (e) { btn.textContent = "Selecciona y copia"; }
+      document.body.removeChild(ta);
+    };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  }
+  document.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-copy]");
+    if (b) { var t = document.getElementById(b.getAttribute("data-copy")); if (t) copyText(t.textContent, b); }
+  });
+
+  /* theme */
+  var themeBtn = $("#theme-btn"), themes = ["auto", "light", "dark"], ti = 0;
+  var savedTheme = store("mercury-guide-theme"); if (savedTheme && themes.indexOf(savedTheme) > -1) ti = themes.indexOf(savedTheme);
+  function applyTheme() {
+    var t = themes[ti], root = document.documentElement;
+    if (t === "auto") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
+    themeBtn.textContent = "Tema: " + t; store("mercury-guide-theme", t);
+  }
+  themeBtn.addEventListener("click", function () { ti = (ti + 1) % themes.length; applyTheme(); });
+  applyTheme();
+
+  /* mobile menu + active section */
+  var toc = $("#toc"), menuBtn = $("#menu-btn");
+  menuBtn.addEventListener("click", function () { var o = toc.classList.toggle("open"); menuBtn.setAttribute("aria-expanded", o ? "true" : "false"); });
+  $$("a", toc).forEach(function (a) { a.addEventListener("click", function () { toc.classList.remove("open"); menuBtn.setAttribute("aria-expanded", "false"); }); });
+  if ("IntersectionObserver" in window) {
+    var links = {}; $$("a", toc).forEach(function (a) { links[a.getAttribute("href").slice(1)] = a; });
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { $$("a.active", toc).forEach(function (x) { x.classList.remove("active"); }); var l = links[en.target.id]; if (l) l.classList.add("active"); } });
+    }, { rootMargin: "-20% 0px -70% 0px" });
+    $$("main section").forEach(function (s) { io.observe(s); });
+  }
+
+  /* channels */
+  var CH = {
+    email: { name: "Correo", state: "ok", stateText: "Entrega completa (SMTP)", target: "dirección de correo", re: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, sample: "ana@example.com",
+      needs: ["Plantilla: <code>templateDefinedId</code> o <code>template</code> + <code>applicationId</code> + <code>language</code>", "<code>from</code> (remitente)", "Asunto: en la plantilla, o <code>subject</code> en la petición"],
+      note: "Se envía cada ~60 segundos. Si el SMTP no responde, queda <code>OPENED</code> y se reintenta." },
+    telegram: { name: "Telegram", state: "ok", stateText: "Entrega completa (Bot API)", target: "id numérico de chat", re: /^-?\d{1,18}$/, sample: "123456789",
+      needs: ["Para personas vinculadas usa <code>POST /api/v1/telegram/messages</code> con <code>userId</code>, sin chat id", "La persona debe haber vinculado su chat (enlace de 10 min)"],
+      note: "1 mensaje por segundo por chat. Con <code>409</code>: <code>TELEGRAM_NOT_LINKED</code> o <code>TELEGRAM_BLOCKED</code>." },
+    sms: { name: "SMS", state: "warn", stateText: "Se acepta; sin proveedor todavía", target: "teléfono E.164", re: /^\+[1-9]\d{1,14}$/, sample: "+34600112233",
+      needs: ["Teléfono con <code>+</code>, país sin cero inicial y hasta 15 dígitos"], note: "Queda <code>OPENED</code> hasta que se conecte un proveedor." },
+    whatsapp: { name: "WhatsApp", state: "warn", stateText: "Se acepta; sin proveedor todavía", target: "teléfono E.164", re: /^\+[1-9]\d{1,14}$/, sample: "+34600112233",
+      needs: ["Teléfono con <code>+</code>, país sin cero inicial y hasta 15 dígitos"], note: "Queda <code>OPENED</code> hasta que se conecte un proveedor." },
+    push: { name: "Push", state: "warn", stateText: "Se acepta; sin proveedor todavía", target: "token del dispositivo", re: /^\S{1,320}$/, sample: "fcm:APA91bF…",
+      needs: ["Token del dispositivo (texto sin espacios)"], note: "Queda <code>OPENED</code> hasta que se conecte un proveedor." }
+  };
+  var chList = $("#chan-list"), chPanel = $("#chan-panel"), curCh = "email";
+  Object.keys(CH).forEach(function (k) {
+    var b = el("button", "chan", "<b>" + CH[k].name + "</b><span class=\"pill " + CH[k].state + "\">" + CH[k].stateText + "</span>");
+    b.type = "button"; b.setAttribute("data-ch", k); b.setAttribute("aria-pressed", k === curCh ? "true" : "false");
+    b.addEventListener("click", function () { curCh = k; renderChan(); }); chList.appendChild(b);
+  });
+  function renderChan() {
+    var c = CH[curCh];
+    $$("button", chList).forEach(function (b) { b.setAttribute("aria-pressed", b.getAttribute("data-ch") === curCh ? "true" : "false"); });
+    chPanel.innerHTML = "<div class=\"cols\"><div><h3>" + c.name + " <span class=\"pill " + c.state + "\">" + c.stateText + "</span></h3>" +
+      "<div class=\"kv\"><span>Destino (<code>target</code>)</span><b>" + c.target + "</b></div>" +
+      "<div class=\"kv\"><span>Qué exige</span></div><ul class=\"tight\">" + c.needs.map(function (n) { return "<li>" + n + "</li>"; }).join("") + "</ul>" +
+      "<p>" + c.note + "</p></div><div><div class=\"kv\"><span>Prueba un destino</span></div>" +
+      "<div class=\"live\"><input type=\"text\" id=\"chan-try\" value=\"" + esc(c.sample) + "\" aria-label=\"Destino de prueba\" autocomplete=\"off\"><span id=\"chan-res\"></span></div>" +
+      "<div class=\"codebox\"><pre class=\"code\" id=\"chan-ex\"></pre></div></div></div>";
+    var inp = $("#chan-try"), res = $("#chan-res"), ex = $("#chan-ex");
+    function upd() {
+      var ok = c.re.test(inp.value.trim()); res.innerHTML = ok ? "<span class=\"pill ok\">válido</span>" : "<span class=\"pill err\">Mercury respondería 400</span>";
+      ex.textContent = JSON.stringify({ channel: curCh, userId: "22222222-2222-4222-8222-222222222222", target: inp.value.trim() }, null, 2);
+    }
+    inp.addEventListener("input", upd); upd();
+  }
+  renderChan();
+
+  /* token / code tabs */
+  var SNIP = {
+    curl: "# 1) token de Mercury\ncurl -sS -X POST \"$MERCURY/api/v1/auth/token\" \\\n  -H \"Authorization: Bearer $BACKBONE_TOKEN\"\n# => {\"token\":\"eyJ...\"}\n\n# 2) enviar\ncurl -sS -X POST \"$MERCURY/api/v1/messages\" \\\n  -H \"session-token: $MERCURY_TOKEN\" \\\n  -H \"Idempotency-Key: REGISTER-CODE:$USER_ID:$WINDOW\" \\\n  -H \"Content-Type: application/json\" \\\n  -d @mensaje.json",
+    Java: "record Token(String token) {}\n\nRestClient rest = RestClient.create(mercuryBaseUrl);\n\n// 1) token de Mercury (guárdalo en memoria; renuévalo 1 minuto antes)\nToken t = rest.post().uri(\"/api/v1/auth/token\")\n    .header(\"Authorization\", \"Bearer \" + backboneToken)\n    .retrieve().body(Token.class);\n\n// 2) enviar\nvar response = rest.post().uri(\"/api/v1/messages\")\n    .header(\"session-token\", t.token())\n    .header(\"Idempotency-Key\", \"REGISTER-CODE:\" + userId + \":\" + window)\n    .contentType(MediaType.APPLICATION_JSON)\n    .body(message)\n    .retrieve().toEntity(String.class);   // 202",
+    Node: "// 1) token de Mercury (en memoria; renueva 1 minuto antes)\nconst { token } = await (await fetch(`${MERCURY}/api/v1/auth/token`, {\n  method: \"POST\", headers: { Authorization: `Bearer ${backboneToken}` },\n})).json();\n\n// 2) enviar\nconst res = await fetch(`${MERCURY}/api/v1/messages`, {\n  method: \"POST\",\n  headers: {\n    \"session-token\": token,\n    \"Idempotency-Key\": `REGISTER-CODE:${userId}:${windowSlot}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify(message),\n});\nif (res.status === 401) { /* token nuevo y repite UNA vez */ }"
+  };
+  var tabsEl = $("#tabs-token"), panelEl = $("#tabpanel-token"), curTab = "curl";
+  Object.keys(SNIP).forEach(function (k) {
+    var b = el("button", "", k); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", k === curTab ? "true" : "false");
+    b.addEventListener("click", function () { curTab = k; renderTab(); }); tabsEl.appendChild(b);
+  });
+  function renderTab() {
+    $$("button", tabsEl).forEach(function (b) { b.setAttribute("aria-selected", b.textContent === curTab ? "true" : "false"); });
+    panelEl.innerHTML = "<div class=\"codebox\"><button class=\"btn small copy\" data-copy=\"snip-code\" type=\"button\">Copiar</button><pre class=\"code\" id=\"snip-code\">" + esc(SNIP[curTab]) + "</pre></div>";
+  }
+  renderTab();
+
+  /* request builder */
+  var UUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  var mode = "id", params = [{ k: "nombre", v: "Ana" }, { k: "monto", v: "120.00" }];
+  function f(id) { return $("#" + id); }
+  function setMode(m) {
+    mode = m; f("b-mode-id").setAttribute("aria-pressed", m === "id" ? "true" : "false"); f("b-mode-name").setAttribute("aria-pressed", m === "name" ? "true" : "false");
+    f("f-id").hidden = m !== "id"; f("f-name").hidden = m !== "name"; build();
+  }
+  f("b-mode-id").addEventListener("click", function () { setMode("id"); });
+  f("b-mode-name").addEventListener("click", function () { setMode("name"); });
+  function renderParams() {
+    var box = f("b-params"); box.innerHTML = "";
+    params.forEach(function (p, i) {
+      var row = el("div", "params-row");
+      var k = el("input"); k.type = "text"; k.value = p.k; k.placeholder = "clave"; k.setAttribute("aria-label", "Clave " + (i + 1)); k.id = "b-pk" + i;
+      var v = el("input"); v.type = "text"; v.value = p.v; v.placeholder = "valor"; v.setAttribute("aria-label", "Valor " + (i + 1)); v.id = "b-pv" + i;
+      var x = el("button", "btn small", "Quitar"); x.type = "button"; x.setAttribute("aria-label", "Quitar parámetro " + (i + 1));
+      k.addEventListener("input", function () { p.k = k.value; build(); }); v.addEventListener("input", function () { p.v = v.value; build(); });
+      x.addEventListener("click", function () { params.splice(i, 1); renderParams(); build(); });
+      row.appendChild(k); row.appendChild(v); row.appendChild(x); box.appendChild(row);
+    });
+  }
+  f("b-addparam").addEventListener("click", function () { params.push({ k: "", v: "" }); renderParams(); build(); });
+  f("b-suggest").addEventListener("click", function () {
+    var u = f("b-user").value.trim().slice(0, 8) || "usuario", d = new Date().toISOString().slice(0, 10);
+    f("b-key").value = (f("b-channel").value === "email" ? "NOTICE:" : "NOTICE-" + f("b-channel").value.toUpperCase() + ":") + u + ":" + d; build();
+  });
+  function build() {
+    var ch = f("b-channel").value, C = CH[ch], checks = [], obj = { channel: ch };
+    var user = f("b-user").value.trim(), target = f("b-target").value.trim(), lang = f("b-lang").value.trim(), from = f("b-from").value.trim();
+    var defid = f("b-defid").value.trim(), name = f("b-name").value.trim(), app = f("b-app").value.trim();
+    f("b-target-lab").textContent = "target (" + C.target + ")";
+    f("f-from").hidden = ch !== "email";
+    function add(cls, msg) { checks.push({ cls: cls, msg: msg }); }
+    obj.userId = user; obj.target = target;
+    if (!UUID.test(user)) add("err", "<code>userId</code> debe ser un UUID. Mercury respondería 400."); else add("ok", "<code>userId</code> es un UUID.");
+    if (!C.re.test(target)) add("err", "<code>target</code> no es válido para " + ch + " (" + C.target + "). Mercury respondería 400."); else add("ok", "<code>target</code> válido para " + ch + ".");
+    if (mode === "id") {
+      if (defid) { obj.templateDefinedId = defid; }
+      if (ch === "email" && !defid) add("err", "Falta <code>templateDefinedId</code> (o cambia a «Por nombre»).");
+      else if (defid && !UUID.test(defid)) add("err", "<code>templateDefinedId</code> debe ser un UUID.");
+      else if (defid) add("ok", "Plantilla por id. Pídele los ids a <code>GET …/messages/template-definitions</code>.");
+      if (lang) { obj.language = lang; }
+    } else {
+      if (name) obj.template = name; if (app) obj.applicationId = app; if (lang) obj.language = lang;
+      if (ch === "email" && (!name || !lang || !app)) add("err", "Con <code>template</code> hacen falta <code>applicationId</code> y <code>language</code>.");
+      else if (name) add("ok", "Plantilla por nombre: «" + esc(name) + "» en «" + esc(lang) + "». Sin respaldo a otro idioma.");
+      if (/_[a-z]{2}\.|\.ftl|\.html/.test(name)) add("warn", "El nombre va sin idioma ni extensión (<code>welcome</code>, no <code>welcome_es.ftl</code>).");
+      if (app && !UUID.test(app)) add("err", "<code>applicationId</code> debe ser un UUID y ser el tuyo (otro devuelve 403).");
+    }
+    if (lang.length > 16) add("err", "<code>language</code> admite hasta 16 caracteres.");
+    if (ch === "email") { if (!from) add("err", "Falta <code>from</code>: el correo lo exige."); else { obj.from = from; add("ok", "Remitente indicado. El asunto sale de la plantilla (no lo envíes)."); } }
+    var po = {}, n = 0, dup = false; params.forEach(function (p) { if (p.k.trim()) { if (po.hasOwnProperty(p.k.trim())) dup = true; po[p.k.trim()] = p.v; n++; } });
+    if (n) obj.params = po; if (n > 50) add("err", "Máximo 50 parámetros."); if (dup) add("warn", "Hay claves de parámetro repetidas: se queda la última.");
+    if (C.state === "warn") add("warn", "Mercury lo acepta (202) pero queda <code>OPENED</code>: no hay proveedor para " + ch + " todavía.");
+    var key = f("b-key").value.trim();
+    if (!key) add("warn", "Sin <code>Idempotency-Key</code>, un reintento puede duplicar el mensaje."); else if (/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key) && /\d{10,}/.test(key)) add("warn", "La clave parece cambiar en cada intento: usa una por <b>evento</b>."); else add("ok", "<code>Idempotency-Key</code> indicada.");
+    var bad = checks.filter(function (c) { return c.cls === "err"; }).length;
+    f("b-checks").innerHTML = checks.map(function (c) { return "<li class=\"" + c.cls + "\"><span class=\"ic\">" + (c.cls === "ok" ? "✓" : c.cls === "warn" ? "!" : "×") + "</span><span>" + c.msg + "</span></li>"; }).join("") +
+      "<li class=\"" + (bad ? "err" : "ok") + "\"><span class=\"ic\">→</span><span><b>" + (bad ? "Mercury la rechazaría con 400" : "Mercury respondería 202 (OPENED)") + "</b></span></li>";
+    var json = JSON.stringify(obj, null, 2); f("b-json").textContent = json;
+    f("b-curl").textContent = "curl -sS -X POST \"$MERCURY/api/v1/messages\" \\\n  -H \"session-token: $MERCURY_TOKEN\" \\\n" + (key ? "  -H \"Idempotency-Key: " + key + "\" \\\n" : "") + "  -H \"Content-Type: application/json\" \\\n  -d '" + json.replace(/'/g, "'\\''") + "'";
+  }
+  ["b-channel", "b-defid", "b-name", "b-app", "b-lang", "b-user", "b-target", "b-from", "b-key"].forEach(function (id) { f(id).addEventListener("input", build); f(id).addEventListener("change", build); });
+  f("b-channel").addEventListener("change", function () { var c = CH[f("b-channel").value]; f("b-target").value = c.sample; build(); });
+  renderParams(); build();
+
+  /* verification stepper */
+  var VS = [
+    { who: "Persona", tone: "", t: "Se registra", d: "Completa el formulario de la aplicación.", data: "alias, correo, contraseña, idioma", note: "" },
+    { who: "Tu aplicación", tone: "", t: "Crea el usuario inactivo", d: "Lo da de alta en Backbone sin activarlo.", data: "usuario inactivo", note: "Hasta confirmar el código, la cuenta no entra." },
+    { who: "Tu aplicación", tone: "", t: "Genera el código", d: "6 dígitos aleatorios. No se guarda en tu base de datos.", data: "vc = 482913", note: "Mercury será quien lo recuerde." },
+    { who: "Tu aplicación", tone: "", t: "Envía el mensaje a Mercury", d: "POST /api/v1/messages con la plantilla de tipo VERIFICATION_CODE.", data: "params: vc, expiresInMinutes · Idempotency-Key con ventana", note: "Responde 202 {id, OPENED} y sigues." },
+    { who: "Mercury", tone: "ok", t: "Envía el correo", d: "Cada ~60 s lee los OPENED y los entrega por SMTP.", data: "OPENED → SENT", note: "Si el SMTP falla, se reintenta en el siguiente ciclo." },
+    { who: "Mercury", tone: "ok", t: "Guarda el código", d: "Registra el correo (message_record) y el código (verification_codes) con su vencimiento y 3 intentos.", data: "verification_codes", note: "Sin esta fila, todo código da 404." },
+    { who: "Persona", tone: "", t: "Recibe el correo y escribe el código", d: "En la pantalla de confirmación de tu aplicación.", data: "alias + código", note: "" },
+    { who: "Tu aplicación", tone: "", t: "Busca al usuario y consulta a Mercury", d: "POST /api/v1/verification-code con applicationId, userId y code.", data: "{applicationId, userId, code}", note: "Con session-token de Mercury." },
+    { who: "Mercury", tone: "ok", t: "Compara con el código guardado", d: "Cuenta el intento. Acierto: marca verificado.", data: "202 · 406 + Attempts-Remaining · 404", note: "404: no existe, venció o se agotaron los 3 intentos." },
+    { who: "Tu aplicación", tone: "", t: "Activa al usuario", d: "Solo con 202: pide a Backbone activar la cuenta.", data: "usuario activo", note: "Si la activación falla, reintenta con latest-status sin pedir otro código." },
+    { who: "Persona", tone: "", t: "Entra a la aplicación", d: "Recibe «cuenta activa» y puede iniciar sesión.", data: "ACTIVE", note: "Con 406 o 404 ve cuántos intentos quedan o que pida un código nuevo." }
+  ];
+  var vsList = $("#vs-list"), vsCard = $("#vs-card"), vi = 0;
+  VS.forEach(function (s, i) { var li = el("li"), b = el("button", "", (i + 1) + ". " + esc(s.t)); b.type = "button"; b.addEventListener("click", function () { vi = i; renderVs(); }); li.appendChild(b); vsList.appendChild(li); });
+  function renderVs() {
+    var s = VS[vi];
+    $$("button", vsList).forEach(function (b, i) { if (i === vi) b.setAttribute("aria-current", "step"); else b.removeAttribute("aria-current"); b.className = i < vi ? "done" : ""; });
+    vsCard.innerHTML = "<div class=\"who\"><span class=\"pill " + s.tone + "\">" + esc(s.who) + "</span><span class=\"cap\">Paso " + (vi + 1) + " de " + VS.length + "</span></div><h3>" + esc(s.t) + "</h3><p>" + esc(s.d) + "</p>" +
+      "<div class=\"kv\"><span>Datos</span><code>" + esc(s.data) + "</code></div>" + (s.note ? "<p class=\"cap\">" + esc(s.note) + "</p>" : "") +
+      "<div class=\"nav2\"><button class=\"btn\" id=\"vs-prev\" type=\"button\"" + (vi === 0 ? " disabled" : "") + ">Anterior</button><button class=\"btn primary\" id=\"vs-next\" type=\"button\"" + (vi === VS.length - 1 ? " disabled" : "") + ">Siguiente</button></div>";
+    $("#vs-prev").addEventListener("click", function () { if (vi > 0) { vi--; renderVs(); } });
+    $("#vs-next").addEventListener("click", function () { if (vi < VS.length - 1) { vi++; renderVs(); } });
+  }
+  renderVs();
+
+  /* error simulator */
+  var ER = [
+    { c: "202", cls: "ok", t: "Aceptado", m: "Mercury guardó el mensaje (OPENED). Con <code>Idempotent-Replayed: true</code> es la repetición de una clave ya usada.", a: "Guarda el <code>id</code> si quieres consultar el estado. No reintentes.", q: "{ \"id\": \"44444444-…\", \"status\": \"OPENED\", \"message\": \"Queued\" }" },
+    { c: "400", cls: "err", t: "Petición inválida", m: "Canal desconocido o apagado, destino inválido, falta un campo, plantilla inexistente o sin versión en ese idioma.", a: "Corrige la petición: el mensaje del error dice qué falta y qué idiomas hay. No reintentes igual.", q: "The template 'welcome' has no 'es' version (available: en)" },
+    { c: "401", cls: "warn", t: "Token no válido", m: "<code>session-token</code> ausente, vencido, revocado o no emitido por Mercury.", a: "Pide un token nuevo y repite <b>una</b> vez. Si vuelve a dar 401, revisa las credenciales.", q: "401 Unauthorized" },
+    { c: "403", cls: "err", t: "Prohibido", m: "Falta el scope <code>write</code>, o nombraste la plantilla o el <code>applicationId</code> de otra aplicación. En <code>/auth/token</code>: el cliente no está ligado a una aplicación.", a: "Revisa scopes y que el <code>applicationId</code> sea el tuyo. No reintentes.", q: "The client is not tied to an application" },
+    { c: "404", cls: "warn", t: "No encontrado", m: "En <code>GET /messages/{id}</code>: id desconocido, de otra aplicación o pasado el plazo de 30 días. En <code>/verification-code</code>: no hay código vigente (no existe, venció o se agotaron los intentos).", a: "Para códigos, pide uno nuevo. Para estados, revisa que el id sea de tu aplicación.", q: "No valid verification code found for the user and application" },
+    { c: "406", cls: "warn", t: "Código incorrecto", m: "Solo en <code>/verification-code</code>. La cabecera <code>Attempts-Remaining</code> dice cuántos intentos quedan.", a: "Muestra «quedan N intentos». Con 0, pide un código nuevo.", q: "Attempts-Remaining: 2" },
+    { c: "409", cls: "warn", t: "Conflicto (Telegram)", m: "<code>TELEGRAM_NOT_LINKED</code>: la persona nunca vinculó su Telegram. <code>TELEGRAM_BLOCKED</code>: bloqueó el bot.", a: "Ofrece vincular de nuevo con <code>POST /telegram/links</code>.", q: "{ \"code\": \"TELEGRAM_NOT_LINKED\" }" },
+    { c: "422", cls: "err", t: "Clave de idempotencia reutilizada", m: "Esa <code>Idempotency-Key</code> ya se usó con un mensaje distinto.", a: "Usa una clave nueva para un mensaje nuevo. Para reintentar el mismo, repite exactamente la misma petición.", q: "Idempotency-Key was already used with a different request" },
+    { c: "5xx", cls: "err", t: "Mercury no disponible", m: "Error del servidor, timeout o sin respuesta.", a: "Reintenta con la <b>misma</b> clave: 1 s, 5 s, 30 s, 2 min. Después marca el envío como pendiente en tu lado; no tumbes tu operación de negocio.", q: "503 Service Unavailable" }
+  ];
+  var erCodes = $("#er-codes"), erCard = $("#er-card"), ei = 0;
+  ER.forEach(function (e, i) { var b = el("button", "", e.c + " · " + e.t.split(" ")[0]); b.type = "button"; b.setAttribute("aria-pressed", i === ei ? "true" : "false"); b.addEventListener("click", function () { ei = i; renderEr(); }); erCodes.appendChild(b); });
+  function renderEr() {
+    var e = ER[ei];
+    $$("button", erCodes).forEach(function (b, i) { b.setAttribute("aria-pressed", i === ei ? "true" : "false"); });
+    erCard.innerHTML = "<h3><span class=\"pill " + e.cls + "\">" + e.c + "</span> " + e.t + "</h3><div class=\"kv\"><span>Qué significa</span><div>" + e.m + "</div></div><div class=\"kv\"><span>Qué hacer</span><div>" + e.a + "</div></div><div class=\"kv\"><span>Ejemplo de mensaje</span><code>" + esc(e.q) + "</code></div>";
+  }
+  renderEr();
+
+  /* checklist */
+  var CK = [
+    { g: "Identidad", i: ["Cliente gestionado de Backbone con los scopes mínimos, ligado a <b>una</b> aplicación", "<code>/api/v1/auth/token</code> responde 200 en cada entorno", "Token de Mercury en memoria, renovado 1 minuto antes y un solo reintento ante 401"] },
+    { g: "Plantillas", i: ["Una plantilla por mensaje <b>y por idioma</b>, con tipo, severidad y asunto (correo)", "Las de códigos de verificación son del tipo <code>VERIFICATION_CODE</code>", "Lista de definiciones en memoria y refrescada, sin ids copiados en tu configuración", "Tu aplicación rechaza antes de llamar a Mercury cuando falta una plantilla"] },
+    { g: "Envío", i: ["<code>Idempotency-Key</code> estable por evento en cada envío", "El fallo de Mercury no rompe la operación de negocio", "Reintentos solo ante 5xx, timeout y un 401", "No se registran <code>target</code>, <code>params</code>, códigos ni tokens"] },
+    { g: "Verificación de usuarios", i: ["Código aleatorio de 6 dígitos, sin guardarlo en tu lado", "<code>vc</code> y <code>expiresInMinutes</code> en <code>params</code>", "202 activa, 406 muestra los intentos que quedan, 404 ofrece reenviar", "«Reenviar» usa una clave con ventana de tiempo"] },
+    { g: "Telegram (si aplica)", i: ["Flujo de vinculación y manejo de 409"] },
+    { g: "Operación", i: ["Métricas y alertas de plantillas faltantes, token y envíos", "Prueba de extremo a extremo en QA: mensaje recibido, estado SENT y, para códigos, usuario activado"] }
+  ];
+  var ckState = {}; try { ckState = JSON.parse(store("mercury-guide-checks") || "{}") || {}; } catch (e) { ckState = {}; }
+  var ckBox = $("#ck-groups"), total = 0; CK.forEach(function (g) { total += g.i.length; });
+  CK.forEach(function (g, gi) {
+    var wrap = el("div", "group"); wrap.appendChild(el("h3", "", esc(g.g)));
+    g.i.forEach(function (txt, ii) {
+      var id = "ck-" + gi + "-" + ii, row = el("div", "item"), cb = el("input"); cb.type = "checkbox"; cb.id = id; cb.checked = !!ckState[id];
+      var lb = el("label", "", txt); lb.setAttribute("for", id);
+      cb.addEventListener("change", function () { ckState[id] = cb.checked; store("mercury-guide-checks", JSON.stringify(ckState)); ckUpdate(); });
+      row.appendChild(cb); row.appendChild(lb); wrap.appendChild(row);
+    }); ckBox.appendChild(wrap);
+  });
+  function ckUpdate() {
+    var done = 0; Object.keys(ckState).forEach(function (k) { if (ckState[k]) done++; });
+    var pct = Math.round(100 * done / total), m = $("#ck-meter"); m.setAttribute("aria-valuenow", String(pct)); $("i", m).style.width = pct + "%";
+    $("#mini-progress").textContent = "Lista: " + done + "/" + total;
+  }
+  $("#ck-reset").addEventListener("click", function () { ckState = {}; store("mercury-guide-checks", "{}"); $$("input[type=checkbox]", ckBox).forEach(function (c) { c.checked = false; }); ckUpdate(); });
+  ckUpdate();
+
+  /* troubleshooting */
+  var TR = [
+    ["400 The template '…' is not registered for this application", "La plantilla no existe, está desactivada, o la nombraste distinto a su archivo.", "<code>GET /api/v1/messages/templates?applicationId=…</code> y usa el nombre exacto (sin idioma), o envía por id con <code>template-definitions</code>."],
+    ["400 … has no 'es' version (available: en)", "Falta la plantilla en ese idioma.", "Crea la versión en ese idioma. Mercury no sustituye por otro."],
+    ["400 subject is required for email", "Ni el mensaje ni la plantilla tienen asunto.", "Rellena el asunto en la plantilla desde Iris."],
+    ["403 en /auth/token", "El cliente de Backbone no tiene scope <code>mercury:*</code> o no está ligado a una aplicación.", "Pide a Backbone que lo corrija."],
+    ["403 en las demás llamadas", "Falta el scope <code>write</code>, o el <code>applicationId</code> no es el tuyo.", "Revisa scopes y no mandes el <code>applicationId</code> de otra aplicación."],
+    ["401 teniendo token", "El token venció o fue revocado.", "Pide uno nuevo y repite una vez."],
+    ["422 al enviar", "Reusaste una <code>Idempotency-Key</code> con otro mensaje.", "Una clave por evento; una clave nueva para un mensaje distinto."],
+    ["Recibo 202 pero el correo no llega", "El mensaje sigue <code>OPENED</code> (SMTP caído o lento).", "<code>GET /messages/{id}</code>. Si sigue <code>OPENED</code>, avisa a la plataforma: Mercury reintenta cada minuto."],
+    ["El correo llega pero el código siempre da 404", "No hay fila en <code>verification_codes</code>: la plantilla no es del tipo <code>VERIFICATION_CODE</code>, falta <code>vc</code> en <code>params</code>, o Mercury no pudo guardarla.", "Revisa el tipo de la plantilla y <code>params.vc</code>. En el log de Mercury busca <code>Verification code stored</code> o <code>Could not record message</code>."],
+    ["404 con un código recién enviado", "No pasó el minuto del envío, ya venció (<code>expiresInMinutes</code>) o se agotaron los 3 intentos.", "Espera un minuto o pide un código nuevo."],
+    ["409 TELEGRAM_NOT_LINKED", "La persona nunca vinculó su Telegram.", "Crea un enlace con <code>POST /telegram/links</code>."],
+    ["409 TELEGRAM_BLOCKED", "La persona bloqueó el bot.", "Pídele que lo desbloquee y vuelva a vincular."],
+    ["503 en /telegram/links", "El bot está apagado o no responde.", "Avisa a la plataforma."],
+    ["5xx o timeout", "Mercury no está disponible.", "Reintenta con la misma <code>Idempotency-Key</code>."]
+  ];
+  var trList = $("#tr-list"), trSearch = $("#tr-search");
+  function renderTr() {
+    var q = trSearch.value.trim().toLowerCase(), shown = 0; trList.innerHTML = "";
+    TR.forEach(function (r) {
+      var hay = (r[0] + " " + r[1] + " " + r[2]).toLowerCase().replace(/<[^>]+>/g, "");
+      if (q && hay.indexOf(q) === -1) return; shown++;
+      var d = el("details", "tr"); d.innerHTML = "<summary>" + esc(r[0]) + "</summary><div class=\"body\"><div><span class=\"cap\">Causa probable</span><br>" + r[1] + "</div><div><span class=\"cap\">Qué hacer</span><br>" + r[2] + "</div></div>";
+      if (q) d.open = true; trList.appendChild(d);
+    });
+    if (!shown) trList.appendChild(el("div", "empty", "Nada coincide con «" + esc(q) + "». Prueba con el código de respuesta o con una palabra del mensaje."));
+  }
+  trSearch.addEventListener("input", renderTr); renderTr();
+
+  /* endpoints */
+  var EP = [
+    ["Token", "POST /api/v1/auth/token", "read o write", "Sin cuerpo. Responde {\"token\":\"…\"}"],
+    ["Mensajes", "POST /api/v1/messages", "write", "Idempotency-Key. 202"],
+    ["Mensajes", "GET /api/v1/messages/{id}", "read o write", "OPENED, SENT o FAILED"],
+    ["Mensajes", "GET /api/v1/messages/channels", "read o write", "Canales disponibles"],
+    ["Mensajes", "GET /api/v1/messages/templates?applicationId=", "read o write", "Nombres e idiomas"],
+    ["Mensajes", "GET /api/v1/messages/template-definitions?applicationId=", "read o write", "Ids, archivo e idioma. Solo tu aplicación"],
+    ["Códigos", "POST /api/v1/verification-code", "write", "202, 406 o 404"],
+    ["Códigos", "GET /api/v1/verification-code/latest-status?userId=", "read", "true, false, 404 o 400"],
+    ["Telegram", "POST /api/v1/telegram/links", "write", "201 {deepLink, expiresAt}"],
+    ["Telegram", "GET · DELETE /api/v1/telegram/links/{userId}", "read · write", "Estado · desvincular"],
+    ["Telegram", "POST /api/v1/telegram/messages", "write", "Idempotency-Key. 202"],
+    ["Telegram", "GET /api/v1/telegram/messages/{id}", "read", "QUEUED, SENT, FAILED o BLOCKED"],
+    ["Plantillas", "POST · PUT · DELETE · GET /api/v1/templates…", "write · read", "Contenido, vista previa y versiones"],
+    ["Plantillas", "GET /api/v1/templates/types · /severities", "read", "Tipos y severidades"],
+    ["Campañas", "POST /api/v1/campaigns · GET /api/v1/campaigns/{id}/progress", "write · read", "Envíos masivos"]
+  ];
+  var areas = ["Todas"].concat(EP.map(function (r) { return r[0]; }).filter(function (v, i, a) { return a.indexOf(v) === i; })), area = "Todas";
+  var chips = $("#ep-chips"), epBody = $("#ep-body");
+  areas.forEach(function (a) { var b = el("button", "", a); b.type = "button"; b.setAttribute("aria-pressed", a === area ? "true" : "false"); b.addEventListener("click", function () { area = a; renderEp(); }); chips.appendChild(b); });
+  function renderEp() {
+    $$("button", chips).forEach(function (b) { b.setAttribute("aria-pressed", b.textContent === area ? "true" : "false"); });
+    epBody.innerHTML = EP.filter(function (r) { return area === "Todas" || r[0] === area; }).map(function (r) { return "<tr><td>" + esc(r[0]) + "</td><td><code>" + esc(r[1]) + "</code></td><td>" + esc(r[2]) + "</td><td>" + esc(r[3]) + "</td></tr>"; }).join("");
+  }
+  renderEp();
+})();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>
+<script>
+  (function () {
+    var dark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default", securityLevel: "strict" });
+  })();
+</script>
+</body>
+</html>
