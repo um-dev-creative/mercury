@@ -45,6 +45,9 @@ public class MessageRecordServiceImpl implements MessageRecordService {
             throw new IllegalArgumentException("Message record is empty");
         }
         final var messageRecordEntity = messageRecordMapper.toMessageRecordEntity(messageRecordTO);
+        if (Objects.isNull(messageRecordEntity.getId())) {
+            messageRecordEntity.setId(java.util.UUID.randomUUID());   // the id is assigned (see MessageRecordEntity)
+        }
         final var result = messageRecordRepository.save(messageRecordEntity);
 
         return messageRecordMapper.toMessageRecordTO(result);

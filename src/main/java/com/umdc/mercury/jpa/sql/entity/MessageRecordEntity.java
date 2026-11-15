@@ -11,8 +11,12 @@ import java.util.UUID;
 @Entity
 @Table(name = "message_record", schema = "mercury")
 public class MessageRecordEntity {
+    /**
+     * Assigned, not generated: the id of a record is the id of the message it records (so it can be found from the message the caller got
+     * back). With {@code @GeneratedValue} and an id already set, Spring Data {@code save} merged a detached entity and Hibernate 7 failed with
+     * "Row was already updated or deleted" (StaleObjectStateException), so no message record, and no verification code, was ever written.
+     */
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
     @ColumnDefault("general.uuid_generate_v4()")
     @Column(name = "id", nullable = false)
     private UUID id;

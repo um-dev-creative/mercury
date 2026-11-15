@@ -417,6 +417,26 @@ class MessageProcessorTest {
     }
 
     @Test
+    @DisplayName("an SMTP failure leaves that e-mail OPENED for the next run and does not stop the others")
+    void processMessage_anSmtpFailureDoesNotStopTheRun() {
+        UUID failingTemplate = UUID.randomUUID();
+        UUID okTemplate = UUID.randomUUID();
+        var definition = definitionOfType(UUID.randomUUID(), "NOTIFICATION", UUID.randomUUID());
+        var failing = opened(failingTemplate, DeliveryStatusType.OPENED);
+        var ok = opened(okTemplate, DeliveryStatusType.OPENED);
+        var sent = opened(okTemplate, DeliveryStatusType.SENT);
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(failing, ok));
+        when(templateDefinedService.find(any(UUID.class))).thenReturn(definition);
+        when(emailService.sendEmail(failing, definition)).thenThrow(new org.springframework.mail.MailSendException("Read timed out"));
+        when(emailService.sendEmail(ok, definition)).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(emailService, never()).updateEmailStatus(failing);
+        verify(emailService).updateEmailStatus(sent);
+    }
+
+    @Test
     @DisplayName("a template without a type is not a verification code")
     void isVerificationCode_noTypeIsFalse() {
         TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", null, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);

@@ -86,7 +86,14 @@ package com.umdc.mercury.processor;
                                     var templateDefinedTO = templateDefinedService.find(emailMessageDocument.templateDefinedId());
                                     logger.debug("Sending email: {}", emailMessageDocument);
                                     // Send the email and update the status
-                                    var sent = emailService.sendEmail(emailMessageDocument, templateDefinedTO);
+                                    com.umdc.mercury.jpa.nosql.document.EmailMessageDocument sent;
+                                    try {
+                                        sent = emailService.sendEmail(emailMessageDocument, templateDefinedTO);
+                                    } catch (org.springframework.mail.MailException e) {
+                                        // the SMTP server timed out / refused the connection: keep the message OPENED for the next run and go on with the others
+                                        logger.warn("SMTP failure sending message {}, left OPENED to retry: {}", emailMessageDocument.messageId(), e.getClass().getSimpleName());
+                                        return;
+                                    }
                                     emailService.updateEmailStatus(sent);
                                     // an e-mail of a campaign advances its counters once, when it reaches SENT or FAILED (no-op outside a campaign)
                                     if (sent != null) {
