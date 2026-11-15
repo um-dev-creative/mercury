@@ -74,7 +74,7 @@ class VerificationCodeServiceImplTest {
         );
 
         when(verificationCodeMapper.toVerificationCodeEntity(any(VerificationCodeTO.class))).thenReturn(verificationCodeEntity);
-        when(verificationCodeRepository.save(any(VerificationCodeEntity.class))).thenReturn(savedEntity);
+        when(verificationCodeRepository.saveAndFlush(any(VerificationCodeEntity.class))).thenReturn(savedEntity);
         when(verificationCodeMapper.toVerificationCodeTO(any(VerificationCodeEntity.class))).thenReturn(verificationCodeTO);
 
         VerificationCodeTO result = verificationCodeServiceImpl.create(verificationCodeTO);
@@ -82,7 +82,7 @@ class VerificationCodeServiceImplTest {
         assertNotNull(result);
         assertEquals(verificationCodeTO, result);
         verify(verificationCodeMapper).toVerificationCodeEntity(verificationCodeTO);
-        verify(verificationCodeRepository).save(verificationCodeEntity);
+        verify(verificationCodeRepository).saveAndFlush(verificationCodeEntity);
         verify(verificationCodeMapper).toVerificationCodeTO(savedEntity);
     }
 
@@ -392,13 +392,13 @@ class VerificationCodeServiceImplTest {
         LocalDateTime now = LocalDateTime.now();
         VerificationCodeTO to = new VerificationCodeTO(null, userId, applicationId, "222222", now, now, now.plusMinutes(15), null, false, 0, 3, "", "", UUID.randomUUID());
         when(verificationCodeMapper.toVerificationCodeEntity(to)).thenReturn(new VerificationCodeEntity());
-        when(verificationCodeRepository.save(any(VerificationCodeEntity.class))).thenReturn(new VerificationCodeEntity());
+        when(verificationCodeRepository.saveAndFlush(any(VerificationCodeEntity.class))).thenReturn(new VerificationCodeEntity());
         when(verificationCodeMapper.toVerificationCodeTO(any(VerificationCodeEntity.class))).thenReturn(to);
 
         verificationCodeServiceImpl.create(to);
 
         var order = inOrder(verificationCodeRepository);
         order.verify(verificationCodeRepository).expirePending(eq(userId), eq(applicationId), any(LocalDateTime.class));
-        order.verify(verificationCodeRepository).save(any(VerificationCodeEntity.class));
+        order.verify(verificationCodeRepository).saveAndFlush(any(VerificationCodeEntity.class));
     }
 }

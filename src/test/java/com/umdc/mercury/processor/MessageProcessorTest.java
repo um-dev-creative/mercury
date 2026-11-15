@@ -49,6 +49,9 @@ class MessageProcessorTest {
     @Mock
     private com.umdc.mercury.api.v1.service.CampaignMetricsService campaignMetricsService;
 
+    @Mock
+    private org.springframework.transaction.PlatformTransactionManager transactionManager;
+
     @InjectMocks
     private MessageProcessor messageProcessor;
 
@@ -434,6 +437,29 @@ class MessageProcessorTest {
 
         verify(emailService, never()).updateEmailStatus(failing);
         verify(emailService).updateEmailStatus(sent);
+    }
+
+    @Test
+    @DisplayName("a message the database refuses is logged and left SENT for the next run, and the other messages are still recorded")
+    void updateMessageStatus_aRefusedMessageDoesNotStopTheOthers() {
+        UUID badTemplate = UUID.randomUUID();
+        UUID goodTemplate = UUID.randomUUID();
+        var definition = definitionOfType(verificationCodeTemplateId, "VERIFICATION_CODE", UUID.randomUUID());
+        var bad = opened(badTemplate, DeliveryStatusType.SENT);
+        var good = opened(goodTemplate, DeliveryStatusType.SENT);
+        MessageRecordTO recordTO = new MessageRecordTO(UUID.randomUUID(), goodTemplate, "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(), UUID.randomUUID(), List.of(), List.of());
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.SENT)).thenReturn(List.of(bad, good));
+        when(templateDefinedService.find(any(UUID.class))).thenReturn(definition);
+        when(messageStatusTypeService.findByName(anyString())).thenReturn(new MessageStatusTypeTO(UUID.randomUUID(), "SENT", "", LocalDateTime.now(), LocalDateTime.now(), true));
+        when(messageRecordMapper.toMessageRecordTO(eq(bad), any())).thenThrow(new org.springframework.dao.DataIntegrityViolationException("chk_verification_code_length"));
+        when(messageRecordMapper.toMessageRecordTO(eq(good), any())).thenReturn(recordTO);
+        when(messageRecordService.create(any(MessageRecordTO.class))).thenReturn(recordTO);
+
+        messageProcessor.updateMessageStatus();
+
+        verify(emailService, never()).delete(bad);
+        verify(emailService).delete(good);
+        verify(verificationCodeService).create(any(VerificationCodeTO.class));
     }
 
     @Test
