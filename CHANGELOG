@@ -1,5 +1,8 @@
 ## [Unreleased] - 2026-11-13
 
+### Added
+- **`GET /api/v1/messages/template-definitions?applicationId=`** lists the usable templates of the caller's own application with their `templateDefinedId`, `location` and `language`, so a caller (zerobound-rest) can send by id without keeping a copy of the ids: a template created, changed or switched off in Mercury is seen at its next refresh. Documented in `docs/tec/en/14-unified-message-ingress.md` and `docs/user-guide/en/template-definitions.md`.
+
 ### Fixed
 - **One orphan SENT e-mail stopped the whole reconciliation.** `MessageProcessor.updateMessageStatus` threw `IllegalArgumentException: Template defined not found` for a SENT document whose template definition no longer exists, aborting the scheduled task on every cycle and leaving every other SENT message unreconciled. That document is now logged (`Skipping SENT message ...`) and skipped; the rest are processed.
 - **Mercury failed to start with `No value provided for placeholder: ${placeholders}` in `V2036__template_subject.sql`.** Flyway reads `${...}` as a placeholder even inside an SQL comment; the comment no longer contains it, and `FlywayMigrationsTest` now fails if any migration contains `${`. V2036 was never applied (the schema is at 2035), so no checksum changes.
@@ -17,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - 2026-11-14
 
 ### Added
+- **`GET /api/v1/messages/template-definitions?applicationId=`** lists the usable templates of the caller's own application with their `templateDefinedId`, `location` and `language`, so a caller (zerobound-rest) can send by id without keeping a copy of the ids: a template created, changed or switched off in Mercury is seen at its next refresh. Documented in `docs/tec/en/14-unified-message-ingress.md` and `docs/user-guide/en/template-definitions.md`.
 - **The e-mail subject is defined by the template, edited from Iris, instead of by the caller's code.** `mercury.templates` gets a `subject` column (migration `V2036`, applied by Flyway at start); `CreateTemplateRequest`, `UpdateTemplateRequest` (null = unchanged, blank = remove) and `TemplateDetailResponse` carry it, so Iris can edit it with the rest of the template, one per language. `POST /api/v1/messages` (email) uses the template's subject, rendered with the message `params` (`Your code is ${vc}`) by the same hardened FreeMarker engine as the bodies and collapsed to one line (no header injection); a `subject` sent in the request still overrides it, a message with neither is a `400`, and a subject that cannot be rendered (a parameter the message did not send) is a `400` answered before anything is queued. **Action:** none in Vault; the migration runs on start. Iris needs a **Subject** field in its template editor (backend contract: `subject`), and each template (language) must have its subject filled before the callers stop sending theirs. `scripts/zerobound/seed-templates.sql` fills the subjects of the `zb_*` templates that have none (never overwrites an edited one): **run it before deploying a zerobound-rest that stops sending the subject.** **Not done:** `POST /api/v1/mail` and campaigns still take the subject in the request. See `docs/template-management-api.md#-e-mail-subject` and `docs/user-guide/en/template-subject.md`.
 
 ## [Unreleased] - 2026-11-13

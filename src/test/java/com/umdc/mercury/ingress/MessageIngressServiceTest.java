@@ -219,6 +219,16 @@ class MessageIngressServiceTest {
     }
 
     @Test
+    void theDefinitionsOfAnApplicationComeFromTheResolverAndOnlyForItsOwnApplication() {
+        var app = UUID.randomUUID();
+        var definition = new TemplateNameResolver.Definition(UUID.randomUUID(), "zb-debt-due-es.html", "es");
+        when(names.definitions(app)).thenReturn(List.of(definition));
+
+        assertEquals(List.of(definition), service.templateDefinitions(app, app.toString()));
+        assertThrows(com.umdc.mercury.api.v1.exception.ForbiddenException.class, () -> service.templateDefinitions(UUID.randomUUID(), CALLER));
+    }
+
+    @Test
     void theCatalogueOfAnApplicationComesFromTheResolver() {
         var app = UUID.randomUUID();
         var entry = new TemplateNameResolver.Entry("zb_verification", List.of("en", "es"));

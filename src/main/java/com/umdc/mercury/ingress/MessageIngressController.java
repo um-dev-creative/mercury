@@ -53,6 +53,12 @@ public class MessageIngressController implements MessageIngressApi {
     }
 
     @Override
+    public ResponseEntity<List<TemplateNameResolver.Definition>> templateDefinitions(@RequestParam("applicationId") UUID applicationId,
+            @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
+        return ResponseEntity.ok(service.templateDefinitions(applicationId, caller));
+    }
+
+    @Override
     @GetMapping(path = "/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MailStatusResponse> status(@PathVariable("id") UUID id,
             @RequestAttribute(name = MachineTokenInterceptor.CALLER, required = false) String caller) {
