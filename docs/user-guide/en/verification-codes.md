@@ -17,3 +17,8 @@ flowchart LR
     B --> C[Code stored]
     C --> D[Application confirms the code typed by the user]
 ```
+
+## Where to look
+
+- The sent e-mail waits in MongoDB (`messages`) until Mercury records it; its record is `mercury.message_record` and the code is `mercury.verification_codes`.
+- An e-mail whose SMTP send failed is retried every minute; you will see `SMTP failure sending message …, left OPENED to retry` in the log.

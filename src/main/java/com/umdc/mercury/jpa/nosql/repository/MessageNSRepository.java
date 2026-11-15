@@ -4,6 +4,7 @@ import com.umdc.mercury.constant.ChannelType;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.MessageDocument;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
@@ -17,11 +18,13 @@ import java.util.UUID;
 public interface MessageNSRepository extends MongoRepository<MessageDocument, String> {
 
     /**
-     * Find messages by delivery status.
+     * Find channel messages (Telegram, SMS, WhatsApp, Push) by delivery status. E-mail documents share the collection but are not
+     * {@link MessageDocument}s, so they are left out (mapping one threw and stopped the Telegram dispatch).
      *
      * @param deliveryStatus the delivery status to filter by
      * @return list of messages with the specified status
      */
+    @Query("{ 'deliveryStatus': ?0, 'channelType': { $exists: true } }")
     List<MessageDocument> findByDeliveryStatus(DeliveryStatusType deliveryStatus);
 
     /**

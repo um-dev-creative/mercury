@@ -55,7 +55,7 @@ class MessageRecordServiceImplTest {
         MessageRecordEntity savedEntity = new MessageRecordEntity();
 
         when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(messageRecordEntity);
-        when(messageRecordRepository.save(any(MessageRecordEntity.class))).thenReturn(savedEntity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(savedEntity);
         when(messageRecordMapper.toMessageRecordTO(any(MessageRecordEntity.class))).thenReturn(messageRecordTO);
 
         MessageRecordTO result = messageRecordServiceImpl.create(messageRecordTO);
@@ -63,7 +63,45 @@ class MessageRecordServiceImplTest {
         assertNotNull(result);
         assertEquals(messageRecordTO, result);
         verify(messageRecordMapper).toMessageRecordEntity(messageRecordTO);
-        verify(messageRecordRepository).save(messageRecordEntity);
+        verify(messageRecordRepository).saveAndFlush(messageRecordEntity);
         verify(messageRecordMapper).toMessageRecordTO(savedEntity);
+    }
+
+    private MessageRecordTO recordWithId(UUID id) {
+        return new MessageRecordTO(id, UUID.randomUUID(), "from@example.com", "content", "subject", LocalDateTime.now(), LocalDateTime.now(),
+                UUID.randomUUID(), List.of(), List.of());
+    }
+
+    @Test
+    @DisplayName("the id of the message is kept as the id of its record (assigned, so it can be found from the message)")
+    void createKeepsTheAssignedId() {
+        UUID id = UUID.randomUUID();
+        MessageRecordEntity entity = new MessageRecordEntity();
+        entity.setId(id);
+        when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(entity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(entity);
+
+        messageRecordServiceImpl.create(recordWithId(id));
+
+        verify(messageRecordRepository).saveAndFlush(entity);
+        assertEquals(id, entity.getId());
+    }
+
+    @Test
+    @DisplayName("an entity without id gets one before saving, because the id is assigned and no longer generated")
+    void createAssignsAnIdWhenThereIsNone() {
+        MessageRecordEntity entity = new MessageRecordEntity();
+        when(messageRecordMapper.toMessageRecordEntity(any(MessageRecordTO.class))).thenReturn(entity);
+        when(messageRecordRepository.saveAndFlush(any(MessageRecordEntity.class))).thenReturn(entity);
+
+        messageRecordServiceImpl.create(recordWithId(null));
+
+        assertNotNull(entity.getId());
+    }
+
+    @Test
+    @DisplayName("MessageRecordEntity.id is not @GeneratedValue: with an id already set, save() merges and Hibernate 7 throws 'Row was already updated or deleted'")
+    void theRecordIdIsNotGenerated() throws NoSuchFieldException {
+        assertEquals(null, MessageRecordEntity.class.getDeclaredField("id").getAnnotation(jakarta.persistence.GeneratedValue.class));
     }
 }
