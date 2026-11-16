@@ -34,14 +34,14 @@ public class MailRecipientPolicy {
     }
 
     /**
-     * @param activeProfiles the active Spring profiles; with the override on, one of them must be allowed
-     *                       ({@link MailRecipientProperties#overrideProfiles()}) and none may be a production profile
-     * @throws IllegalStateException when the override is on in a profile where it is not allowed
+     * @param activeProfiles the active Spring profiles; with the override on, none may be a production profile
+     *                       ({@link MailRecipientProperties#PRODUCTION_PROFILES}); any other environment is allowed
+     * @throws IllegalStateException when the override is on in production
      */
     public MailRecipientPolicy(MailRecipientProperties properties, String... activeProfiles) {
         this.properties = properties;
         if (!properties.honorRequest()) {
-            requireAllowedProfile(properties, activeProfiles);
+            requireNonProduction(activeProfiles);
         }
         if (properties.honorRequest()) {
             if (!properties.defaults().isEmpty()) {
@@ -58,13 +58,13 @@ public class MailRecipientPolicy {
         return new MailRecipientPolicy(MailRecipientProperties.passThrough(), new String[0]);
     }
 
-    private static void requireAllowedProfile(MailRecipientProperties properties, String... activeProfiles) {
+    private static void requireNonProduction(String... activeProfiles) {
         var active = Arrays.stream(activeProfiles == null ? new String[0] : activeProfiles)
                 .map(p -> p.strip().toLowerCase(Locale.ROOT)).toList();
         var production = active.stream().filter(MailRecipientProperties.PRODUCTION_PROFILES::contains).findFirst();
-        if (production.isPresent() || active.stream().noneMatch(properties.overrideProfiles()::contains)) {
-            throw new IllegalStateException("umdc.mail.recipients.honor-request=false (MAIL_HONOR_REQUEST_RECIPIENTS) is only allowed in the profiles "
-                    + properties.overrideProfiles() + " and never in production, but the active profiles are " + active);
+        if (production.isPresent()) {
+            throw new IllegalStateException("umdc.mail.recipients.honor-request=false (MAIL_HONOR_REQUEST_RECIPIENTS) is never allowed in production, "
+                    + "but the production profile '" + production.get() + "' is active (active profiles: " + active + ")");
         }
     }
 

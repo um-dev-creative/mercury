@@ -44,12 +44,4 @@ class MailRecipientPropertiesBindingTest {
     void overrideWithoutListFailsTheBinding() {
         assertThrows(BindException.class, () -> bind(Map.of("umdc.mail.recipients.defaults", "", "umdc.mail.recipients.honor-request", "false")));
     }
-
-    @Test
-    @DisplayName("MAIL_RECIPIENT_OVERRIDE_PROFILES binds as a list and defaults to qa and dev")
-    void overrideProfilesBind() {
-        assertEquals(List.of("qa", "dev"), bind(Map.of("umdc.mail.recipients.defaults", "")).overrideProfiles());
-        assertEquals(List.of("qa", "dev"), bind(Map.of("umdc.mail.recipients.override-profiles", "qa,dev")).overrideProfiles());
-        assertThrows(BindException.class, () -> bind(Map.of("umdc.mail.recipients.override-profiles", "qa,prod")));
-    }
 }
