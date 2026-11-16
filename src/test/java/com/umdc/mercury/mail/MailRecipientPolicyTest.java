@@ -140,4 +140,13 @@ class MailRecipientPolicyTest {
         environment.setActiveProfiles("qa");
         assertDoesNotThrow(() -> new MailRecipientPolicy(new MailRecipientProperties(List.of("a@x.test"), false), environment));
     }
+
+    @Test
+    @DisplayName("the reported case: profiles native and remote-supabase start with the override on")
+    void nativeAndRemoteSupabaseStart() {
+        var environment = new org.springframework.mock.env.MockEnvironment();
+        environment.setActiveProfiles("native", "remote-supabase");
+
+        assertDoesNotThrow(() -> new MailRecipientPolicy(new MailRecipientProperties(List.of("a@x.test"), false), environment));
+    }
 }
