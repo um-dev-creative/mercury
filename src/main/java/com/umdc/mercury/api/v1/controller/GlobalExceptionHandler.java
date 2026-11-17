@@ -11,6 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -49,6 +50,11 @@ import java.util.Objects;
  *   <li>{@link InvalidSessionTokenException} – session-token failed signature verification → 401</li>
  *   <li>All other {@link Exception} → 500</li>
  * </ul>
+ *
+ * <p>Every error body is sent as {@code application/json} on purpose. A request that asks for
+ * {@code text/event-stream} (the monitoring stream) would otherwise make Spring fail the
+ * error response itself with {@code HttpMediaTypeNotAcceptableException} and answer an empty 500
+ * instead of the 401/403/429 that was meant.</p>
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -72,7 +78,7 @@ public class GlobalExceptionHandler {
         logger.warn("Validation failed for request '{}': {}", request.getRequestURI(), message);
         return ResponseEntity
                 .badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
     }
 
     /**
@@ -86,7 +92,7 @@ public class GlobalExceptionHandler {
         logger.warn("Unreadable request body for '{}': {}", request.getRequestURI(), message);
         return ResponseEntity
                 .badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
     }
 
     /**
@@ -100,7 +106,7 @@ public class GlobalExceptionHandler {
         logger.warn("Type mismatch for '{}': {}", request.getRequestURI(), message);
         return ResponseEntity
                 .badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.BAD_REQUEST, message, request.getRequestURI()));
     }
 
     /**
@@ -112,7 +118,7 @@ public class GlobalExceptionHandler {
         logger.warn("Campaign not found for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -125,7 +131,7 @@ public class GlobalExceptionHandler {
         logger.warn("Template not found for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -137,7 +143,7 @@ public class GlobalExceptionHandler {
         logger.warn("Template conflict for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.PRECONDITION_FAILED)
-                .body(buildError(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.PRECONDITION_FAILED, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(ContentTooLargeException.class)
@@ -145,7 +151,7 @@ public class GlobalExceptionHandler {
         logger.warn("Template content too large for '{}'", request.getRequestURI());
         return ResponseEntity
                 .status(HttpStatus.PAYLOAD_TOO_LARGE)
-                .body(buildError(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.PAYLOAD_TOO_LARGE, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -154,7 +160,7 @@ public class GlobalExceptionHandler {
         logger.warn("Missing required parameter for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -173,7 +179,7 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected async failure for '{}': {}", request.getRequestURI(), cause.getMessage(), cause);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, cause.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.INTERNAL_SERVER_ERROR, cause.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -183,7 +189,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleMailNotFound(MailNotFoundException ex, HttpServletRequest request) {
         return ResponseEntity
                 .status(HttpStatus.NOT_FOUND)
-                .body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -192,7 +198,7 @@ public class GlobalExceptionHandler {
         logger.warn("Bad request for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .badRequest()
-                .body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request.getRequestURI()));
     }
 
     /// Handles a template folder that another application already uses, returning `409 Conflict`.
@@ -201,7 +207,7 @@ public class GlobalExceptionHandler {
         logger.warn("Template folder clash for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
-                .body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.CONFLICT, ex.getMessage(), request.getRequestURI()));
     }
 
     @ExceptionHandler(ForbiddenException.class)
@@ -210,7 +216,7 @@ public class GlobalExceptionHandler {
         logger.warn("Forbidden request for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
-                .body(buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -223,7 +229,7 @@ public class GlobalExceptionHandler {
         logger.warn("Invalid session token for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
-                .body(buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -235,7 +241,7 @@ public class GlobalExceptionHandler {
         logger.warn("Unprocessable request for '{}': {}", request.getRequestURI(), ex.getMessage());
         return ResponseEntity
                 .unprocessableContent()
-                .body(buildError(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request.getRequestURI()));
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.UNPROCESSABLE_CONTENT, ex.getMessage(), request.getRequestURI()));
     }
 
     /**
@@ -245,7 +251,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex, HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         String message = Objects.nonNull(ex.getReason()) ? ex.getReason() : status.getReasonPhrase();
-        return ResponseEntity.status(status).body(buildError(status, message, request.getRequestURI()));
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_JSON).body(buildError(status, message, request.getRequestURI()));
     }
 
     /**
@@ -256,7 +262,7 @@ public class GlobalExceptionHandler {
         logger.error("Unexpected error for '{}': {}", request.getRequestURI(), ex.getMessage(), ex);
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(buildError(HttpStatus.INTERNAL_SERVER_ERROR,
+                .contentType(MediaType.APPLICATION_JSON).body(buildError(HttpStatus.INTERNAL_SERVER_ERROR,
                         "An unexpected error occurred", request.getRequestURI()));
     }
 
