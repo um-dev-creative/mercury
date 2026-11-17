@@ -38,6 +38,7 @@ class SendEventServiceTest {
     @Mock
     private PlatformTransactionManager transactionManager;
 
+    private final MonitoringStorage storage = org.mockito.Mockito.mock(MonitoringStorage.class);
     private SendEventService service;
     private final UUID application = UUID.randomUUID();
     private final UUID template = UUID.randomUUID();
@@ -45,7 +46,7 @@ class SendEventServiceTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient().when(transactionManager.getTransaction(any())).thenReturn(new SimpleTransactionStatus());
-        service = new SendEventService(events, definitions, transactionManager, 90);
+        service = new SendEventService(events, definitions, transactionManager, 90, storage);
     }
 
     private SendEventEntity saved() {
@@ -147,5 +148,15 @@ class SendEventServiceTest {
         verify(events).deleteOlderThan(captor.capture());
         assertTrue(captor.getValue().isBefore(LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(89)));
         assertTrue(captor.getValue().isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(91)));
+    }
+
+    @Test
+    @DisplayName("a recording that fails is counted for the dashboard and still never throws")
+    void failedRecordingIsCounted() {
+        org.mockito.Mockito.when(events.save(any())).thenThrow(new IllegalStateException("relation mercury.send_events does not exist"));
+
+        org.junit.jupiter.api.Assertions.assertDoesNotThrow(() -> service.record(ChannelType.EMAIL, "TRANSACTIONAL", DeliveryStatusType.SENT, null, null, null, "a@b.co", null));
+
+        org.mockito.Mockito.verify(storage).recordFailed();
     }
 }

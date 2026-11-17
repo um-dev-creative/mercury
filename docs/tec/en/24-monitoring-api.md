@@ -100,3 +100,24 @@ sequenceDiagram
 Classes: `monitoring/*`, `api/v1/service/MonitoringServiceImpl`, `api/v1/controller/MonitoringController`. Tests: `MonitoringServiceImplTest`,
 `MonitoringControllerTest`, `SendEventServiceTest`, `RecipientMaskerTest`, `MonitoringRangeTest`, `SendEventSpecificationsTest`,
 `SendEventRetentionSchedulerTest`, `SecurityFilterChainsTest`, `MessageProcessorTest`, `MultiChannelMessageProcessorTest`.
+
+## Nothing appears in the dashboard
+
+```mermaid
+flowchart TD
+    A[The views are empty but mail was sent] --> B{GET /monitoring/health: storage.ready}
+    B -->|false| C[Apply the listed migrations by hand<br/>V2039 to V2041, then wait 30 s]
+    B -->|true| D{Which application sent it?}
+    D -->|another one| E[Choose that application in the page,<br/>or set MONITORED_APPLICATION_ID in Iris]
+    D -->|the same| F{storage.recordFailures grows?}
+    F -->|yes| G[Read the WARN Could not record the send event]
+    F -->|no| H[Check the range and the filters]
+```
+
+- `storage.ready` is `false` when `send_events`, `service_outages`, `alert_rules` or `alert_events` do not exist in schema `mercury`. Flyway creates them
+  unless `MERCURY_FLYWAY_ENABLED=false`. Mercury logs an `ERROR` at start naming the tables and the migration files, and looks again every 30 seconds.
+- `storage.recordFailures` counts the recordings that failed since start (the delivery is never affected); the reason is in the `WARN` log
+  `Could not record the send event of message ...`.
+- Events belong to the application of the **template definition** the message used. A message sent by another application (for example ZeroBound)
+  is recorded under that application, and the Iris page shows the application it is configured for, unless another one is chosen.
+- Query to see what is recorded: `select application_id, channel, status, count(*) from mercury.send_events group by 1, 2, 3;`.
