@@ -20,6 +20,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
  * <ul>
  *   <li>{@code POST /api/v1/auth/token}: the one door an application uses to get Mercury's own M2M token. Needs a Mercury scope (read or write).</li>
  *   <li>{@code /api/v1/campaigns/**} and {@code /api/v1/channel-types/**}: the service Bearer, as before.</li>
+ *   <li>{@code /api/v1/monitoring/**}: the service Bearer, read only (a write is refused for lack of the write scope).</li>
  *   <li>{@code /api/v1/templates/**} <b>only when the request has an {@code Authorization} header</b>: a human of Iris (Bearer of the calling service
  *       plus the user's {@code session-token}), as before. Without that header the request is an application's M2M call and is authenticated by
  *       {@code TemplateCallerInterceptor} with the Mercury M2M token in {@code session-token}.</li>
@@ -37,6 +38,7 @@ public class ManagedClientSecurityConfig {
     private static final String AUTH_TOKEN = "/api/v1/auth/token";
     private static final String CAMPAIGNS = "/api/v1/campaigns/**";
     private static final String CHANNEL_TYPES = "/api/v1/channel-types/**";
+    private static final String MONITORING = "/api/v1/monitoring/**";
     private static final String TEMPLATES = "/api/v1/templates/**";
     private static final String SCOPE_READ = "SCOPE_mercury:message:read";
     private static final String SCOPE_WRITE = "SCOPE_mercury:message:write";
@@ -52,12 +54,12 @@ public class ManagedClientSecurityConfig {
     public SecurityFilterChain managedClientSecurityFilterChain(HttpSecurity http) throws Exception {
         PathPatternRequestMatcher.Builder paths = PathPatternRequestMatcher.withDefaults();
         RequestMatcher bearerTemplates = new AndRequestMatcher(paths.matcher(TEMPLATES), new RequestHeaderRequestMatcher(HttpHeaders.AUTHORIZATION));
-        http.securityMatcher(new OrRequestMatcher(paths.matcher(HttpMethod.POST, AUTH_TOKEN), paths.matcher(CAMPAIGNS), paths.matcher(CHANNEL_TYPES), bearerTemplates))
+        http.securityMatcher(new OrRequestMatcher(paths.matcher(HttpMethod.POST, AUTH_TOKEN), paths.matcher(CAMPAIGNS), paths.matcher(CHANNEL_TYPES), paths.matcher(MONITORING), bearerTemplates))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, AUTH_TOKEN).hasAnyAuthority(SCOPE_READ, SCOPE_WRITE)
-                        .requestMatchers(HttpMethod.GET, CAMPAIGNS, CHANNEL_TYPES, TEMPLATES).hasAuthority(SCOPE_READ)
+                        .requestMatchers(HttpMethod.GET, CAMPAIGNS, CHANNEL_TYPES, MONITORING, TEMPLATES).hasAuthority(SCOPE_READ)
                         .anyRequest().hasAuthority(SCOPE_WRITE))
                 .oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(opaque -> opaque.introspector(introspector)));
         return http.build();

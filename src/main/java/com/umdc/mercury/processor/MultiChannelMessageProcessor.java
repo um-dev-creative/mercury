@@ -1,7 +1,9 @@
 package com.umdc.mercury.processor;
 
 import com.umdc.mercury.api.v1.service.CampaignMetricsService;
+import com.umdc.mercury.constant.ChannelType;
 import com.umdc.mercury.constant.DeliveryStatusType;
+import com.umdc.mercury.monitoring.SendEventService;
 import com.umdc.mercury.jpa.nosql.document.TelegramMessageDocument;
 import com.umdc.mercury.kafka.consumer.service.TelegramChannelService;
 import com.umdc.mercury.provider.TelegramMessageDispatcher;
@@ -30,13 +32,16 @@ public class MultiChannelMessageProcessor {
     private final TelegramChannelService telegramChannelService;
     private final TelegramMessageDispatcher telegramDispatcher;
     private final CampaignMetricsService campaignMetricsService;
+    private final SendEventService sendEventService;
 
     public MultiChannelMessageProcessor(TelegramChannelService telegramChannelService,
                                         TelegramMessageDispatcher telegramDispatcher,
-                                        CampaignMetricsService campaignMetricsService) {
+                                        CampaignMetricsService campaignMetricsService,
+                                        SendEventService sendEventService) {
         this.telegramChannelService = telegramChannelService;
         this.telegramDispatcher = telegramDispatcher;
         this.campaignMetricsService = campaignMetricsService;
+        this.sendEventService = sendEventService;
     }
 
     /**
@@ -61,6 +66,8 @@ public class MultiChannelMessageProcessor {
             message.setDeliveryStatus(outcome);
             telegramChannelService.updateStatus(message);
             campaignMetricsService.recordOutcome(message.getCampaignId(), outcome);
+            sendEventService.record(ChannelType.TELEGRAM, SendEventService.kindOf(false, message.getCampaignId()), outcome, null,
+                    message.getCampaignId(), message.getTemplateDefinedId(), String.valueOf(message.getChatId()), SendEventService.CAUSE_DELIVERY_FAILED);
         });
     }
 }

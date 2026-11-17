@@ -105,6 +105,13 @@ umdc:
       fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
     save-message-processed:
       fixed-rate: ${PRX_SCHEDULER_SAVE_MESSAGE_RATE:300000}     # Rate for persisting sent messages (ms); default 5 min
+    send-event-purge:
+      fixed-rate: ${UMDC_SCHEDULER_SEND_EVENT_PURGE_RATE:86400000}      # Rate for deleting the expired monitoring events (ms); default 1 day
+      initial-delay: ${UMDC_SCHEDULER_SEND_EVENT_PURGE_DELAY:3600000}   # First purge after the start (ms); default 1 h
+  monitoring:
+    retention-days: ${MONITORING_RETENTION_DAYS:90}                # How long the delivery outcomes of the monitoring views are kept
+    stuck-after-minutes: ${MONITORING_STUCK_AFTER_MINUTES:15}      # A queued message older than this counts as stuck
+    cache-seconds: ${MONITORING_CACHE_SECONDS:10}                  # How long the queue snapshot is reused between requests
   bootstrap:
     server:
       url: ${BOOTSTRAP_SERVER_URI} # URL for the bootstrap server

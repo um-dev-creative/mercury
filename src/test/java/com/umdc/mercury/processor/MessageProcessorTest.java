@@ -52,6 +52,9 @@ class MessageProcessorTest {
     @Mock
     private org.springframework.transaction.PlatformTransactionManager transactionManager;
 
+    @Mock
+    private com.umdc.mercury.monitoring.SendEventService sendEventService;
+
     @InjectMocks
     private MessageProcessor messageProcessor;
 
@@ -100,6 +103,49 @@ class MessageProcessorTest {
         verify(templateDefinedService).find(templateId);
         verify(emailService).sendEmail(doc, templateDefinedTO);
         verify(emailService).updateEmailStatus(doc);
+    }
+
+    @Test
+    @DisplayName("a sent e-mail leaves a send event: kind by campaign, first recipient, SEND_FAILED as the failure cause")
+    void processMessage_recordsSendEvent() {
+        UUID templateId = UUID.randomUUID();
+        UUID campaignId = UUID.randomUUID();
+        UUID messageId = UUID.randomUUID();
+        EmailMessageDocument sent = new EmailMessageDocument("id-9", messageId, templateId, UUID.randomUUID(), "from@example.com",
+                List.of(new com.umdc.mercury.api.v1.to.EmailContact("john.doe@example.com", "John", null)), null, "s", "b", LocalDateTime.now(), Map.of(),
+                DeliveryStatusType.SENT, campaignId);
+        TemplateTypeTO type = new TemplateTypeTO(UUID.randomUUID(), "name", "desc", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", type, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateDefinedTO defined = new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(),
+                LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(sent));
+        when(templateDefinedService.find(templateId)).thenReturn(defined);
+        when(emailService.sendEmail(eq(sent), eq(defined))).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(sendEventService).record(com.umdc.mercury.constant.ChannelType.EMAIL, "CAMPAIGN", DeliveryStatusType.SENT, messageId, campaignId,
+                templateId, "john.doe@example.com", "SEND_FAILED");
+    }
+
+    @Test
+    @DisplayName("an e-mail without recipients still leaves a send event, with no recipient")
+    void processMessage_recordsSendEventWithoutRecipient() {
+        UUID templateId = UUID.randomUUID();
+        EmailMessageDocument sent = new EmailMessageDocument("id-8", UUID.randomUUID(), templateId, UUID.randomUUID(), "from@example.com", null, null,
+                "s", "b", LocalDateTime.now(), Map.of(), DeliveryStatusType.FAILED);
+        TemplateTypeTO type = new TemplateTypeTO(UUID.randomUUID(), "name", "desc", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", type, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateDefinedTO defined = new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(),
+                LocalDateTime.now(), LocalDateTime.now(), true, UUID.randomUUID());
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(sent));
+        when(templateDefinedService.find(templateId)).thenReturn(defined);
+        when(emailService.sendEmail(eq(sent), eq(defined))).thenReturn(sent);
+
+        messageProcessor.processMessage();
+
+        verify(sendEventService).record(eq(com.umdc.mercury.constant.ChannelType.EMAIL), eq("TRANSACTIONAL"), eq(DeliveryStatusType.FAILED), any(), isNull(),
+                eq(templateId), isNull(), eq("SEND_FAILED"));
     }
 
     @Test

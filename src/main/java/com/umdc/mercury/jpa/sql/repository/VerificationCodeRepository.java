@@ -63,4 +63,13 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
      */
     @Query(value = "SELECT vce.isVerified FROM VerificationCodeEntity vce WHERE vce.userId = :userId ORDER BY vce.modifiedAt DESC LIMIT 1")
     Boolean findLatestIsVerifiedByUserId(@Param("userId") UUID userId);
+
+    /** Codes issued to an application since a moment. */
+    long countByApplicationIdAndCreatedAtGreaterThanEqual(UUID applicationId, LocalDateTime since);
+
+    /** Codes issued to an application since a moment that were confirmed. */
+    long countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedTrue(UUID applicationId, LocalDateTime since);
+
+    /** Codes issued to an application since a moment that nobody confirmed and are past their expiry. */
+    long countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(UUID applicationId, LocalDateTime since, LocalDateTime now);
 }
