@@ -27,7 +27,7 @@ final class MessageSearch {
 
     MonitoringTO.MessagePage messages(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId, LocalDateTime from,
                                       LocalDateTime to, int page, int size) {
-        var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "occurredAt"));
+        var pageable = PageRequest.of(Math.max(0, page), Math.clamp(size, 1, MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "occurredAt"));
         var result = events.findAll(specification(applicationId, channel, status, kind, templateDefinedId, from, to), pageable);
         return new MonitoringTO.MessagePage(result.getNumber(), result.getSize(), result.getTotalElements(),
                 result.getContent().stream().map(MessageSearch::toItem).toList());

@@ -31,6 +31,7 @@ public class AlertEngine {
     private final TransactionTemplate transaction;
     private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public AlertEngine(AlertRuleRepository rules, AlertEventRepository events, AlertEvaluator evaluator, AlertNotifier notifier,
                        PlatformTransactionManager transactionManager) {
         this(rules, events, evaluator, notifier, transactionManager, Clock.systemUTC());

@@ -23,7 +23,7 @@ final class AlertRuleValidator {
     private final int maxEmails;
 
     AlertRuleValidator(int maxEmails) {
-        this.maxEmails = Math.max(0, Math.min(maxEmails, MAX_EMAILS));
+        this.maxEmails = Math.clamp(maxEmails, 0, MAX_EMAILS);
     }
 
     void apply(AlertRuleEntity rule, MonitoringTO.AlertRuleRequest request, LocalDateTime now) {

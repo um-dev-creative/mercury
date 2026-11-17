@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Locale;
 
 /** Reads what a rule watches and says whether it is breached. The detail is a fixed sentence with numbers and service names only. */
@@ -63,7 +64,7 @@ public class AlertEvaluator {
                 waiting += snapshot.countOlderThan(channel, limit);
             }
         }
-        return new Reading(waiting >= rule.getThreshold().doubleValue(), waiting,
+        return new Reading(waiting >= rule.getThreshold().doubleValue(), (double) waiting,
                 String.format(Locale.ROOT, "%d message(s) have waited more than %d min", waiting, rule.getWindowMinutes()));
     }
 
@@ -75,13 +76,13 @@ public class AlertEvaluator {
             if (!outage || service.since() == null || rule.getService() != null && !rule.getService().equals(service.service())) {
                 continue;
             }
-            long minutes = Math.max(0, Duration.between(service.since(), now).toMinutes());
+            long minutes = Math.max(0, Duration.between(service.since().toInstant(ZoneOffset.UTC), now.toInstant(ZoneOffset.UTC)).toMinutes());
             if (minutes >= rule.getWindowMinutes()) {
                 names.add(service.service() + " " + service.status());
                 longest = Math.max(longest, minutes);
             }
         }
-        return new Reading(!names.isEmpty(), longest, names.isEmpty() ? "No service has been degraded or down for " + rule.getWindowMinutes() + " min"
+        return new Reading(!names.isEmpty(), (double) longest, names.isEmpty() ? "No service has been degraded or down for " + rule.getWindowMinutes() + " min"
                 : String.join(", ", names) + " for at least " + rule.getWindowMinutes() + " min");
     }
 

@@ -36,13 +36,6 @@ public class CampaignMetricsService {
         this.metricsRepository = metricsRepository;
     }
 
-    /**
-     * Records the outcome of a delivery attempt against its campaign.
-     *
-     * @param campaignId the campaign the message belongs to; {@code null} for messages sent
-     *                   outside a campaign (e.g. verification codes), which are skipped
-     * @param status     the terminal status reached by the message
-     */
     /** Takes back the failure of a message that is queued again, so a retry is not counted as failed and then sent. No-op outside a campaign. */
     public void revokeFailure(UUID campaignId) {
         if (Objects.isNull(campaignId)) {
@@ -55,6 +48,13 @@ public class CampaignMetricsService {
         }
     }
 
+    /**
+     * Records the outcome of a delivery attempt against its campaign.
+     *
+     * @param campaignId the campaign the message belongs to; {@code null} for messages sent
+     *                   outside a campaign (e.g. verification codes), which are skipped
+     * @param status     the terminal status reached by the message
+     */
     public void recordOutcome(UUID campaignId, DeliveryStatusType status) {
         if (Objects.isNull(campaignId)) {
             return;
