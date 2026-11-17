@@ -37,6 +37,9 @@ public interface SendEventRepository extends JpaRepository<SendEventEntity, UUID
     List<BucketCount> countByBucket(@Param("application") UUID application, @Param("since") LocalDateTime since,
                                     @Param("unit") String unit, @Param("channel") String channel, @Param("kind") String kind);
 
+    /** Whether the application has a failed e-mail outcome for that message id (ownership proof for a retry). */
+    boolean existsByApplicationIdAndMessageIdAndChannelAndStatus(UUID applicationId, UUID messageId, String channel, String status);
+
     /** Removes the outcomes older than a moment (retention). */
     @Modifying
     @Query("delete from SendEventEntity e where e.occurredAt < :before")

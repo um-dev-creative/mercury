@@ -83,4 +83,26 @@ class CampaignMetricsServiceTest {
         assertThatCode(() -> service.recordOutcome(campaignId, DeliveryStatusType.SENT))
                 .doesNotThrowAnyException();
     }
+
+    @Test
+    @DisplayName("revokes the failure of a message that is queued again")
+    void revokesFailure() {
+        UUID campaignId = UUID.randomUUID();
+        when(metricsRepository.decrementFailed(eq(campaignId), any(LocalDateTime.class))).thenReturn(1);
+
+        service.revokeFailure(campaignId);
+
+        verify(metricsRepository).decrementFailed(eq(campaignId), any(LocalDateTime.class));
+    }
+
+    @Test
+    @DisplayName("revoking skips messages outside a campaign and never throws")
+    void revokeSkipsAndSwallows() {
+        service.revokeFailure(null);
+        verify(metricsRepository, never()).decrementFailed(any(), any());
+
+        UUID campaignId = UUID.randomUUID();
+        when(metricsRepository.decrementFailed(eq(campaignId), any(LocalDateTime.class))).thenThrow(new IllegalStateException("db"));
+        assertThatCode(() -> service.revokeFailure(campaignId)).doesNotThrowAnyException();
+    }
 }

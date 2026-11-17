@@ -1,6 +1,6 @@
 # Monitoring dashboard: requirements and scope
 
-> **Status: phases 1 and 2 delivered, the rest planned.** Phase 1 (aggregates API and durable send events) is described in `24-monitoring-api.md`, phase 2 (service health and the live stream) in `25-monitoring-health-and-stream.md`. This document fixes the requirements, the scope and the phases so each
+> **Status: phases 1, 2 and 4 delivered in Mercury (phase 3, the Iris views, in Iris).** Phase 4 (alerts, retry, export) is described in `26-monitoring-alerts-retry-export.md`. Phase 1 (aggregates API and durable send events) is described in `24-monitoring-api.md`, phase 2 (service health and the live stream) in `25-monitoring-health-and-stream.md`. This document fixes the requirements, the scope and the phases so each
 > phase can be built, tested and reviewed on its own branch. User-facing description: `docs/user-guide/en/monitoring-dashboard.md`.
 
 ## Purpose

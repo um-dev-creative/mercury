@@ -32,6 +32,8 @@ class MonitoringControllerHttpTest {
     private final MonitoringService service = Mockito.mock(MonitoringService.class);
     private final com.umdc.mercury.monitoring.health.ServiceHealthService health = Mockito.mock(com.umdc.mercury.monitoring.health.ServiceHealthService.class);
     private final com.umdc.mercury.monitoring.MonitoringStreamService streams = Mockito.mock(com.umdc.mercury.monitoring.MonitoringStreamService.class);
+    private final com.umdc.mercury.monitoring.MessageRetryService retry = Mockito.mock(com.umdc.mercury.monitoring.MessageRetryService.class);
+    private final com.umdc.mercury.monitoring.alerts.AlertRuleService alerts = Mockito.mock(com.umdc.mercury.monitoring.alerts.AlertRuleService.class);
     private final SessionJwtServiceImpl sessions = Mockito.mock(SessionJwtServiceImpl.class);
     private final UUID application = UUID.randomUUID();
     private MockMvc mvc;
@@ -40,7 +42,7 @@ class MonitoringControllerHttpTest {
     void setUp() {
         when(sessions.getVerifiedUid("good")).thenReturn(Optional.of(UUID.randomUUID()));
         when(sessions.getVerifiedUid("bad")).thenReturn(Optional.empty());
-        mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(service, health, streams, sessions)).setControllerAdvice(new GlobalExceptionHandler()).build();
+        mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(service, health, streams, retry, alerts, sessions)).setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     private String path(String endpoint) {
@@ -125,5 +127,79 @@ class MonitoringControllerHttpTest {
         mvc.perform(get(path("stream")).header("session-token", "good").param("range", "9d")).andExpect(status().isBadRequest());
         mvc.perform(get(path("stream")).header("session-token", "good").param("range", "30d")).andExpect(status().isTooManyRequests());
         mvc.perform(get(path("stream"))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("export: the filters reach the service and the answer is a CSV attachment with the total and the truncation flag")
+    void exportOverHttp() throws Exception {
+        var item = new MonitoringTO.MessageItem(UUID.randomUUID(), LocalDateTime.of(2026, 11, 17, 8, 0), "EMAIL", "CAMPAIGN", "FAILED", null, null, null,
+                "=cmd@e***.com", "SEND_FAILED");
+        when(service.export(any(), any(), any(), any(), any(), any(), any())).thenReturn(new MonitoringTO.MessageExport(List.of(item), 1));
+
+        var result = mvc.perform(get(path("messages/export")).header("session-token", "good").param("status", "FAILED").param("from", "2026-11-17T00:00:00"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Export-Truncated", "false"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string("X-Total-Count", "1"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType("text/csv;charset=UTF-8"))
+                .andReturn().getResponse().getContentAsString();
+
+        org.junit.jupiter.api.Assertions.assertTrue(result.startsWith("occurredAt,channel"));
+        org.junit.jupiter.api.Assertions.assertTrue(result.contains("'=cmd@e***.com"), "a formula is neutralised");
+        verify(service).export(application, null, "FAILED", null, null, LocalDateTime.of(2026, 11, 17, 0, 0), null);
+    }
+
+    @Test
+    @DisplayName("export as JSON, an unknown format (400) and no session (401)")
+    void exportJsonAndErrors() throws Exception {
+        when(service.export(any(), any(), any(), any(), any(), any(), any())).thenReturn(new MonitoringTO.MessageExport(List.of(), 0));
+
+        mvc.perform(get(path("messages/export")).header("session-token", "good").param("format", "json"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+        mvc.perform(get(path("messages/export")).header("session-token", "good").param("format", "xml")).andExpect(status().isBadRequest());
+        mvc.perform(get(path("messages/export"))).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("retry: 202, 404 and 409 map from the service result; a forged token is 401")
+    void retryOverHttp() throws Exception {
+        var message = UUID.randomUUID();
+        when(retry.retry(any(), any(), any())).thenReturn(com.umdc.mercury.monitoring.MessageRetryService.Result.QUEUED,
+                com.umdc.mercury.monitoring.MessageRetryService.Result.NOT_FOUND, com.umdc.mercury.monitoring.MessageRetryService.Result.NOT_RETRYABLE);
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("messages/" + message + "/retry")).header("session-token", "good"))
+                .andExpect(status().isAccepted());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("messages/" + message + "/retry")).header("session-token", "good"))
+                .andExpect(status().isNotFound());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("messages/" + message + "/retry")).header("session-token", "good"))
+                .andExpect(status().isConflict());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("messages/" + message + "/retry")).header("session-token", "bad"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("messages/not-a-uuid/retry")).header("session-token", "good"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("alert rules over HTTP: create (201), an invalid rule (400), update, delete and an unknown rule (404)")
+    void alertRulesOverHttp() throws Exception {
+        var rule = new MonitoringTO.AlertRule(UUID.randomUUID(), "FAILURE_RATE", 20, 15, 10, null, List.of(), true, null, null);
+        when(alerts.create(any(), any())).thenReturn(rule).thenThrow(new IllegalArgumentException("threshold is required for FAILURE_RATE"));
+        when(alerts.update(any(), any(), any())).thenReturn(null);
+        when(alerts.delete(any(), any())).thenReturn(false);
+        when(alerts.list(any())).thenReturn(new MonitoringTO.AlertRulesResponse(List.of(rule)));
+        when(alerts.alerts(any(), any())).thenReturn(new MonitoringTO.AlertsResponse("24h", 1, List.of()));
+        var json = org.springframework.http.MediaType.APPLICATION_JSON;
+        var body = "{\"type\":\"FAILURE_RATE\",\"threshold\":20,\"windowMinutes\":15}";
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("alerts/rules")).header("session-token", "good").contentType(json).content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.type").value("FAILURE_RATE"));
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post(path("alerts/rules")).header("session-token", "good").contentType(json).content("{\"type\":\"FAILURE_RATE\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(path("alerts/rules/" + rule.id())).header("session-token", "good").contentType(json).content(body))
+                .andExpect(status().isNotFound());
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete(path("alerts/rules/" + rule.id())).header("session-token", "good"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get(path("alerts/rules")).header("session-token", "good")).andExpect(status().isOk()).andExpect(jsonPath("$.rules[0].threshold").value(20.0));
+        mvc.perform(get(path("alerts")).header("session-token", "good").param("range", "7d")).andExpect(status().isOk()).andExpect(jsonPath("$.firing").value(1));
+        mvc.perform(get(path("alerts"))).andExpect(status().isUnauthorized());
     }
 }

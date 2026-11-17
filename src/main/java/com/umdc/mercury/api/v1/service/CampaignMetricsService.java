@@ -36,6 +36,18 @@ public class CampaignMetricsService {
         this.metricsRepository = metricsRepository;
     }
 
+    /** Takes back the failure of a message that is queued again, so a retry is not counted as failed and then sent. No-op outside a campaign. */
+    public void revokeFailure(UUID campaignId) {
+        if (Objects.isNull(campaignId)) {
+            return;
+        }
+        try {
+            metricsRepository.decrementFailed(campaignId, LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
+        } catch (RuntimeException e) {
+            logger.warn("Unable to revoke the failure of a retried message. campaignId={}", campaignId, e);
+        }
+    }
+
     /**
      * Records the outcome of a delivery attempt against its campaign.
      *

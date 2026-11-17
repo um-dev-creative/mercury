@@ -35,9 +35,9 @@ import java.util.UUID;
 public class MonitoringServiceImpl implements MonitoringService {
 
     /** Channels whose messages a provider really delivers today; the others stay queued (see CLAUDE.md, "Known gaps"). */
-    static final Set<ChannelType> WITH_PROVIDER = Set.of(ChannelType.EMAIL, ChannelType.TELEGRAM);
+    public static final Set<ChannelType> WITH_PROVIDER = Set.of(ChannelType.EMAIL, ChannelType.TELEGRAM);
     static final List<String> KINDS = List.of(SendEventService.KIND_TRANSACTIONAL, SendEventService.KIND_CAMPAIGN, SendEventService.KIND_VERIFICATION_CODE);
-    static final int MAX_PAGE_SIZE = 100;
+    static final int DEFAULT_EXPORT_ROWS = 10_000;
     private static final int TOP_CAUSES = 10;
 
     private final SendEventRepository events;
@@ -45,15 +45,23 @@ public class MonitoringServiceImpl implements MonitoringService {
     private final QueueSnapshots queueSnapshots;
     private final Clock clock;
     private final long stuckAfterMinutes;
+    private final MessageSearch search;
 
     @Autowired
     public MonitoringServiceImpl(SendEventRepository events, VerificationCodeRepository codes, QueueSnapshots queueSnapshots,
-                                 @Value("${umdc.monitoring.stuck-after-minutes:15}") long stuckAfterMinutes) {
-        this(events, codes, queueSnapshots, stuckAfterMinutes, Clock.systemUTC());
+                                 @Value("${umdc.monitoring.stuck-after-minutes:15}") long stuckAfterMinutes,
+                                 @Value("${umdc.monitoring.export.max-rows:10000}") int exportMaxRows) {
+        this(events, codes, queueSnapshots, stuckAfterMinutes, Clock.systemUTC(), exportMaxRows);
     }
 
     MonitoringServiceImpl(SendEventRepository events, VerificationCodeRepository codes, QueueSnapshots queueSnapshots, long stuckAfterMinutes,
                           Clock clock) {
+        this(events, codes, queueSnapshots, stuckAfterMinutes, clock, DEFAULT_EXPORT_ROWS);
+    }
+
+    MonitoringServiceImpl(SendEventRepository events, VerificationCodeRepository codes, QueueSnapshots queueSnapshots, long stuckAfterMinutes,
+                          Clock clock, int exportMaxRows) {
+        this.search = new MessageSearch(events, exportMaxRows);
         this.events = events;
         this.codes = codes;
         this.queueSnapshots = queueSnapshots;
@@ -164,16 +172,14 @@ public class MonitoringServiceImpl implements MonitoringService {
     @Transactional(readOnly = true)
     public MonitoringTO.MessagePage messages(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId,
                                              LocalDateTime from, LocalDateTime to, int page, int size) {
-        var channelName = channel == null || channel.isBlank() ? null : ChannelType.fromCode(channel.strip()).name();
-        var statusName = status == null || status.isBlank() ? null : requireStatus(status);
-        var kindName = kind == null || kind.isBlank() ? null : requireKind(kind);
-        var pageable = PageRequest.of(Math.max(0, page), Math.min(Math.max(1, size), MAX_PAGE_SIZE), Sort.by(Sort.Direction.DESC, "occurredAt"));
-        var result = events.findAll(SendEventSpecifications.search(applicationId, channelName, statusName, kindName, templateDefinedId, from, to), pageable);
-        var items = result.getContent().stream()
-                .map(e -> new MonitoringTO.MessageItem(e.getId(), e.getOccurredAt(), e.getChannel(), e.getKind(), e.getStatus(), e.getMessageId(),
-                        e.getCampaignId(), e.getTemplateDefinedId(), e.getRecipientMasked(), e.getErrorCause()))
-                .toList();
-        return new MonitoringTO.MessagePage(result.getNumber(), result.getSize(), result.getTotalElements(), items);
+        return search.messages(applicationId, channel, status, kind, templateDefinedId, from, to, page, size);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MonitoringTO.MessageExport export(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId,
+                                             LocalDateTime from, LocalDateTime to) {
+        return search.export(applicationId, channel, status, kind, templateDefinedId, from, to);
     }
 
     private LocalDateTime now() {
@@ -192,18 +198,10 @@ public class MonitoringServiceImpl implements MonitoringService {
         }
     }
 
-    private static String requireKind(String kind) {
+    static String requireKind(String kind) {
         var value = kind.strip().toUpperCase(Locale.ROOT);
         if (!KINDS.contains(value)) {
             throw new IllegalArgumentException("Unknown kind '" + kind + "': use " + String.join(", ", KINDS));
-        }
-        return value;
-    }
-
-    private static String requireStatus(String status) {
-        var value = status.strip().toUpperCase(Locale.ROOT);
-        if (!"SENT".equals(value) && !"FAILED".equals(value)) {
-            throw new IllegalArgumentException("Unknown status '" + status + "': use SENT or FAILED");
         }
         return value;
     }

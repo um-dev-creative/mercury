@@ -4,7 +4,6 @@ import com.umdc.mercury.monitoring.health.ServiceHealthService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -20,19 +19,29 @@ class SendEventRetentionSchedulerTest {
     private SendEventService service;
     @Mock
     private ServiceHealthService health;
-    @InjectMocks
+    @Mock
+    private com.umdc.mercury.monitoring.alerts.AlertEngine alerts;
     private SendEventRetentionScheduler scheduler;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        scheduler = new SendEventRetentionScheduler(service, health, alerts, 90);
+    }
 
     @Test
     @DisplayName("purges the expired events and the expired outages")
     void purges() {
         when(service.purgeExpired()).thenReturn(3);
         when(health.purgeExpired()).thenReturn(2);
+        when(alerts.purgeResolvedBefore(org.mockito.ArgumentMatchers.any())).thenReturn(1);
 
         scheduler.purge();
 
         verify(service).purgeExpired();
         verify(health).purgeExpired();
+        var cutoff = org.mockito.ArgumentCaptor.forClass(java.time.LocalDateTime.class);
+        verify(alerts).purgeResolvedBefore(cutoff.capture());
+        org.junit.jupiter.api.Assertions.assertTrue(cutoff.getValue().isBefore(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusDays(89)));
     }
 
     @Test

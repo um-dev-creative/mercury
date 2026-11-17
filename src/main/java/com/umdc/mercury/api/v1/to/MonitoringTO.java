@@ -60,6 +60,19 @@ public interface MonitoringTO {
     public record MessagePage(int page, int size, long total, List<MessageItem> items) {
     }
 
+    /** The rows of an export and how many matched in all. */
+    public record MessageExport(List<MessageItem> items, long total) {
+        public boolean truncated() {
+            return total > items.size();
+        }
+    }
+
+    /** Query of {@code /messages/export}: the filters of the message table plus the format ({@code csv}, the default, or {@code json}). */
+    record ExportQuery(String format, String channel, String status, String kind, UUID templateDefinedId,
+                       @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+                       @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+    }
+
     /** Query of {@code /series}: all optional, {@code range} defaults to 24h. */
     record SeriesQuery(String range, String channel, String kind) {
     }
@@ -94,5 +107,27 @@ public interface MonitoringTO {
 
     /** {@code GET /monitoring/health/outages}: the outages that overlap the range, newest first. */
     record OutagesResponse(String range, List<Outage> outages) {
+    }
+
+    /** An alert rule. {@code threshold} is a percentage (FAILURE_RATE), a number of messages (QUEUE_STUCK) or unused (SERVICE_DOWN). */
+    record AlertRule(UUID id, String type, double threshold, int windowMinutes, int minVolume, String service, List<String> notifyEmails, boolean enabled,
+                     LocalDateTime createdAt, LocalDateTime updatedAt) {
+    }
+
+    /** Body of a rule creation or update; absent optional fields take their default (window 15, volume 0, enabled). */
+    record AlertRuleRequest(String type, Double threshold, Integer windowMinutes, Integer minVolume, String service, List<String> notifyEmails,
+                            Boolean enabled) {
+    }
+
+    /** An alert a rule raised; {@code resolvedAt} is {@code null} while it fires. */
+    record AlertEvent(UUID id, UUID ruleId, String type, String status, double value, String detail, LocalDateTime startedAt, LocalDateTime resolvedAt) {
+    }
+
+    /** {@code GET /alerts}: the alerts that fire now and the recent ones. */
+    record AlertsResponse(String range, long firing, List<AlertEvent> alerts) {
+    }
+
+    /** {@code GET /alerts/rules}. */
+    record AlertRulesResponse(List<AlertRule> rules) {
     }
 }

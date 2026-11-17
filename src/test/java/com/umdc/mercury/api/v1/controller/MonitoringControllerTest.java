@@ -38,6 +38,10 @@ class MonitoringControllerTest {
     @Mock
     private com.umdc.mercury.monitoring.MonitoringStreamService streamService;
     @Mock
+    private com.umdc.mercury.monitoring.MessageRetryService retryService;
+    @Mock
+    private com.umdc.mercury.monitoring.alerts.AlertRuleService alertService;
+    @Mock
     private SessionJwtServiceImpl sessionJwtService;
     @InjectMocks
     private MonitoringController controller;
@@ -104,5 +108,92 @@ class MonitoringControllerTest {
         assertThrows(InvalidSessionTokenException.class, () -> controller.stream(application, null, BAD));
 
         verifyNoInteractions(service, healthService, streamService);
+    }
+
+    private static MonitoringTO.MessageItem item(String recipient) {
+        return new MonitoringTO.MessageItem(UUID.randomUUID(), LocalDateTime.of(2026, 11, 17, 8, 0), "EMAIL", "CAMPAIGN", "FAILED", UUID.randomUUID(), null, null,
+                recipient, "SEND_FAILED");
+    }
+
+    @Test
+    @DisplayName("export: CSV by default, JSON on request, with the file name, the total and whether it was cut")
+    void export() {
+        var exported = new MonitoringTO.MessageExport(List.of(item("j***@e***.com")), 3);
+        when(service.export(application, null, null, null, null, null, null)).thenReturn(exported);
+
+        var csv = controller.exportMessages(application, new MonitoringTO.ExportQuery(null, null, null, null, null, null, null), TOKEN);
+
+        assertEquals(200, csv.getStatusCode().value());
+        assertEquals("text/csv;charset=UTF-8", csv.getHeaders().getContentType().toString());
+        assertEquals("3", csv.getHeaders().getFirst("X-Total-Count"));
+        assertEquals("true", csv.getHeaders().getFirst("X-Export-Truncated"));
+        assertEquals("no-store", csv.getHeaders().getCacheControl());
+        org.junit.jupiter.api.Assertions.assertTrue(csv.getHeaders().getFirst("Content-Disposition").matches("attachment; filename=\"mercury-messages-\\d{8}-\\d{6}\\.csv\""));
+        org.junit.jupiter.api.Assertions.assertTrue(new String((byte[]) csv.getBody(), java.nio.charset.StandardCharsets.UTF_8).contains("j***@e***.com"));
+
+        var json = controller.exportMessages(application, new MonitoringTO.ExportQuery(" JSON ", null, null, null, null, null, null), TOKEN);
+        assertEquals("application/json", json.getHeaders().getContentType().toString());
+        assertSame(exported.items(), json.getBody());
+        org.junit.jupiter.api.Assertions.assertTrue(json.getHeaders().getFirst("Content-Disposition").endsWith(".json\""));
+    }
+
+    @Test
+    @DisplayName("export: an unknown format is a bad request and nothing is read")
+    void exportUnknownFormat() {
+        assertThrows(IllegalArgumentException.class, () -> controller.exportMessages(application, new MonitoringTO.ExportQuery("xml", null, null, null, null, null, null), TOKEN));
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    @DisplayName("retry: 202 when queued, 404 when there is no failed e-mail, 409 when it cannot be retried")
+    void retry() {
+        var message = UUID.randomUUID();
+        when(retryService.retry(org.mockito.ArgumentMatchers.eq(application), org.mockito.ArgumentMatchers.eq(message), org.mockito.ArgumentMatchers.any()))
+                .thenReturn(com.umdc.mercury.monitoring.MessageRetryService.Result.QUEUED, com.umdc.mercury.monitoring.MessageRetryService.Result.NOT_FOUND,
+                        com.umdc.mercury.monitoring.MessageRetryService.Result.NOT_RETRYABLE);
+
+        assertEquals(202, controller.retryMessage(application, message, TOKEN).getStatusCode().value());
+        assertEquals(404, assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> controller.retryMessage(application, message, TOKEN)).getStatusCode().value());
+        assertEquals(409, assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> controller.retryMessage(application, message, TOKEN)).getStatusCode().value());
+    }
+
+    @Test
+    @DisplayName("alerts: rules and alerts delegate to the service; an unknown rule is a 404")
+    void alerts() {
+        var rule = new MonitoringTO.AlertRule(UUID.randomUUID(), "FAILURE_RATE", 20, 15, 10, null, List.of(), true, null, null);
+        var request = new MonitoringTO.AlertRuleRequest("FAILURE_RATE", 20.0, 15, 10, null, null, true);
+        var rules = new MonitoringTO.AlertRulesResponse(List.of(rule));
+        var alerts = new MonitoringTO.AlertsResponse("24h", 0, List.of());
+        when(alertService.list(application)).thenReturn(rules);
+        when(alertService.create(application, request)).thenReturn(rule);
+        when(alertService.update(application, rule.id(), request)).thenReturn(rule).thenReturn(null);
+        when(alertService.delete(application, rule.id())).thenReturn(true).thenReturn(false);
+        when(alertService.alerts(application, "24h")).thenReturn(alerts);
+
+        assertSame(rules, controller.alertRules(application, TOKEN).getBody());
+        var created = controller.createAlertRule(application, request, TOKEN);
+        assertEquals(201, created.getStatusCode().value());
+        assertSame(rule, created.getBody());
+        assertSame(rule, controller.updateAlertRule(application, rule.id(), request, TOKEN).getBody());
+        assertEquals(404, assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> controller.updateAlertRule(application, rule.id(), request, TOKEN)).getStatusCode().value());
+        assertEquals(204, controller.deleteAlertRule(application, rule.id(), TOKEN).getStatusCode().value());
+        assertEquals(404, assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> controller.deleteAlertRule(application, rule.id(), TOKEN)).getStatusCode().value());
+        assertSame(alerts, controller.alerts(application, "24h", TOKEN).getBody());
+    }
+
+    @Test
+    @DisplayName("the new endpoints also refuse a missing or forged session token")
+    void newEndpointsNeedAVerifiedUser() {
+        var message = UUID.randomUUID();
+        var query = new MonitoringTO.ExportQuery(null, null, null, null, null, null, null);
+        var request = new MonitoringTO.AlertRuleRequest("FAILURE_RATE", 20.0, null, null, null, null, null);
+        assertThrows(InvalidSessionTokenException.class, () -> controller.exportMessages(application, query, BAD));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.retryMessage(application, message, null));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.alertRules(application, BAD));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.createAlertRule(application, request, " "));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.updateAlertRule(application, message, request, BAD));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.deleteAlertRule(application, message, BAD));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.alerts(application, "1h", BAD));
+        verifyNoInteractions(service, retryService, alertService);
     }
 }

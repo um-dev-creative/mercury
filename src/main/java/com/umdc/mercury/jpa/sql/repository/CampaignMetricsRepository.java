@@ -41,4 +41,10 @@ public interface CampaignMetricsRepository extends JpaRepository<CampaignMetrics
     @Query("update CampaignMetricsEntity m set m.failed = coalesce(m.failed, 0) + 1, "
             + "m.lastUpdated = :now where m.campaign.id = :campaignId")
     int incrementFailed(@Param("campaignId") UUID campaignId, @Param("now") LocalDateTime now);
+
+    /** Takes one failure back when a failed message is queued again (it is counted as sent or failed again when it finishes); never below zero. */
+    @Modifying
+    @Transactional
+    @Query("update CampaignMetricsEntity m set m.failed = m.failed - 1, m.lastUpdated = :now where m.campaign.id = :campaignId and m.failed > 0")
+    int decrementFailed(@Param("campaignId") UUID campaignId, @Param("now") LocalDateTime now);
 }

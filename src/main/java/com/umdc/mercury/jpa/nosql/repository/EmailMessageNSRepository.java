@@ -16,6 +16,10 @@ public interface EmailMessageNSRepository extends MongoRepository<EmailMessageDo
     @Query("{ 'deliveryStatus': ?0, 'channelType': { $exists: false } }")
     List<EmailMessageDocument> findByDeliveryStatus(DeliveryStatusType deliveryStatus);
 
+    /** The failed e-mail with that message id (the one a retry puts back in the queue); the same collection guard as above. */
+    @Query("{ 'messageId': ?0, 'deliveryStatus': 'FAILED', 'channelType': { $exists: false } }")
+    List<EmailMessageDocument> findFailedByMessageId(java.util.UUID messageId);
+
     void deleteByIdEqualsIgnoreCase(String id);
 
     long deleteByIdEquals(String id);

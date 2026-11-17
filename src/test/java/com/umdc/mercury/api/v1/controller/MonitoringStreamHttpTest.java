@@ -40,7 +40,7 @@ class MonitoringStreamHttpTest {
                 new MonitoringTO.Totals(7, 1, 2, 0.875), List.of(), List.of()));
         when(health.health()).thenReturn(new MonitoringTO.HealthResponse(LocalDateTime.of(2026, 11, 16, 12, 0), "OPERATIONAL", List.of()));
         var streams = new MonitoringStreamService(monitoring, health, 10, 5, 15);
-        var mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(monitoring, health, streams, sessions)).build();
+        var mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(monitoring, health, streams, Mockito.mock(com.umdc.mercury.monitoring.MessageRetryService.class), Mockito.mock(com.umdc.mercury.monitoring.alerts.AlertRuleService.class), sessions)).build();
 
         MvcResult result = mvc.perform(get("/api/v1/monitoring/applications/" + app + "/stream").param("range", "1h").header("session-token", "good")
                 .accept("text/event-stream")).andExpect(request().asyncStarted()).andReturn();
