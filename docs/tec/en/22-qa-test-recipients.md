@@ -7,7 +7,6 @@ codes, campaigns, notifications) without writing to real users.
 |---|---|---|---|
 | `defaults` | `MAIL_DEFAULT_RECIPIENTS` | empty | Comma separated list of addresses. |
 | `honor-request` | `MAIL_HONOR_REQUEST_RECIPIENTS` | `true` | `true`: use the recipients of the request (form or payload). `false`: ignore them and use `defaults`. |
-| `override-profiles` | `MAIL_RECIPIENT_OVERRIDE_PROFILES` | `qa,dev` | Spring profiles where `honor-request=false` is allowed. |
 
 ## Behaviour
 
@@ -29,32 +28,30 @@ flowchart TD
 - The message record, the verification code and the campaign metrics are unchanged: they keep the user the application asked for; only the
   SMTP recipients change. The log line `E-mail recipients replaced by the default list (N requested, M used)` shows counts, never addresses.
 
-## Which environment is QA
+## Which environment is production
 
-Mercury does not guess: it reads the active Spring profile (`SPRING_BOOT_PROFILE_ACTIVE`). The override (`honor-request=false`) only starts in a
-profile listed in `override-profiles` (default `qa`, `dev`; names are compared ignoring case).
+Mercury reads the active Spring profiles (`SPRING_BOOT_PROFILE_ACTIVE`) and only asks one question: **is a production profile active?**
+Production profiles are `prd`, `prod` and `production` (compared ignoring case). Every other environment (`qa`, `dev`, `native`,
+`remote-supabase`, no profile, any custom name) is non-production, so the override may run there.
 
 ```mermaid
 flowchart TD
     S[Mercury starts with honor-request=false] --> P{Active profiles}
     P -->|contain prd, prod or production| X[Refuses to start]
-    P -->|none of qa, dev| X
-    P -->|qa or dev| L{Default list valid and not empty}
+    P -->|anything else| L{Default list valid and not empty}
     L -->|no| X
     L -->|yes| OK[Starts, WARN: override ON in profile]
 ```
 
-- A production profile (`prd`, `prod`, `production`) refuses the override even if it is listed next to `qa`, and listing one in
-  `MAIL_RECIPIENT_OVERRIDE_PROFILES` refuses to start too: there is no setting that enables it in production.
+- A production profile refuses the override even when it is active next to `qa`. There is no setting that enables it in production.
 - With `honor-request=true` (default) the profile is not checked and nothing changes.
 
 ## Values per environment
 
-| Variable | QA / dev | Production (`prd`, `prod`, `production`) |
+| Variable | Non-production (qa, dev, native, ...) | Production (`prd`, `prod`, `production`) |
 |---|---|---|
 | `MAIL_HONOR_REQUEST_RECIPIENTS` | `false` (test list only) or `true` | `true`, or leave it unset (the default is `true`) |
 | `MAIL_DEFAULT_RECIPIENTS` | the test list, e.g. `qa1@example.com,qa2@example.com` | unset or empty |
-| `MAIL_RECIPIENT_OVERRIDE_PROFILES` | unset (default `qa,dev`) | unset |
 
 In production Mercury behaves exactly as before this setting existed: every e-mail goes to the recipients the application sent, and the
 profile is not checked. `MAIL_HONOR_REQUEST_RECIPIENTS=false` in production makes Mercury refuse to start.
