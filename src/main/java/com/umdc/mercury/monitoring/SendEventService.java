@@ -87,8 +87,7 @@ public class SendEventService {
     /** Deletes the outcomes older than the retention period ({@code umdc.monitoring.retention-days}, 90 by default). */
     public int purgeExpired() {
         var before = LocalDateTime.now(ZoneOffset.UTC).minusDays(retentionDays);
-        var removed = isolated.execute(status -> events.deleteOlderThan(before));
-        return removed == null ? 0 : removed;
+        return java.util.Optional.ofNullable(isolated.execute(status -> events.deleteOlderThan(before))).orElse(0);
     }
 
     private UUID applicationOf(UUID templateDefinedId) {

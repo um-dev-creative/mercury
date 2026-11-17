@@ -137,7 +137,7 @@ public class MonitoringServiceImpl implements MonitoringService {
             long waiting = queues.countOlderThan(channel, now.minusMinutes(stuckAfterMinutes));
             if (waiting > 0 && oldest != null) {
                 stuck.add(new MonitoringTO.StuckQueue(channel.name(), WITH_PROVIDER.contains(channel), waiting,
-                        Math.max(0, Duration.between(oldest, now).toMinutes())));
+                        Math.max(0, Duration.between(oldest.toInstant(ZoneOffset.UTC), now.toInstant(ZoneOffset.UTC)).toMinutes())));
             }
         }
         return new MonitoringTO.FailuresResponse(selected.code(), stuckAfterMinutes, causes, stuck);
