@@ -55,6 +55,9 @@ class MessageProcessorTest {
     @Mock
     private com.umdc.mercury.monitoring.SendEventService sendEventService;
 
+    @Mock
+    private com.umdc.mercury.monitoring.health.ServiceHealthRegistry healthRegistry;
+
     @InjectMocks
     private MessageProcessor messageProcessor;
 
@@ -146,6 +149,58 @@ class MessageProcessorTest {
 
         verify(sendEventService).record(eq(com.umdc.mercury.constant.ChannelType.EMAIL), eq("TRANSACTIONAL"), eq(DeliveryStatusType.FAILED), any(), isNull(),
                 eq(templateId), isNull(), eq("SEND_FAILED"));
+    }
+
+    private EmailMessageDocument queuedEmail(UUID templateId) {
+        return new EmailMessageDocument("id-h", UUID.randomUUID(), templateId, UUID.randomUUID(), "from@example.com", null, null, "s", "b",
+                LocalDateTime.now(), Map.of(), DeliveryStatusType.OPENED);
+    }
+
+    private TemplateDefinedTO plainTemplate() {
+        TemplateTypeTO type = new TemplateTypeTO(UUID.randomUUID(), "name", "desc", LocalDateTime.now(), LocalDateTime.now(), true);
+        TemplateTO template = new TemplateTO(UUID.randomUUID(), "desc", "loc", "fmt", type, UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(), true);
+        return new TemplateDefinedTO(UUID.randomUUID(), template, UUID.randomUUID(), UUID.randomUUID(), LocalDateTime.now(), LocalDateTime.now(),
+                LocalDateTime.now(), true, UUID.randomUUID());
+    }
+
+    @Test
+    @DisplayName("an SMTP refusal is reported to the health registry with its classified cause, and the message stays queued")
+    void processMessage_smtpFailureReportsHealth() {
+        UUID templateId = UUID.randomUUID();
+        var doc = queuedEmail(templateId);
+        var defined = plainTemplate();
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(doc));
+        when(templateDefinedService.find(templateId)).thenReturn(defined);
+        when(emailService.sendEmail(eq(doc), eq(defined)))
+                .thenThrow(new org.springframework.mail.MailSendException("failed", new jakarta.mail.MessagingException("535 login refused")));
+
+        messageProcessor.processMessage();
+
+        verify(healthRegistry).reportFailure("SMTP", com.umdc.mercury.monitoring.health.HealthCause.AUTH_REFUSED);
+        verify(healthRegistry, never()).reportSuccess(any());
+        verify(emailService, never()).updateEmailStatus(any());
+    }
+
+    @Test
+    @DisplayName("a sent e-mail tells the health registry that SMTP works; a failed one does not")
+    void processMessage_successReportsHealth() {
+        UUID templateId = UUID.randomUUID();
+        var sentDoc = new EmailMessageDocument("s", UUID.randomUUID(), templateId, UUID.randomUUID(), "f@e.co", null, null, "s", "b", LocalDateTime.now(),
+                Map.of(), DeliveryStatusType.SENT);
+        var failedDoc = new EmailMessageDocument("f", UUID.randomUUID(), templateId, UUID.randomUUID(), "f@e.co", null, null, "s", "b", LocalDateTime.now(),
+                Map.of(), DeliveryStatusType.FAILED);
+        var defined = plainTemplate();
+        when(templateDefinedService.find(templateId)).thenReturn(defined);
+
+        when(emailService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(queuedEmail(templateId)));
+        when(emailService.sendEmail(any(), eq(defined))).thenReturn(sentDoc);
+        messageProcessor.processMessage();
+        verify(healthRegistry).reportSuccess("SMTP");
+
+        org.mockito.Mockito.clearInvocations(healthRegistry);
+        when(emailService.sendEmail(any(), eq(defined))).thenReturn(failedDoc);
+        messageProcessor.processMessage();
+        verify(healthRegistry, never()).reportSuccess(any());
     }
 
     @Test

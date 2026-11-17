@@ -34,6 +34,10 @@ class MonitoringControllerTest {
     @Mock
     private MonitoringService service;
     @Mock
+    private com.umdc.mercury.monitoring.health.ServiceHealthService healthService;
+    @Mock
+    private com.umdc.mercury.monitoring.MonitoringStreamService streamService;
+    @Mock
     private SessionJwtServiceImpl sessionJwtService;
     @InjectMocks
     private MonitoringController controller;
@@ -70,6 +74,21 @@ class MonitoringControllerTest {
     }
 
     @Test
+    @DisplayName("health, outages and the stream answer with what their services return when the token is verified")
+    void delegatesHealthOutagesStream() {
+        var health = new MonitoringTO.HealthResponse(LocalDateTime.now(), "OPERATIONAL", List.of());
+        var outages = new MonitoringTO.OutagesResponse("24h", List.of());
+        var emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter();
+        when(healthService.health()).thenReturn(health);
+        when(healthService.outages("24h")).thenReturn(outages);
+        when(streamService.subscribe(application, "1h")).thenReturn(emitter);
+
+        assertSame(health, controller.health(TOKEN).getBody());
+        assertSame(outages, controller.outages("24h", TOKEN).getBody());
+        assertSame(emitter, controller.stream(application, "1h", TOKEN));
+    }
+
+    @Test
     @DisplayName("a session token that does not verify is refused on every endpoint and the service is never called")
     void refusesUnverifiedToken() {
         assertThrows(InvalidSessionTokenException.class, () -> controller.summary(application, null, null));
@@ -80,6 +99,10 @@ class MonitoringControllerTest {
         assertThrows(InvalidSessionTokenException.class, () -> controller.verificationCodes(application, null, BAD));
         assertThrows(InvalidSessionTokenException.class, () -> controller.messages(application, new MonitoringTO.MessageQuery(null, null, null, null, null, null, 0, 20), BAD));
 
-        verifyNoInteractions(service);
+        assertThrows(InvalidSessionTokenException.class, () -> controller.health(BAD));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.outages(null, null));
+        assertThrows(InvalidSessionTokenException.class, () -> controller.stream(application, null, BAD));
+
+        verifyNoInteractions(service, healthService, streamService);
     }
 }

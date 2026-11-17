@@ -1,8 +1,8 @@
 # Monitoring dashboard
 
-> **Status: in progress.** Phase 1 (the data behind the dashboard) is delivered in Mercury: it records every delivery outcome and answers
-> the monitoring questions through its API. You will not see it on screen until the Iris views of phase 3 are built. Requirements and scope:
-> `docs/tec/en/23-monitoring-dashboard-requirements.md`; how phase 1 works: `docs/tec/en/24-monitoring-api.md`.
+> **Status: in progress.** Phases 1 and 2 (the data behind the dashboard, the state of the services and the live feed) are delivered in Mercury: it
+> records every delivery outcome, watches its services and answers the monitoring questions through its API. You will not see it on screen until the Iris views of phase 3 are built. Requirements and scope:
+> `docs/tec/en/23-monitoring-dashboard-requirements.md`; how phase 1 works: `docs/tec/en/24-monitoring-api.md`; phase 2: `docs/tec/en/25-monitoring-health-and-stream.md`.
 
 ## Where you will find it
 
@@ -60,3 +60,23 @@ neither message bodies nor verification codes are kept.
   failure yet: the message stays queued and is retried, so it is not counted until it is sent or fails. The detailed causes come with the
   service-health view (phase 2).
 - A message waiting longer than 15 minutes is reported as **stuck**.
+
+## What phase 2 adds: are the services up?
+
+Mercury now checks its own services (PostgreSQL, MongoDB, Kafka, the e-mail server, Backbone and Telegram) and keeps the history of their outages.
+
+| State | What it means for you |
+|---|---|
+| **UP** | It works. |
+| **DEGRADED** | It answers but something is wrong: a sending limit, a rate limit or a slow reply. Messages may be late. |
+| **DOWN** | It does not answer or refuses us. Messages that need it wait. |
+| **NOT CONFIGURED** | It is switched off in this environment (for example Kafka locally, or Telegram without a bot). It is **not** a failure. |
+| **UNKNOWN** | Mercury has just started and has not checked it yet. |
+
+- Each service shows how fast it answers, since when it has been in that state, and **why** in a fixed sentence, for example "The sending limit of
+  the account was exceeded". Passwords, addresses and raw error texts are never shown.
+- The e-mail server is also judged by the e-mails that really go out: if the provider refuses one, the state changes within a minute without waiting
+  for the next check.
+- The **history of outages** lists each one with when it began, when it ended (or "ongoing") and how long it lasted, for the last hour, day, week or month.
+- The **live feed** sends the summary and the service states every 10 seconds, so the dashboard updates by itself. It reconnects on its own about every
+  15 minutes; if your session expired it stops receiving data until you sign in again.

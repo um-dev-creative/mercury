@@ -74,4 +74,25 @@ public interface MonitoringTO {
             size = size == null || size <= 0 ? 20 : size;
         }
     }
+
+    /**
+     * State of one service. {@code latencyMs} is {@code null} when it was not measured; {@code cause} and {@code causeText} are a fixed code and
+     * sentence (never a raw error) and are {@code null} while the service is up.
+     */
+    record ServiceHealth(String service, String status, Long latencyMs, String cause, String causeText, LocalDateTime since,
+                         LocalDateTime lastCheckedAt) {
+    }
+
+    /** {@code GET /monitoring/health}: {@code overall} is OPERATIONAL, DEGRADED, OUTAGE or UNKNOWN. */
+    record HealthResponse(LocalDateTime generatedAt, String overall, List<ServiceHealth> services) {
+    }
+
+    /** One outage; {@code endedAt} is {@code null} and {@code ongoing} true while it lasts. */
+    record Outage(UUID id, String service, String status, String cause, String causeText, LocalDateTime startedAt, LocalDateTime endedAt,
+                  long durationSeconds, boolean ongoing) {
+    }
+
+    /** {@code GET /monitoring/health/outages}: the outages that overlap the range, newest first. */
+    record OutagesResponse(String range, List<Outage> outages) {
+    }
 }
