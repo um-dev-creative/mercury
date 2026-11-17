@@ -17,7 +17,7 @@ final class AlertRuleValidator {
     static final int MAX_EMAILS = 5;
     static final int DEFAULT_WINDOW = 15;
     /** The services the health registry knows. */
-    static final Set<String> SERVICES = Set.of("POSTGRES", "MONGO", "KAFKA", "SMTP", "BACKBONE", "TELEGRAM");
+    static final Set<String> SERVICES = Set.of("POSTGRESQL", "MONGODB", "KAFKA", "SMTP", "BACKBONE", "TELEGRAM");
     private static final Pattern EMAIL = Pattern.compile("^[^\\s@,;]{1,64}@[^\\s@,;]{1,255}$");
 
     private final int maxEmails;

@@ -4,10 +4,12 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.kafka.core.KafkaAdmin;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -27,12 +29,12 @@ public class KafkaProbe implements ServiceProbe {
     private final Duration interval;
 
     @Autowired
-    public KafkaProbe(ObjectProvider<KafkaAdmin> admin, @Value("${umdc.kafka.enabled:true}") boolean enabled,
+    public KafkaProbe(ObjectProvider<ProducerFactory<?, ?>> producers, @Value("${umdc.kafka.enabled:true}") boolean enabled,
                       @Value("${umdc.kafka.auto-startup:false}") boolean listenersOn,
                       @Value("${umdc.monitoring.health.timeout-seconds:5}") int timeoutSeconds,
                       @Value("${umdc.monitoring.health.slow-ms:2000}") long slowMs,
                       @Value("${umdc.monitoring.health.interval-seconds:30}") long intervalSeconds) {
-        this(enabled, listenersOn, adminPing(admin), timeoutSeconds, slowMs, intervalSeconds);
+        this(enabled, listenersOn, adminPing(producers), timeoutSeconds, slowMs, intervalSeconds);
     }
 
     KafkaProbe(boolean enabled, boolean listenersOn, ClusterPing ping, int timeoutSeconds, long slowMs, long intervalSeconds) {
@@ -44,16 +46,28 @@ public class KafkaProbe implements ServiceProbe {
         this.interval = Duration.ofSeconds(Math.max(1, intervalSeconds));
     }
 
-    private static ClusterPing adminPing(ObjectProvider<KafkaAdmin> admin) {
+    /** The app has its own producer factory and no {@code KafkaAdmin}: the admin client is built from the producer's connection settings. */
+    private static ClusterPing adminPing(ObjectProvider<ProducerFactory<?, ?>> producers) {
         return timeout -> {
-            var configured = admin.getIfAvailable();
-            if (configured == null) {
-                throw new IllegalStateException("no KafkaAdmin");
+            var factory = producers.getIfAvailable();
+            if (factory == null) {
+                throw new IllegalStateException("no Kafka producer factory");
             }
-            try (var client = AdminClient.create(configured.getConfigurationProperties())) {
+            try (var client = AdminClient.create(connectionSettings(factory.getConfigurationProperties()))) {
                 client.describeCluster().nodes().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
             }
         };
+    }
+
+    /** Only what an admin client needs to reach the cluster: the servers and the security settings (not the serializers). */
+    static Map<String, Object> connectionSettings(Map<String, Object> producer) {
+        var settings = new HashMap<String, Object>();
+        producer.forEach((key, value) -> {
+            if (key.equals("bootstrap.servers") || key.startsWith("security.") || key.startsWith("ssl.") || key.startsWith("sasl.")) {
+                settings.put(key, value);
+            }
+        });
+        return settings;
     }
 
     @Override
