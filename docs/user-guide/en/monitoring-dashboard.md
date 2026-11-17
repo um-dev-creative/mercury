@@ -105,3 +105,8 @@ flowchart LR
 - **Export.** The message table (with the filters you chose) can be downloaded as CSV or JSON, up to 10 000 rows; the file tells you if it was cut.
   Recipients stay masked.
 - Creating or deleting rules and retrying need the write permission of the application; viewing needs only the read permission.
+
+## If the live view says your session expired
+
+When the session token is no longer valid, the live stream is answered with a clear **401** (not an empty server error). Sign in again; the
+dashboard falls back to refreshing every few seconds in the meantime.
