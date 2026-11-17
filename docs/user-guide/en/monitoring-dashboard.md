@@ -3,6 +3,12 @@
 > **Status: planned.** This guide describes what the monitoring dashboard will offer once it is built, phase by phase. Until a phase is
 > delivered, the matching section is not available. The requirements and scope are in `docs/tec/en/23-monitoring-dashboard-requirements.md`.
 
+## Where you will find it
+
+In **Iris**, on the home page (the dashboard you already see after logging in) and in a new Monitoring section. What you see today (campaign
+totals, delivery rate, failed and pending messages, the state of Mercury and Backbone, and the latest campaigns) stays; the items below are
+added to it. You see the data of your own application.
+
 ## What it is for
 
 See, as it happens, whether your e-mails, SMS, Telegram, WhatsApp and Push messages and your verification codes are being sent, and know
