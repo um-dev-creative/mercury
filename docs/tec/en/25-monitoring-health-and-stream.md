@@ -146,3 +146,22 @@ sequenceDiagram
 - `SecurityFilterChainsTest` pins the new paths on the managed-client chain (401 without Bearer, 200 with the read scope).
 
 Classes: `monitoring/health/*`, `monitoring/MonitoringStreamService`, `api/v1/controller/MonitoringApi` and `MonitoringController`.
+
+## Errors on the stream endpoint
+
+The stream is requested with `Accept: text/event-stream`. An error raised before the stream starts (invalid or expired `session-token`, 403, 429) is
+still answered as a JSON `ApiError` with its own status: `GlobalExceptionHandler` sets `Content-Type: application/json` on every error body, so
+Spring does not have to negotiate it against the `text/event-stream` the endpoint produces (that negotiation failed with
+`HttpMediaTypeNotAcceptableException` and produced an empty 500). A client must therefore read the status before treating the response as a stream.
+
+```mermaid
+sequenceDiagram
+    participant C as Client (Accept: text/event-stream)
+    participant M as MonitoringController
+    participant H as GlobalExceptionHandler
+    C->>M: GET .../stream
+    M-->>H: InvalidSessionTokenException
+    H-->>C: 401, Content-Type application/json, ApiError body
+```
+
+Test: `GlobalExceptionHandlerEventStreamTest`.
