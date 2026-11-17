@@ -40,7 +40,10 @@ public class MessageRetryService {
      * @param requestedBy   the verified user, for the log
      */
     public Result retry(UUID applicationId, UUID messageId, UUID requestedBy) {
-        if (!events.existsByApplicationIdAndMessageIdAndChannelAndStatus(applicationId, messageId, ChannelType.EMAIL.name(), "FAILED")) {
+        boolean known = MonitoringScope.isAll(applicationId)
+                ? events.existsByMessageIdAndChannelAndStatus(messageId, ChannelType.EMAIL.name(), "FAILED")
+                : events.existsByApplicationIdAndMessageIdAndChannelAndStatus(applicationId, messageId, ChannelType.EMAIL.name(), "FAILED");
+        if (!known) {
             return Result.NOT_FOUND;
         }
         var failed = emailQueue.findFailedByMessageId(messageId);

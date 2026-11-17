@@ -74,4 +74,21 @@ class QueueSnapshotsTest {
 
         org.mockito.Mockito.verify(emailQueue, org.mockito.Mockito.times(2)).findByDeliveryStatus(DeliveryStatusType.OPENED);
     }
+
+    @Test
+    @DisplayName("all applications: every queued message counts, whatever its template, and no template is looked up")
+    void everyApplication() {
+        var known = UUID.randomUUID();
+        when(emailQueue.findByDeliveryStatus(com.umdc.mercury.constant.DeliveryStatusType.OPENED)).thenReturn(List.of(
+                new com.umdc.mercury.jpa.nosql.document.EmailMessageDocument("a", UUID.randomUUID(), known, UUID.randomUUID(), "f@e.co", null, null, "s", "b",
+                        LocalDateTime.of(2026, 11, 16, 11, 0), java.util.Map.of(), com.umdc.mercury.constant.DeliveryStatusType.OPENED),
+                new com.umdc.mercury.jpa.nosql.document.EmailMessageDocument("b", UUID.randomUUID(), null, UUID.randomUUID(), "f@e.co", null, null, "s", "b",
+                        null, java.util.Map.of(), com.umdc.mercury.constant.DeliveryStatusType.OPENED)));
+        when(channelQueue.findByDeliveryStatus(com.umdc.mercury.constant.DeliveryStatusType.OPENED)).thenReturn(List.of());
+
+        var snapshot = new QueueSnapshots(definitions, emailQueue, channelQueue, 10).of(MonitoringScope.ALL);
+
+        assertEquals(2, snapshot.waiting(ChannelType.EMAIL));
+        org.mockito.Mockito.verify(definitions, org.mockito.Mockito.never()).findIdsByApplicationId(org.mockito.ArgumentMatchers.any());
+    }
 }

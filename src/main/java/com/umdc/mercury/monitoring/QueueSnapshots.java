@@ -51,7 +51,7 @@ public class QueueSnapshots {
         this.clock = clock;
     }
 
-    /** The queues of the application, from the cache while it is fresh. */
+    /** The queues of the application (or of all of them, {@link MonitoringScope#ALL}), from the cache while it is fresh. */
     public QueueSnapshot of(UUID applicationId) {
         var now = clock.instant();
         var cached = cache.get(applicationId);
@@ -64,17 +64,19 @@ public class QueueSnapshots {
     }
 
     private QueueSnapshot load(UUID applicationId, Instant at) {
-        Set<UUID> templates = new HashSet<>(definitions.findIdsByApplicationId(applicationId));
+        // every application: no template filter (an undefined template still counts as a queued message of Mercury)
+        boolean everything = MonitoringScope.isAll(applicationId);
+        Set<UUID> templates = everything ? Set.of() : new HashSet<>(definitions.findIdsByApplicationId(applicationId));
         var waiting = new EnumMap<ChannelType, List<LocalDateTime>>(ChannelType.class);
         for (ChannelType channel : ChannelType.values()) {
             waiting.put(channel, new ArrayList<>());
         }
-        if (!templates.isEmpty()) {
+        if (everything || !templates.isEmpty()) {
             emailQueue.findByDeliveryStatus(DeliveryStatusType.OPENED).stream()
-                    .filter(email -> templates.contains(email.templateDefinedId()))
+                    .filter(email -> everything || templates.contains(email.templateDefinedId()))
                     .forEach(email -> waiting.get(ChannelType.EMAIL).add(email.sendDate()));
             channelQueue.findByDeliveryStatus(DeliveryStatusType.OPENED).stream()
-                    .filter(other -> other.getChannelType() != null && templates.contains(other.getTemplateDefinedId()))
+                    .filter(other -> other.getChannelType() != null && (everything || templates.contains(other.getTemplateDefinedId())))
                     .forEach(other -> waiting.get(other.getChannelType()).add(other.getSendDate()));
         }
         return new QueueSnapshot(at, waiting);

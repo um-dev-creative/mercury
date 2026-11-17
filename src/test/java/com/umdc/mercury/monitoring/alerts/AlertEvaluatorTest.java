@@ -146,4 +146,15 @@ class AlertEvaluatorTest {
         assertEquals("No service has been degraded or down for 60 min", quiet.detail());
         assertEquals(Map.of(), Map.of());
     }
+
+    @Test
+    @DisplayName("a rule of all applications reads the outcomes and the queues of every application")
+    void ruleOfAllApplications() {
+        var all = rule(AlertType.FAILURE_RATE, "20.00", 15, 0, null);
+        all.setApplicationId(com.umdc.mercury.monitoring.MonitoringScope.ALL);
+        when(events.countOutcomesAll(any())).thenReturn(List.of(outcome("SENT", 1), outcome("FAILED", 1)));
+
+        assertTrue(evaluator.read(all, NOW).breached());
+        org.mockito.Mockito.verify(events, org.mockito.Mockito.never()).countOutcomes(any(), any());
+    }
 }

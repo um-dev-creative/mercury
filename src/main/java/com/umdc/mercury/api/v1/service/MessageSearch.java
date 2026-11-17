@@ -2,6 +2,7 @@ package com.umdc.mercury.api.v1.service;
 
 import com.umdc.mercury.api.v1.to.MonitoringTO;
 import com.umdc.mercury.constant.ChannelType;
+import com.umdc.mercury.monitoring.MonitoringScope;
 import com.umdc.mercury.monitoring.SendEventEntity;
 import com.umdc.mercury.monitoring.SendEventRepository;
 import com.umdc.mercury.monitoring.SendEventSpecifications;
@@ -46,7 +47,7 @@ final class MessageSearch {
         var channelName = channel == null || channel.isBlank() ? null : ChannelType.fromCode(channel.strip()).name();
         var statusName = status == null || status.isBlank() ? null : requireStatus(status);
         var kindName = kind == null || kind.isBlank() ? null : MonitoringServiceImpl.requireKind(kind);
-        return SendEventSpecifications.search(applicationId, channelName, statusName, kindName, templateDefinedId, from, to);
+        return SendEventSpecifications.search(MonitoringScope.filter(applicationId), channelName, statusName, kindName, templateDefinedId, from, to);
     }
 
     private static MonitoringTO.MessageItem toItem(SendEventEntity e) {

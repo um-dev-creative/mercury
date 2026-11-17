@@ -11,5 +11,7 @@ public interface AlertRuleRepository extends JpaRepository<AlertRuleEntity, UUID
 
     List<AlertRuleEntity> findByEnabledTrue();
 
+    List<AlertRuleEntity> findAllByOrderByCreatedAtAsc();
+
     long countByApplicationId(UUID applicationId);
 }

@@ -72,4 +72,11 @@ public interface VerificationCodeRepository extends JpaRepository<VerificationCo
 
     /** Codes issued to an application since a moment that nobody confirmed and are past their expiry. */
     long countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(UUID applicationId, LocalDateTime since, LocalDateTime now);
+
+    /** Codes of every application created since a moment. */
+    long countByCreatedAtGreaterThanEqual(LocalDateTime since);
+
+    long countByCreatedAtGreaterThanEqualAndIsVerifiedTrue(LocalDateTime since);
+
+    long countByCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(LocalDateTime since, LocalDateTime now);
 }

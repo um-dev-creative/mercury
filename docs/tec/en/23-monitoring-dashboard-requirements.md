@@ -67,7 +67,7 @@ and campaign table stay, and the new views are added around them.
 | NFR-2 | **Load:** aggregates are precomputed and cached for a short time; the dashboard must not run heavy queries against PostgreSQL or MongoDB per viewer. |
 | NFR-3 | **Honesty:** a channel without a provider is labelled "queued, no provider". |
 | NFR-4 | **Schema changes** go through new Flyway migrations and are tested against a real PostgreSQL. |
-| NFR-5 | **Fail closed:** an unauthenticated or out-of-scope caller gets 401/403; an application only sees its own data. |
+| NFR-5 | **Fail closed:** an unauthenticated or out-of-scope caller gets 401/403; the monitoring covers every send of Mercury (whoever asked for it) and a view can be narrowed to one application. |
 
 ## Phases
 
@@ -124,8 +124,7 @@ flowchart TD
 ## Decisions
 
 1. **The dashboard is Iris.** Its home page is extended; nothing is built in a new app.
-2. **Visibility follows Iris today:** a logged-in user sees the data of their own application (the BFF fixes the application). A cross-application
-   view for platform operators would be a later addition with its own scope (not in these phases).
+2. **The monitoring is Mercury's own, not one client's.** Mercury serves many applications (ZeroBound, Iris, ...), and the dashboard shows every communication that goes through it, whoever sent it. The `applicationId` of a request is `00000000-0000-0000-0000-000000000000` (`MonitoringScope.ALL`) for all of them, or the id of one application to narrow the view. (An earlier version showed only the application of Iris, which left out what its clients send.)
 
 ## Risks specific to Iris
 

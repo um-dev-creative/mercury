@@ -87,4 +87,16 @@ class MessageRetryServiceTest {
         verify(emailQueue, never()).save(any());
         verifyNoInteractions(metrics);
     }
+
+    @Test
+    @DisplayName("all applications: a failed e-mail of any application can be retried (the monitoring is Mercury's, not one client's)")
+    void anyApplication() {
+        var document = failed(null);
+        when(events.existsByMessageIdAndChannelAndStatus(message, "EMAIL", "FAILED")).thenReturn(true);
+        when(emailQueue.findFailedByMessageId(message)).thenReturn(List.of(document));
+
+        assertEquals(MessageRetryService.Result.QUEUED, service.retry(MonitoringScope.ALL, message, user));
+
+        verify(events, never()).existsByApplicationIdAndMessageIdAndChannelAndStatus(any(), any(), any(), any());
+    }
 }

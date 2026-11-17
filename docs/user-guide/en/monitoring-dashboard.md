@@ -8,7 +8,7 @@
 
 In **Iris**, on the home page (the dashboard you already see after logging in) and in a new Monitoring section. What you see today (campaign
 totals, delivery rate, failed and pending messages, the state of Mercury and Backbone, and the latest campaigns) stays; the items below are
-added to it. You see the data of your own application.
+added to it. You see **every communication that goes through Mercury**, whoever sent it (ZeroBound, Iris, any other application), and you can narrow the view to one application.
 
 ## What it is for
 
@@ -47,7 +47,7 @@ flowchart LR
   provider is connected yet.
 - **Privacy:** recipients appear masked, and message bodies and verification codes are never shown.
 - **Stale data:** if the live connection drops the dashboard shows a warning and keeps refreshing by itself.
-- **Permissions:** viewing needs a dedicated monitoring permission. An application sees only its own data.
+- **Permissions:** viewing needs a dedicated monitoring permission. Messages of every application are shown, with the recipient masked.
 
 ## What phase 1 already keeps
 

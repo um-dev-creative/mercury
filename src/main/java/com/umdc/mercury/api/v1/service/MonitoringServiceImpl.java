@@ -4,6 +4,7 @@ import com.umdc.mercury.api.v1.to.MonitoringTO;
 import com.umdc.mercury.constant.ChannelType;
 import com.umdc.mercury.jpa.sql.repository.VerificationCodeRepository;
 import com.umdc.mercury.monitoring.MonitoringRange;
+import com.umdc.mercury.monitoring.MonitoringScope;
 import com.umdc.mercury.monitoring.QueueSnapshots;
 import com.umdc.mercury.monitoring.SendEventRepository;
 import com.umdc.mercury.monitoring.SendEventService;
@@ -74,7 +75,7 @@ public class MonitoringServiceImpl implements MonitoringService {
     public MonitoringTO.SummaryResponse summary(UUID applicationId, String range) {
         var selected = MonitoringRange.parse(range);
         var now = now();
-        var outcomes = events.countOutcomes(applicationId, selected.since(now));
+        var outcomes = countOutcomes(applicationId, selected.since(now));
         var queues = queueSnapshots.of(applicationId);
 
         var sent = new EnumMap<ChannelType, Long>(ChannelType.class);
@@ -119,7 +120,7 @@ public class MonitoringServiceImpl implements MonitoringService {
 
         var sent = new java.util.HashMap<LocalDateTime, Long>();
         var failed = new java.util.HashMap<LocalDateTime, Long>();
-        for (var row : events.countByBucket(applicationId, since, selected.unit(), channelName, kindName)) {
+        for (var row : events.countByBucket(MonitoringScope.filter(applicationId), since, selected.unit(), channelName, kindName)) {
             ("SENT".equals(row.getStatus()) ? sent : failed).merge(row.getBucket(), row.getTotal(), Long::sum);
         }
         // every bucket of the range is returned, also the empty ones, so the chart has no holes
@@ -135,7 +136,8 @@ public class MonitoringServiceImpl implements MonitoringService {
     public MonitoringTO.FailuresResponse failures(UUID applicationId, String range) {
         var selected = MonitoringRange.parse(range);
         var now = now();
-        var causes = events.topCauses(applicationId, selected.since(now), PageRequest.of(0, TOP_CAUSES)).stream()
+        var causes = (MonitoringScope.isAll(applicationId) ? events.topCausesAll(selected.since(now), PageRequest.of(0, TOP_CAUSES))
+                : events.topCauses(applicationId, selected.since(now), PageRequest.of(0, TOP_CAUSES))).stream()
                 .map(row -> new MonitoringTO.FailureCause(row.getCause(), row.getChannel(), row.getTotal()))
                 .toList();
         var queues = queueSnapshots.of(applicationId);
@@ -157,11 +159,14 @@ public class MonitoringServiceImpl implements MonitoringService {
         var selected = MonitoringRange.parse(range);
         var now = now();
         var since = selected.since(now);
-        long generated = codes.countByApplicationIdAndCreatedAtGreaterThanEqual(applicationId, since);
-        long confirmed = codes.countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedTrue(applicationId, since);
-        long expired = codes.countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(applicationId, since, now);
+        boolean everything = MonitoringScope.isAll(applicationId);
+        long generated = everything ? codes.countByCreatedAtGreaterThanEqual(since) : codes.countByApplicationIdAndCreatedAtGreaterThanEqual(applicationId, since);
+        long confirmed = everything ? codes.countByCreatedAtGreaterThanEqualAndIsVerifiedTrue(since)
+                : codes.countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedTrue(applicationId, since);
+        long expired = everything ? codes.countByCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(since, now)
+                : codes.countByApplicationIdAndCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(applicationId, since, now);
         long pending = Math.max(0, generated - confirmed - expired);
-        long failedSends = events.countOutcomes(applicationId, since).stream()
+        long failedSends = countOutcomes(applicationId, since).stream()
                 .filter(o -> SendEventService.KIND_VERIFICATION_CODE.equals(o.getKind()) && "FAILED".equals(o.getStatus()))
                 .mapToLong(SendEventRepository.OutcomeCount::getTotal).sum();
         return new MonitoringTO.VerificationCodeStats(selected.code(), generated, confirmed, expired, pending, failedSends,
@@ -180,6 +185,10 @@ public class MonitoringServiceImpl implements MonitoringService {
     public MonitoringTO.MessageExport export(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId,
                                              LocalDateTime from, LocalDateTime to) {
         return search.export(applicationId, channel, status, kind, templateDefinedId, from, to);
+    }
+
+    private List<SendEventRepository.OutcomeCount> countOutcomes(UUID applicationId, LocalDateTime since) {
+        return MonitoringScope.isAll(applicationId) ? events.countOutcomesAll(since) : events.countOutcomes(applicationId, since);
     }
 
     private LocalDateTime now() {
