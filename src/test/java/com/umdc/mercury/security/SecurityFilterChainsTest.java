@@ -48,7 +48,7 @@ class SecurityFilterChainsTest {
 
     @RestController
     static class Probe {
-        @GetMapping({"/api/v1/templates", "/api/v1/campaigns/x", "/api/v1/channel-types", "/api/v1/mail"})
+        @GetMapping({"/api/v1/templates", "/api/v1/campaigns/x", "/api/v1/channel-types", "/api/v1/mail", "/api/v1/monitoring/applications/x/summary"})
         String read() {
             return "ok";
         }
@@ -127,6 +127,18 @@ class SecurityFilterChainsTest {
     void bearerChain_writeScope_forbidsGet() throws Exception {
         mockMvc.perform(get("/api/v1/templates").header("Authorization", "Bearer write-token"))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("monitoring needs a Bearer with the read scope: none or inactive is 401, the write scope alone and a foreign scope are 403, a write is refused")
+    void monitoringChain() throws Exception {
+        var path = "/api/v1/monitoring/applications/x/summary";
+        mockMvc.perform(get(path)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(path).header("Authorization", "Bearer revoked")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(path).header("Authorization", "Bearer write-token")).andExpect(status().isForbidden());
+        mockMvc.perform(get(path).header("Authorization", "Bearer other-token")).andExpect(status().isForbidden());
+        mockMvc.perform(get(path).header("Authorization", "Bearer read-token")).andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/monitoring/applications/x/summary").header("Authorization", "Bearer read-token")).andExpect(status().isForbidden());
     }
 
     @Test

@@ -1,7 +1,8 @@
-# Monitoring dashboard (planned)
+# Monitoring dashboard
 
-> **Status: planned.** This guide describes what the monitoring dashboard will offer once it is built, phase by phase. Until a phase is
-> delivered, the matching section is not available. The requirements and scope are in `docs/tec/en/23-monitoring-dashboard-requirements.md`.
+> **Status: in progress.** Phase 1 (the data behind the dashboard) is delivered in Mercury: it records every delivery outcome and answers
+> the monitoring questions through its API. You will not see it on screen until the Iris views of phase 3 are built. Requirements and scope:
+> `docs/tec/en/23-monitoring-dashboard-requirements.md`; how phase 1 works: `docs/tec/en/24-monitoring-api.md`.
 
 ## Where you will find it
 
@@ -47,3 +48,15 @@ flowchart LR
 - **Privacy:** recipients appear masked, and message bodies and verification codes are never shown.
 - **Stale data:** if the live connection drops the dashboard shows a warning and keeps refreshing by itself.
 - **Permissions:** viewing needs a dedicated monitoring permission. An application sees only its own data.
+
+## What phase 1 already keeps
+
+From the day phase 1 is deployed, Mercury keeps one record per delivery outcome (sent or failed) of e-mail and Telegram, including
+verification codes, for 90 days. It starts empty: there is no history before that day. The recipient is stored masked (`j***@e***.com`), and
+neither message bodies nor verification codes are kept.
+
+- **E-mail and Telegram** report sent and failed. **SMS, WhatsApp and Push** have no provider yet, so they only ever show as **queued**.
+- A failed message shows a coarse cause today (`SEND_FAILED` for e-mail, `DELIVERY_FAILED` for Telegram). A temporary SMTP problem is not a
+  failure yet: the message stays queued and is retried, so it is not counted until it is sent or fails. The detailed causes come with the
+  service-health view (phase 2).
+- A message waiting longer than 15 minutes is reported as **stuck**.

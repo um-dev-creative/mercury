@@ -4,7 +4,9 @@ package com.umdc.mercury.processor;
                 import com.umdc.mercury.api.v1.to.MessageRecordTO;
                 import com.umdc.mercury.api.v1.to.TemplateDefinedTO;
                 import com.umdc.mercury.api.v1.to.VerificationCodeTO;
+                import com.umdc.mercury.constant.ChannelType;
                 import com.umdc.mercury.constant.DeliveryStatusType;
+                import com.umdc.mercury.monitoring.SendEventService;
                 import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
                 import com.umdc.mercury.mapper.MessageRecordMapper;
                 import org.slf4j.Logger;
@@ -35,6 +37,7 @@ package com.umdc.mercury.processor;
                     private final MessageStatusTypeService messageStatusTypeService;
                     private final VerificationCodeService verificationCodeService;
     private final CampaignMetricsService campaignMetricsService;
+    private final SendEventService sendEventService;
     private final org.springframework.transaction.support.TransactionTemplate perMessage;
 
                     /**
@@ -57,11 +60,13 @@ package com.umdc.mercury.processor;
                                             TemplateDefinedService templateDefinedService, MessageRecordMapper messageRecordMapper,
                                             MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService,
                                             CampaignMetricsService campaignMetricsService,
-                                            org.springframework.transaction.PlatformTransactionManager transactionManager) {
+                                            org.springframework.transaction.PlatformTransactionManager transactionManager,
+                                            SendEventService sendEventService) {
                         // each message is recorded in its own transaction: one that the database refuses must not undo or block the others
                         this.perMessage = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
                         this.perMessage.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
                         this.campaignMetricsService = campaignMetricsService;
+                        this.sendEventService = sendEventService;
                         this.emailService = emailService;
                         this.messageRecordService = messageRecordService;
                         this.templateDefinedService = templateDefinedService;
@@ -104,6 +109,7 @@ package com.umdc.mercury.processor;
                                     // an e-mail of a campaign advances its counters once, when it reaches SENT or FAILED (no-op outside a campaign)
                                     if (sent != null) {
                                         campaignMetricsService.recordOutcome(sent.campaignId(), sent.deliveryStatus());
+                                        recordSendEvent(sent, templateDefinedTO);
                                     }
                                     logger.debug("Email sent: {}", emailMessageDocument);
                                     // A verification code must be confirmable as soon as the e-mail leaves, not at the next (5 min) reconciliation
@@ -111,6 +117,13 @@ package com.umdc.mercury.processor;
                                         reconcileIsolated(sent, templateDefinedTO);
                                     }
                                 });
+                    }
+
+                    /** Keeps the outcome for the monitoring views (best effort: it never affects the delivery). */
+                    private void recordSendEvent(com.umdc.mercury.jpa.nosql.document.EmailMessageDocument sent, TemplateDefinedTO templateDefinedTO) {
+                        var first = sent.to() == null || sent.to().isEmpty() || sent.to().getFirst() == null ? null : sent.to().getFirst().email();
+                        sendEventService.record(ChannelType.EMAIL, SendEventService.kindOf(isVerificationCode(templateDefinedTO), sent.campaignId()),
+                                sent.deliveryStatus(), sent.messageId(), sent.campaignId(), sent.templateDefinedId(), first, SendEventService.CAUSE_SEND_FAILED);
                     }
 
                     /**

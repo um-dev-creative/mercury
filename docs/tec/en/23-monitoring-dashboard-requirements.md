@@ -1,6 +1,6 @@
 # Monitoring dashboard: requirements and scope
 
-> **Status: planned.** Nothing described here is implemented yet. This document fixes the requirements, the scope and the phases so each
+> **Status: phase 1 delivered, the rest planned.** Phase 1 (aggregates API and durable send events) is described in `24-monitoring-api.md`. This document fixes the requirements, the scope and the phases so each
 > phase can be built, tested and reviewed on its own branch. User-facing description: `docs/user-guide/en/monitoring-dashboard.md`.
 
 ## Purpose

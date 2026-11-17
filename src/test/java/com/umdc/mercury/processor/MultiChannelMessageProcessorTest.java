@@ -36,6 +36,9 @@ class MultiChannelMessageProcessorTest {
     @Mock
     private CampaignMetricsService campaignMetricsService;
 
+    @Mock
+    private com.umdc.mercury.monitoring.SendEventService sendEventService;
+
     @InjectMocks
     private MultiChannelMessageProcessor processor;
 
@@ -54,7 +57,7 @@ class MultiChannelMessageProcessorTest {
 
         processor.dispatchTelegram();
 
-        verifyNoInteractions(telegramChannelService, campaignMetricsService);
+        verifyNoInteractions(telegramChannelService, campaignMetricsService, sendEventService);
         verify(telegramDispatcher, never()).dispatch(any());
     }
 
@@ -72,6 +75,8 @@ class MultiChannelMessageProcessorTest {
         assertThat(document.getDeliveryStatus()).isEqualTo(DeliveryStatusType.SENT);
         verify(telegramChannelService).updateStatus(document);
         verify(campaignMetricsService).recordOutcome(campaignId, DeliveryStatusType.SENT);
+        verify(sendEventService).record(com.umdc.mercury.constant.ChannelType.TELEGRAM, "CAMPAIGN", DeliveryStatusType.SENT, null, campaignId, null,
+                "12345", "DELIVERY_FAILED");
     }
 
     @Test
@@ -88,6 +93,22 @@ class MultiChannelMessageProcessorTest {
         assertThat(document.getDeliveryStatus()).isEqualTo(DeliveryStatusType.FAILED);
         verify(telegramChannelService).updateStatus(document);
         verify(campaignMetricsService).recordOutcome(campaignId, DeliveryStatusType.FAILED);
+        verify(sendEventService).record(com.umdc.mercury.constant.ChannelType.TELEGRAM, "CAMPAIGN", DeliveryStatusType.FAILED, null, campaignId, null,
+                "12345", "DELIVERY_FAILED");
+    }
+
+    @Test
+    @DisplayName("a message outside any campaign is recorded as transactional")
+    void recordsTransactionalOutsideCampaign() {
+        TelegramMessageDocument document = queued(null);
+        when(telegramDispatcher.isEnabled()).thenReturn(true);
+        when(telegramChannelService.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(document));
+        when(telegramDispatcher.dispatch(document)).thenReturn(DeliveryStatusType.SENT);
+
+        processor.dispatchTelegram();
+
+        verify(sendEventService).record(com.umdc.mercury.constant.ChannelType.TELEGRAM, "TRANSACTIONAL", DeliveryStatusType.SENT, null, null, null,
+                "12345", "DELIVERY_FAILED");
     }
 
     @Test
@@ -99,6 +120,6 @@ class MultiChannelMessageProcessorTest {
         processor.dispatchTelegram();
 
         verify(telegramDispatcher, never()).dispatch(any());
-        verifyNoInteractions(campaignMetricsService);
+        verifyNoInteractions(campaignMetricsService, sendEventService);
     }
 }
