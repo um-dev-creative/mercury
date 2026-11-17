@@ -64,9 +64,9 @@ public class ServiceHealthRegistry {
     @EventListener(ApplicationReadyEvent.class)
     public void loadOpenOutages() {
         try {
-            var rows = isolated.execute(status -> outages.findByEndedAtIsNull());
+            var rows = java.util.Optional.ofNullable(isolated.execute(status -> outages.findByEndedAtIsNull())).orElse(List.of());
             synchronized (this) {
-                for (var row : rows == null ? List.<ServiceOutageEntity>of() : rows) {
+                for (var row : rows) {
                     // keep the persisted id so closing it updates the same row
                     var restored = new Outage(row.getId(), row.getService(), ServiceStatus.valueOf(row.getStatus()), HealthCause.valueOf(row.getCauseCode()),
                             row.getStartedAt().toInstant(ZoneOffset.UTC));

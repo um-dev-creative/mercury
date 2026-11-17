@@ -81,10 +81,7 @@ public class ServiceHealthService {
         var since = selected.since(now);
         var all = new ArrayList<ServiceOutageEntity>();
         try {
-            var rows = readOnly.execute(status -> outages.findOverlapping(since));
-            if (rows != null) {
-                all.addAll(rows);
-            }
+            all.addAll(java.util.Optional.ofNullable(readOnly.execute(status -> outages.findOverlapping(since))).orElse(List.of()));
         } catch (RuntimeException e) {
             logger.warn("Could not read the outage history, answering with what is in memory: {}", e.getMessage());
         }
