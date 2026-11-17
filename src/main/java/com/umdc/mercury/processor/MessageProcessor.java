@@ -7,6 +7,8 @@ package com.umdc.mercury.processor;
                 import com.umdc.mercury.constant.ChannelType;
                 import com.umdc.mercury.constant.DeliveryStatusType;
                 import com.umdc.mercury.monitoring.SendEventService;
+                import com.umdc.mercury.monitoring.health.HealthCause;
+                import com.umdc.mercury.monitoring.health.ServiceHealthRegistry;
                 import com.umdc.mercury.jpa.nosql.document.EmailMessageDocument;
                 import com.umdc.mercury.mapper.MessageRecordMapper;
                 import org.slf4j.Logger;
@@ -36,8 +38,11 @@ package com.umdc.mercury.processor;
                     private final MessageRecordMapper messageRecordMapper;
                     private final MessageStatusTypeService messageStatusTypeService;
                     private final VerificationCodeService verificationCodeService;
+    private static final String SMTP = "SMTP";
+
     private final CampaignMetricsService campaignMetricsService;
     private final SendEventService sendEventService;
+    private final ServiceHealthRegistry healthRegistry;
     private final org.springframework.transaction.support.TransactionTemplate perMessage;
 
                     /**
@@ -61,12 +66,14 @@ package com.umdc.mercury.processor;
                                             MessageStatusTypeService messageStatusTypeService, VerificationCodeService verificationCodeService,
                                             CampaignMetricsService campaignMetricsService,
                                             org.springframework.transaction.PlatformTransactionManager transactionManager,
-                                            SendEventService sendEventService) {
+                                            SendEventService sendEventService,
+                                            ServiceHealthRegistry healthRegistry) {
                         // each message is recorded in its own transaction: one that the database refuses must not undo or block the others
                         this.perMessage = new org.springframework.transaction.support.TransactionTemplate(transactionManager);
                         this.perMessage.setPropagationBehavior(org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW);
                         this.campaignMetricsService = campaignMetricsService;
                         this.sendEventService = sendEventService;
+                        this.healthRegistry = healthRegistry;
                         this.emailService = emailService;
                         this.messageRecordService = messageRecordService;
                         this.templateDefinedService = templateDefinedService;
@@ -103,9 +110,13 @@ package com.umdc.mercury.processor;
                                     } catch (org.springframework.mail.MailException e) {
                                         // the SMTP server timed out / refused the connection: keep the message OPENED for the next run and go on with the others
                                         logger.warn("SMTP failure sending message {}, left OPENED to retry: {}", emailMessageDocument.messageId(), describeSmtpFailure(e));
+                                        healthRegistry.reportFailure(SMTP, HealthCause.fromSmtpFailure(e));
                                         return;
                                     }
                                     emailService.updateEmailStatus(sent);
+                                    if (sent != null && sent.deliveryStatus() == DeliveryStatusType.SENT) {
+                                        healthRegistry.reportSuccess(SMTP);
+                                    }
                                     // an e-mail of a campaign advances its counters once, when it reaches SENT or FAILED (no-op outside a campaign)
                                     if (sent != null) {
                                         campaignMetricsService.recordOutcome(sent.campaignId(), sent.deliveryStatus());

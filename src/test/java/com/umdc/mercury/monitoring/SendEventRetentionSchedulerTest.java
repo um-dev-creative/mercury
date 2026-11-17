@@ -1,5 +1,6 @@
 package com.umdc.mercury.monitoring;
 
+import com.umdc.mercury.monitoring.health.ServiceHealthService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,17 +18,21 @@ class SendEventRetentionSchedulerTest {
 
     @Mock
     private SendEventService service;
+    @Mock
+    private ServiceHealthService health;
     @InjectMocks
     private SendEventRetentionScheduler scheduler;
 
     @Test
-    @DisplayName("purges the expired events")
+    @DisplayName("purges the expired events and the expired outages")
     void purges() {
         when(service.purgeExpired()).thenReturn(3);
+        when(health.purgeExpired()).thenReturn(2);
 
         scheduler.purge();
 
         verify(service).purgeExpired();
+        verify(health).purgeExpired();
     }
 
     @Test
@@ -42,6 +47,7 @@ class SendEventRetentionSchedulerTest {
     @DisplayName("an empty purge is fine")
     void nothingToPurge() {
         when(service.purgeExpired()).thenReturn(0);
+        when(health.purgeExpired()).thenReturn(0);
 
         assertDoesNotThrow(scheduler::purge);
     }

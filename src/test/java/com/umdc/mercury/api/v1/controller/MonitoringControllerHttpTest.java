@@ -30,6 +30,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MonitoringControllerHttpTest {
 
     private final MonitoringService service = Mockito.mock(MonitoringService.class);
+    private final com.umdc.mercury.monitoring.health.ServiceHealthService health = Mockito.mock(com.umdc.mercury.monitoring.health.ServiceHealthService.class);
+    private final com.umdc.mercury.monitoring.MonitoringStreamService streams = Mockito.mock(com.umdc.mercury.monitoring.MonitoringStreamService.class);
     private final SessionJwtServiceImpl sessions = Mockito.mock(SessionJwtServiceImpl.class);
     private final UUID application = UUID.randomUUID();
     private MockMvc mvc;
@@ -38,7 +40,7 @@ class MonitoringControllerHttpTest {
     void setUp() {
         when(sessions.getVerifiedUid("good")).thenReturn(Optional.of(UUID.randomUUID()));
         when(sessions.getVerifiedUid("bad")).thenReturn(Optional.empty());
-        mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(service, sessions)).setControllerAdvice(new GlobalExceptionHandler()).build();
+        mvc = MockMvcBuilders.standaloneSetup(new MonitoringController(service, health, streams, sessions)).setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     private String path(String endpoint) {
@@ -93,5 +95,35 @@ class MonitoringControllerHttpTest {
         mvc.perform(get(path("summary")).header("session-token", " ")).andExpect(status().isUnauthorized());
         mvc.perform(get(path("summary")).header("session-token", "bad")).andExpect(status().isUnauthorized());
         mvc.perform(get(path("failures")).header("session-token", "bad")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("health and outages answer JSON; an unknown range is a 400")
+    void healthAndOutages() throws Exception {
+        when(health.health()).thenReturn(new MonitoringTO.HealthResponse(LocalDateTime.of(2026, 11, 16, 12, 0), "DEGRADED",
+                List.of(new MonitoringTO.ServiceHealth("SMTP", "DEGRADED", null, "QUOTA_EXCEEDED", "The sending limit of the account was exceeded", null, null))));
+        when(health.outages("7d")).thenReturn(new MonitoringTO.OutagesResponse("7d", List.of()));
+        when(health.outages("9d")).thenThrow(new IllegalArgumentException("Unknown range"));
+
+        mvc.perform(get("/api/v1/monitoring/health").header("session-token", "good")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.overall").value("DEGRADED")).andExpect(jsonPath("$.services[0].cause").value("QUOTA_EXCEEDED"));
+        mvc.perform(get("/api/v1/monitoring/health/outages").header("session-token", "good").param("range", "7d")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.range").value("7d"));
+        mvc.perform(get("/api/v1/monitoring/health/outages").header("session-token", "good").param("range", "9d")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/monitoring/health")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("the stream starts an asynchronous response; too many streams is a 429 and a bad range a 400")
+    void stream() throws Exception {
+        when(streams.subscribe(application, "1h")).thenReturn(new org.springframework.web.servlet.mvc.method.annotation.SseEmitter());
+        when(streams.subscribe(application, "9d")).thenThrow(new IllegalArgumentException("Unknown range"));
+        when(streams.subscribe(application, "30d")).thenThrow(new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS, "full"));
+
+        mvc.perform(get(path("stream")).header("session-token", "good").param("range", "1h").accept("text/event-stream"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted());
+        mvc.perform(get(path("stream")).header("session-token", "good").param("range", "9d")).andExpect(status().isBadRequest());
+        mvc.perform(get(path("stream")).header("session-token", "good").param("range", "30d")).andExpect(status().isTooManyRequests());
+        mvc.perform(get(path("stream"))).andExpect(status().isUnauthorized());
     }
 }

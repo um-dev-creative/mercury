@@ -27,8 +27,8 @@ flowchart LR
 
 - The kind is `VERIFICATION_CODE` for a verification-code template, else `CAMPAIGN` when the message carries a campaign, else
   `TRANSACTIONAL`.
-- An e-mail that fails with an SMTP error (`MailException`) stays `OPENED` and is retried, so it is **not** an outcome yet; the retry causes
-  (`535`, quota, rate limit) arrive with the service-health work of phase 2.
+- An e-mail that fails with an SMTP error (`MailException`) stays `OPENED` and is retried, so it is **not** an outcome yet; its cause (`535`,
+  quota, rate limit) shows in the service-health view (`25-monitoring-health-and-stream.md`).
 - Failure causes recorded today are coarse: `SEND_FAILED` (e-mail) and `DELIVERY_FAILED` (Telegram), because the delivery code reports only that
   a send failed.
 - SMS, WhatsApp and Push have no provider (see `CLAUDE.md`, *Known gaps*): they never reach SENT/FAILED, so they appear only as **queued**, and
@@ -88,7 +88,7 @@ sequenceDiagram
 - The queue snapshot reads the `OPENED` documents of MongoDB in memory and filters them by template: fine for the queue sizes seen today; a
   count query per application is the next step if queues grow large.
 - `send_events` starts empty: history begins when this is deployed.
-- Alerts, service health, the SSE stream, retries and export are phases 2 to 4.
+- Service health and the SSE stream are phase 2 (`25-monitoring-health-and-stream.md`); alerts, retries and export are phase 4.
 
 ## Verification done
 

@@ -88,4 +88,21 @@ class TelegramMessageDispatcherTest {
         assertThat(dispatcher.dispatch(message(null))).isEqualTo(DeliveryStatusType.FAILED);
         verifyNoInteractions(telegramClient);
     }
+
+    @Test
+    @DisplayName("checkReachable asks Telegram who the bot is and sends nothing to anyone")
+    void checkReachableCallsGetMe() throws TelegramApiException {
+        new TelegramMessageDispatcher(telegramClient).checkReachable();
+
+        verify(telegramClient).execute(any(org.telegram.telegrambots.meta.api.methods.GetMe.class));
+    }
+
+    @Test
+    @DisplayName("checkReachable passes the Telegram failure on, and refuses to run without a bot token")
+    void checkReachableFailures() throws TelegramApiException {
+        when(telegramClient.execute(any(org.telegram.telegrambots.meta.api.methods.GetMe.class))).thenThrow(new TelegramApiException("down"));
+
+        assertThatThrownBy(() -> new TelegramMessageDispatcher(telegramClient).checkReachable()).isInstanceOf(TelegramApiException.class);
+        assertThatThrownBy(() -> new TelegramMessageDispatcher(null).checkReachable()).isInstanceOf(IllegalStateException.class);
+    }
 }

@@ -48,7 +48,7 @@ class SecurityFilterChainsTest {
 
     @RestController
     static class Probe {
-        @GetMapping({"/api/v1/templates", "/api/v1/campaigns/x", "/api/v1/channel-types", "/api/v1/mail", "/api/v1/monitoring/applications/x/summary"})
+        @GetMapping({"/api/v1/templates", "/api/v1/campaigns/x", "/api/v1/channel-types", "/api/v1/mail", "/api/v1/monitoring/applications/x/summary", "/api/v1/monitoring/health", "/api/v1/monitoring/applications/x/stream"})
         String read() {
             return "ok";
         }
@@ -139,6 +139,10 @@ class SecurityFilterChainsTest {
         mockMvc.perform(get(path).header("Authorization", "Bearer other-token")).andExpect(status().isForbidden());
         mockMvc.perform(get(path).header("Authorization", "Bearer read-token")).andExpect(status().isOk());
         mockMvc.perform(post("/api/v1/monitoring/applications/x/summary").header("Authorization", "Bearer read-token")).andExpect(status().isForbidden());
+        for (String other : List.of("/api/v1/monitoring/health", "/api/v1/monitoring/applications/x/stream")) {
+            mockMvc.perform(get(other)).andExpect(status().isUnauthorized());
+            mockMvc.perform(get(other).header("Authorization", "Bearer read-token")).andExpect(status().isOk());
+        }
     }
 
     @Test

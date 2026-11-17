@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.methods.GetMe;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
@@ -37,6 +38,19 @@ public class TelegramMessageDispatcher {
     /** Whether a bot token is configured and dispatching can happen at all. */
     public boolean isEnabled() {
         return Objects.nonNull(telegramClient);
+    }
+
+    /**
+     * Asks the Bot API who the bot is ({@code getMe}): proves the token is valid and Telegram is reachable, without sending anything to anyone.
+     *
+     * @throws TelegramApiException if Telegram cannot be reached or refuses the token
+     * @throws IllegalStateException if no bot token is configured
+     */
+    public void checkReachable() throws TelegramApiException {
+        if (!isEnabled()) {
+            throw new IllegalStateException("Telegram check requested without a configured bot token");
+        }
+        telegramClient.execute(new GetMe());
     }
 
     /**
