@@ -2,6 +2,7 @@ package com.umdc.mercury.monitoring.alerts;
 
 import com.umdc.mercury.api.v1.to.MonitoringTO;
 import com.umdc.mercury.monitoring.MonitoringRange;
+import com.umdc.mercury.monitoring.MonitoringScope;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,8 @@ public class AlertRuleService {
 
     @Transactional(readOnly = true)
     public MonitoringTO.AlertRulesResponse list(UUID applicationId) {
-        return new MonitoringTO.AlertRulesResponse(rules.findByApplicationIdOrderByCreatedAtAsc(applicationId).stream().map(AlertRuleService::toTo).toList());
+        var found = MonitoringScope.isAll(applicationId) ? rules.findAllByOrderByCreatedAtAsc() : rules.findByApplicationIdOrderByCreatedAtAsc(applicationId);
+        return new MonitoringTO.AlertRulesResponse(found.stream().map(AlertRuleService::toTo).toList());
     }
 
     @Transactional
@@ -62,7 +64,7 @@ public class AlertRuleService {
     /** @return the updated rule, or {@code null} when the application has no such rule */
     @Transactional
     public MonitoringTO.AlertRule update(UUID applicationId, UUID ruleId, MonitoringTO.AlertRuleRequest request) {
-        return rules.findById(ruleId).filter(r -> applicationId.equals(r.getApplicationId())).map(rule -> {
+        return rules.findById(ruleId).filter(r -> inScope(applicationId, r)).map(rule -> {
             validator.apply(rule, request, now());
             return toTo(rules.save(rule));
         }).orElse(null);
@@ -71,7 +73,7 @@ public class AlertRuleService {
     /** @return whether the rule existed (and was deleted with its alerts) */
     @Transactional
     public boolean delete(UUID applicationId, UUID ruleId) {
-        var rule = rules.findById(ruleId).filter(r -> applicationId.equals(r.getApplicationId()));
+        var rule = rules.findById(ruleId).filter(r -> inScope(applicationId, r));
         rule.ifPresent(rules::delete);
         return rule.isPresent();
     }
@@ -79,8 +81,16 @@ public class AlertRuleService {
     @Transactional(readOnly = true)
     public MonitoringTO.AlertsResponse alerts(UUID applicationId, String range) {
         var selected = MonitoringRange.parse(range);
-        var list = events.recent(applicationId, selected.since(now()), PageRequest.of(0, MAX_ALERTS)).stream().map(AlertRuleService::toTo).toList();
-        return new MonitoringTO.AlertsResponse(selected.code(), events.countByApplicationIdAndStatus(applicationId, AlertEventEntity.FIRING), list);
+        boolean everything = MonitoringScope.isAll(applicationId);
+        var recent = everything ? events.recentAll(selected.since(now()), PageRequest.of(0, MAX_ALERTS))
+                : events.recent(applicationId, selected.since(now()), PageRequest.of(0, MAX_ALERTS));
+        long firing = everything ? events.countByStatus(AlertEventEntity.FIRING) : events.countByApplicationIdAndStatus(applicationId, AlertEventEntity.FIRING);
+        return new MonitoringTO.AlertsResponse(selected.code(), firing, recent.stream().map(AlertRuleService::toTo).toList());
+    }
+
+    /** A rule is in the scope of a request when the request is about all applications or about the rule's own. */
+    private static boolean inScope(UUID applicationId, AlertRuleEntity rule) {
+        return MonitoringScope.isAll(applicationId) || applicationId.equals(rule.getApplicationId());
     }
 
     private LocalDateTime now() {

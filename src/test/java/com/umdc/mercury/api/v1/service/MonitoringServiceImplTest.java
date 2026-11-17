@@ -42,6 +42,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -461,5 +463,78 @@ class MonitoringServiceImplTest {
         assertThrows(IllegalArgumentException.class, () -> service.export(application, "fax", null, null, null, null, null));
         assertThrows(IllegalArgumentException.class, () -> service.export(application, null, "weird", null, null, null, null));
         assertThrows(IllegalArgumentException.class, () -> service.export(application, null, null, "weird", null, null, null));
+    }
+
+    // ---- every application: the monitoring of Mercury as a whole, whoever asked for the send ----
+
+    private static final UUID ALL = com.umdc.mercury.monitoring.MonitoringScope.ALL;
+
+    private static SendEventRepository.OutcomeCount outcome(String channel, String kind, String status, long total) {
+        return new SendEventRepository.OutcomeCount() {
+            @Override
+            public String getChannel() {
+                return channel;
+            }
+
+            @Override
+            public String getKind() {
+                return kind;
+            }
+
+            @Override
+            public String getStatus() {
+                return status;
+            }
+
+            @Override
+            public long getTotal() {
+                return total;
+            }
+        };
+    }
+
+    @Test
+    @DisplayName("all applications: the summary adds up every application's outcomes and the queued messages of every template")
+    void summaryOfAllApplications() {
+        when(events.countOutcomesAll(any())).thenReturn(List.of(outcome("EMAIL", "TRANSACTIONAL", "SENT", 7), outcome("EMAIL", "CAMPAIGN", "FAILED", 3)));
+        when(emailQueue.findByDeliveryStatus(DeliveryStatusType.OPENED)).thenReturn(List.of(email(UUID.randomUUID(), NOW), email(null, NOW)));
+
+        var summary = service.summary(ALL, "1h");
+
+        assertEquals(7, summary.totals().sent());
+        assertEquals(3, summary.totals().failed());
+        assertEquals(2, summary.totals().queued(), "queued messages of any application, even one whose template is unknown");
+        verify(events, never()).countOutcomes(any(), any());
+        verify(definitions, never()).findIdsByApplicationId(any());
+    }
+
+    @Test
+    @DisplayName("all applications: failures, series, codes, messages and export have no application filter")
+    @SuppressWarnings("unchecked")
+    void restOfTheViewsForAllApplications() {
+        var cause = mock(SendEventRepository.CauseCount.class);
+        when(cause.getCause()).thenReturn("SEND_FAILED");
+        when(cause.getChannel()).thenReturn("EMAIL");
+        when(cause.getTotal()).thenReturn(5L);
+        when(events.topCausesAll(any(), any())).thenReturn(List.of(cause));
+        when(events.countByBucket(isNull(), any(), any(), any(), any())).thenReturn(List.of());
+        when(events.countOutcomesAll(any())).thenReturn(List.of(outcome("EMAIL", "VERIFICATION_CODE", "FAILED", 2)));
+        when(codes.countByCreatedAtGreaterThanEqual(any())).thenReturn(10L);
+        when(codes.countByCreatedAtGreaterThanEqualAndIsVerifiedTrue(any())).thenReturn(6L);
+        when(codes.countByCreatedAtGreaterThanEqualAndIsVerifiedFalseAndExpiresAtBefore(any(), any())).thenReturn(3L);
+        when(events.findAll(any(Specification.class), any(Pageable.class))).thenAnswer(call -> new PageImpl<>(List.of(entity("FAILED")), call.getArgument(1), 1));
+
+        assertEquals(5, service.failures(ALL, "24h").causes().getFirst().total());
+        org.junit.jupiter.api.Assertions.assertFalse(service.series(ALL, "1h", null, null).points().isEmpty());
+        var stats = service.verificationCodes(ALL, "24h");
+        assertEquals(10, stats.generated());
+        assertEquals(6, stats.confirmed());
+        assertEquals(3, stats.expired());
+        assertEquals(1, stats.pending());
+        assertEquals(2, stats.failedSends());
+        assertEquals(1, service.messages(ALL, null, null, null, null, null, null, 0, 20).total());
+        assertEquals(1, service.export(ALL, null, null, null, null, null, null).total());
+        verify(events, never()).topCauses(any(), any(), any());
+        verify(codes, never()).countByApplicationIdAndCreatedAtGreaterThanEqual(any(), any());
     }
 }

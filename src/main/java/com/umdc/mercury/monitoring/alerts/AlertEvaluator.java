@@ -2,6 +2,7 @@ package com.umdc.mercury.monitoring.alerts;
 
 import com.umdc.mercury.api.v1.service.MonitoringServiceImpl;
 import com.umdc.mercury.constant.ChannelType;
+import com.umdc.mercury.monitoring.MonitoringScope;
 import com.umdc.mercury.monitoring.QueueSnapshots;
 import com.umdc.mercury.monitoring.SendEventRepository;
 import com.umdc.mercury.monitoring.health.ServiceHealthService;
@@ -41,7 +42,9 @@ public class AlertEvaluator {
     private Reading failureRate(AlertRuleEntity rule, LocalDateTime now) {
         long sent = 0;
         long failed = 0;
-        for (var outcome : events.countOutcomes(rule.getApplicationId(), now.minusMinutes(rule.getWindowMinutes()))) {
+        var since = now.minusMinutes(rule.getWindowMinutes());
+        var outcomes = MonitoringScope.isAll(rule.getApplicationId()) ? events.countOutcomesAll(since) : events.countOutcomes(rule.getApplicationId(), since);
+        for (var outcome : outcomes) {
             if (SENT.equals(outcome.getStatus())) {
                 sent += outcome.getTotal();
             } else {

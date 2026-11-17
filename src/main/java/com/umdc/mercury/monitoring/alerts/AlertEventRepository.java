@@ -21,6 +21,12 @@ public interface AlertEventRepository extends JpaRepository<AlertEventEntity, UU
 
     long countByApplicationIdAndStatus(UUID applicationId, String status);
 
+    /** The alerts of every application that started since a moment or still fire, newest first. */
+    @Query("select e from AlertEventEntity e where (e.startedAt >= :since or e.status = 'FIRING') order by e.startedAt desc")
+    List<AlertEventEntity> recentAll(@Param("since") LocalDateTime since, Pageable limit);
+
+    long countByStatus(String status);
+
     /** Removes the resolved alerts that ended before a moment (retention). */
     @Modifying
     @Query("delete from AlertEventEntity e where e.status = 'RESOLVED' and e.resolvedAt < :before")

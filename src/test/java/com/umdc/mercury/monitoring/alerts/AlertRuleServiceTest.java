@@ -243,4 +243,33 @@ class AlertRuleServiceTest {
         assertEquals("MONGODB", service.create(application, request("SERVICE_DOWN", null, 5, 0, "mongodb", null, null)).service());
         assertEquals("POSTGRESQL", service.create(application, request("SERVICE_DOWN", null, 5, 0, "postgresql", null, null)).service());
     }
+
+    @Test
+    @DisplayName("all applications: every rule and every alert is listed, and a rule of any application can be changed or deleted from there")
+    void allApplications() {
+        var all = com.umdc.mercury.monitoring.MonitoringScope.ALL;
+        var rule = new AlertRuleEntity();
+        rule.setId(UUID.randomUUID());
+        rule.setApplicationId(UUID.randomUUID());
+        rule.setType("FAILURE_RATE");
+        rule.setThreshold(new BigDecimal("10.00"));
+        rule.setCreatedAt(LocalDateTime.of(2026, 1, 1, 0, 0));
+        when(rules.findAllByOrderByCreatedAtAsc()).thenReturn(List.of(rule));
+        when(rules.findById(rule.getId())).thenReturn(Optional.of(rule));
+        when(rules.save(any())).thenAnswer(call -> call.getArgument(0));
+        var event = new AlertEventEntity();
+        event.setId(UUID.randomUUID());
+        event.setStatus("FIRING");
+        event.setValue(BigDecimal.ONE);
+        event.setDetail("d");
+        when(events.recentAll(any(), any())).thenReturn(List.of(event));
+        when(events.countByStatus("FIRING")).thenReturn(2L);
+
+        assertEquals(1, service.list(all).rules().size());
+        assertEquals(2, service.alerts(all, "24h").firing());
+        assertEquals(1, service.alerts(all, "24h").alerts().size());
+        assertEquals("QUEUE_STUCK", service.update(all, rule.getId(), request("QUEUE_STUCK", 5.0, 10, null, null, null, null)).type());
+        assertTrue(service.delete(all, rule.getId()));
+        verify(rules).delete(rule);
+    }
 }

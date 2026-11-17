@@ -35,6 +35,13 @@ flowchart LR
   every channel summary carries `providerConnected` so the dashboard can say so.
 - The Telegram channel of ZeroBound (`telegram_messages`, its own outbox) is not recorded in phase 1.
 
+## Scope: Mercury as a whole
+
+The monitoring is Mercury's, not one client's. In the path `/api/v1/monitoring/applications/{applicationId}/...`, `applicationId` is
+`00000000-0000-0000-0000-000000000000` (`MonitoringScope.ALL`) for **every application**, whoever asked for the send, or the id of one application to narrow
+the view. This holds for the summary, series, failures, verification codes, messages, export, stream, retry, alert rules and alerts (rules created with
+the nil id are rules of all applications). Events whose template is unknown (no application) count in the view of all applications.
+
 ## Endpoints
 
 The phase 4 endpoints (alert rules, retry, export) are in `26-monitoring-alerts-retry-export.md`. These are `GET`, rooted at `/api/v1/monitoring/applications/{applicationId}`.

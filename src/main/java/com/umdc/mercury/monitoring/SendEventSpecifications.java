@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.UUID;
 
-/** The search of the message table. The application is mandatory: it is the isolation boundary between applications. */
+/** The search of the message table. A null application is every application (the monitoring of Mercury as a whole). */
 public final class SendEventSpecifications {
 
     private SendEventSpecifications() {
@@ -19,7 +19,9 @@ public final class SendEventSpecifications {
                                                         LocalDateTime from, LocalDateTime to) {
         return (root, query, cb) -> {
             var predicates = new ArrayList<Predicate>();
-            predicates.add(cb.equal(root.get("applicationId"), applicationId));
+            if (applicationId != null) {
+                predicates.add(cb.equal(root.get("applicationId"), applicationId));
+            }
             if (channel != null) {
                 predicates.add(cb.equal(root.get("channel"), channel));
             }
