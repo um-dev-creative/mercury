@@ -92,4 +92,24 @@ class MessageRecordMapperTest {
         var entityFromMsdto = mapper.toMessageStatusTypeEntity(msdto);
         assertEquals(id, entityFromMsdto.getId());
     }
+
+    @org.junit.jupiter.api.Test
+    @org.junit.jupiter.api.DisplayName("a message sent without a send date still gets a creation time, so its record can be stored (it used to fail validation and stay SENT forever)")
+    void recordOfAMessageWithoutSendDate() {
+        var mapper = new MessageRecordMapperImpl();
+        var statusType = new MessageStatusTypeTO(java.util.UUID.randomUUID(), "SENT", "sent", null, null, true);
+        var withoutDate = new EmailMessageDocument("doc", java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), "from@x.com",
+                java.util.List.of(), java.util.List.of(), "subject", "body", null, java.util.Map.of(), com.umdc.mercury.constant.DeliveryStatusType.SENT);
+        var before = java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1);
+
+        var record = mapper.toMessageRecordTO(withoutDate, statusType);
+
+        org.junit.jupiter.api.Assertions.assertTrue(record.createdAt().isAfter(before));
+        org.junit.jupiter.api.Assertions.assertTrue(record.updatedAt().isAfter(before));
+
+        var sent = java.time.LocalDateTime.of(2026, 1, 2, 3, 4, 5);
+        var withDate = new EmailMessageDocument("doc", java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), java.util.UUID.randomUUID(), "from@x.com",
+                java.util.List.of(), java.util.List.of(), "subject", "body", sent, java.util.Map.of(), com.umdc.mercury.constant.DeliveryStatusType.SENT);
+        org.junit.jupiter.api.Assertions.assertEquals(sent, mapper.toMessageRecordTO(withDate, statusType).createdAt());
+    }
 }

@@ -129,8 +129,8 @@ class AlertEvaluatorTest {
         var services = List.of(
                 new MonitoringTO.ServiceHealth("SMTP", "DOWN", null, "TIMEOUT", "timed out", NOW.minusMinutes(12), NOW),
                 new MonitoringTO.ServiceHealth("KAFKA", "DEGRADED", 10L, "SLOW", "slow", NOW.minusMinutes(2), NOW),
-                new MonitoringTO.ServiceHealth("POSTGRES", "UP", 3L, null, null, null, NOW),
-                new MonitoringTO.ServiceHealth("MONGO", "DOWN", null, "CONNECTION_FAILED", "failed", null, NOW),
+                new MonitoringTO.ServiceHealth("POSTGRESQL", "UP", 3L, null, null, null, NOW),
+                new MonitoringTO.ServiceHealth("MONGODB", "DOWN", null, "CONNECTION_FAILED", "failed", null, NOW),
                 new MonitoringTO.ServiceHealth("BACKBONE", "NOT_CONFIGURED", null, null, null, NOW.minusMinutes(99), NOW));
         when(health.health()).thenReturn(new MonitoringTO.HealthResponse(NOW, "OUTAGE", services));
 

@@ -181,14 +181,38 @@ class ProbesTest {
     }
 
     @Test
-    @DisplayName("Kafka: the Spring constructor with no KafkaAdmin available is DOWN, not an exception")
-    void kafkaWithoutAdmin() {
+    @DisplayName("Kafka: the Spring constructor with no producer factory available is DOWN, not an exception")
+    void kafkaWithoutProducerFactory() {
         @SuppressWarnings("unchecked")
-        org.springframework.beans.factory.ObjectProvider<org.springframework.kafka.core.KafkaAdmin> none = mock(org.springframework.beans.factory.ObjectProvider.class);
+        org.springframework.beans.factory.ObjectProvider<org.springframework.kafka.core.ProducerFactory<?, ?>> none = mock(org.springframework.beans.factory.ObjectProvider.class);
 
         var result = new KafkaProbe(none, true, true, 2, NEVER_SLOW, 30).check();
 
         assertEquals(ServiceStatus.DOWN, result.status());
+    }
+
+    @Test
+    @DisplayName("Kafka: the Spring constructor reaches the cluster through the producer's settings (the app has no KafkaAdmin); an unreachable one is DOWN")
+    @SuppressWarnings("unchecked")
+    void kafkaThroughTheProducerSettings() {
+        var factory = mock(org.springframework.kafka.core.ProducerFactory.class);
+        when(factory.getConfigurationProperties()).thenReturn(java.util.Map.of("bootstrap.servers", "127.0.0.1:9", "key.serializer", "x"));
+        org.springframework.beans.factory.ObjectProvider<org.springframework.kafka.core.ProducerFactory<?, ?>> provider = mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(provider.getIfAvailable()).thenReturn(factory);
+
+        var result = new KafkaProbe(provider, true, true, 2, NEVER_SLOW, 30).check();
+
+        assertEquals(ServiceStatus.DOWN, result.status());
+        org.mockito.Mockito.verify(factory).getConfigurationProperties();
+    }
+
+    @Test
+    @DisplayName("Kafka: the admin client only gets the servers and the security settings of the producer")
+    void kafkaConnectionSettings() {
+        var settings = KafkaProbe.connectionSettings(java.util.Map.of("bootstrap.servers", "b:9092", "security.protocol", "SSL", "ssl.truststore.type", "PEM",
+                "sasl.mechanism", "SCRAM-SHA-256", "key.serializer", "x", "acks", "all", "client.id", "c"));
+
+        assertEquals(java.util.Map.of("bootstrap.servers", "b:9092", "security.protocol", "SSL", "ssl.truststore.type", "PEM", "sasl.mechanism", "SCRAM-SHA-256"), settings);
     }
 
     // ---- Backbone (a real HTTP server) ----

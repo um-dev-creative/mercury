@@ -233,4 +233,14 @@ class AlertRuleServiceTest {
         assertEquals(List.of(), AlertRuleService.splitEmails(" "));
         assertEquals(List.of("a@x.com"), AlertRuleService.splitEmails("a@x.com,,"));
     }
+
+    @Test
+    @DisplayName("the services a SERVICE_DOWN rule may name are exactly the names the health probes report")
+    void serviceNamesMatchTheProbes() {
+        assertEquals(java.util.Set.of("POSTGRESQL", "MONGODB", "KAFKA", "SMTP", "BACKBONE", "TELEGRAM"), AlertRuleValidator.SERVICES);
+        when(rules.save(any())).thenAnswer(call -> call.getArgument(0));
+
+        assertEquals("MONGODB", service.create(application, request("SERVICE_DOWN", null, 5, 0, "mongodb", null, null)).service());
+        assertEquals("POSTGRESQL", service.create(application, request("SERVICE_DOWN", null, 5, 0, "postgresql", null, null)).service());
+    }
 }

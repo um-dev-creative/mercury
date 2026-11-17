@@ -40,7 +40,7 @@ Reads need `mercury:message:read`; **writes** (`POST`, `PUT`, `DELETE`) need `me
 |---|---|---|---|---|
 | `FAILURE_RATE` | percent, above 0 and at most 100 | 1 to 1440 | `minVolume`: least number of outcomes | failed / (sent + failed) over the window is **above** the threshold and there are at least `minVolume` outcomes |
 | `QUEUE_STUCK` | number of messages | 1 to 1440 | | at least that many messages of the channels with a provider (e-mail, Telegram) have waited longer than the window |
-| `SERVICE_DOWN` | unused | 1 to 1440 | `service`: `POSTGRES`, `MONGO`, `KAFKA`, `SMTP`, `BACKBONE` or `TELEGRAM`; empty is any | a service has been `DEGRADED` or `DOWN` for at least the window |
+| `SERVICE_DOWN` | unused | 1 to 1440 | `service`: `POSTGRESQL`, `MONGODB`, `KAFKA`, `SMTP`, `BACKBONE` or `TELEGRAM`; empty is any | a service has been `DEGRADED` or `DOWN` for at least the window |
 
 - `notifyEmails` (at most 5, validated) receive an e-mail when an alert **fires** (not when it resolves). The subject and text are fixed sentences with
   numbers and service names only. The e-mail goes through `MailRecipientPolicy`: with `honor-request=false` (QA) it goes to the test list, never to the
