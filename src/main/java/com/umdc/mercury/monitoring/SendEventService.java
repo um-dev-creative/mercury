@@ -38,9 +38,11 @@ public class SendEventService {
     private final TemplateDefinedRepository definitions;
     private final TransactionTemplate isolated;
     private final int retentionDays;
+    private final MonitoringStorage storage;
 
     public SendEventService(SendEventRepository events, TemplateDefinedRepository definitions, PlatformTransactionManager transactionManager,
-                            @Value("${umdc.monitoring.retention-days:90}") int retentionDays) {
+                            @Value("${umdc.monitoring.retention-days:90}") int retentionDays, MonitoringStorage storage) {
+        this.storage = storage;
         this.events = events;
         this.definitions = definitions;
         this.isolated = new TransactionTemplate(transactionManager);
@@ -80,6 +82,7 @@ public class SendEventService {
             event.setErrorCause(sent ? null : cause == null ? CAUSE_DELIVERY_FAILED : cause);
             isolated.executeWithoutResult(status -> events.save(event));
         } catch (RuntimeException e) {
+            storage.recordFailed();
             logger.warn("Could not record the send event of message {} (the delivery is not affected): {}", messageId, e.getMessage());
         }
     }

@@ -97,7 +97,21 @@ public interface MonitoringTO {
     }
 
     /** {@code GET /monitoring/health}: {@code overall} is OPERATIONAL, DEGRADED, OUTAGE or UNKNOWN. */
-    record HealthResponse(LocalDateTime generatedAt, String overall, List<ServiceHealth> services) {
+    record HealthResponse(LocalDateTime generatedAt, String overall, List<ServiceHealth> services, Storage storage) {
+        /** Without a storage check: the tables are taken as present. */
+        public HealthResponse(LocalDateTime generatedAt, String overall, List<ServiceHealth> services) {
+            this(generatedAt, overall, services, Storage.available());
+        }
+    }
+
+    /**
+     * Whether the monitoring tables exist ({@code ready}), which ones are missing and the migrations that create them, and how many recordings
+     * failed since start. When it is not ready the views are empty because nothing was recorded, not because nothing was sent.
+     */
+    record Storage(boolean ready, List<String> missingTables, List<String> migrations, long recordFailures) {
+        public static Storage available() {
+            return new Storage(true, List.of(), List.of(), 0);
+        }
     }
 
     /** One outage; {@code endedAt} is {@code null} and {@code ongoing} true while it lasts. */
