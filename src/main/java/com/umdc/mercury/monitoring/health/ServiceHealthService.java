@@ -2,6 +2,7 @@ package com.umdc.mercury.monitoring.health;
 
 import com.umdc.mercury.api.v1.to.MonitoringTO;
 import com.umdc.mercury.monitoring.MonitoringRange;
+import com.umdc.mercury.monitoring.MonitoringStorage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,15 +32,22 @@ public class ServiceHealthService {
     private final TransactionTemplate isolated;
     private final Clock clock;
     private final int retentionDays;
+    private final MonitoringStorage storage;
 
     @Autowired
     public ServiceHealthService(ServiceHealthRegistry registry, ServiceOutageRepository outages, PlatformTransactionManager transactionManager,
-                                @Value("${umdc.monitoring.retention-days:90}") int retentionDays) {
-        this(registry, outages, transactionManager, retentionDays, Clock.systemUTC());
+                                @Value("${umdc.monitoring.retention-days:90}") int retentionDays, MonitoringStorage storage) {
+        this(registry, outages, transactionManager, retentionDays, Clock.systemUTC(), storage);
     }
 
     ServiceHealthService(ServiceHealthRegistry registry, ServiceOutageRepository outages, PlatformTransactionManager transactionManager,
                          int retentionDays, Clock clock) {
+        this(registry, outages, transactionManager, retentionDays, clock, null);
+    }
+
+    ServiceHealthService(ServiceHealthRegistry registry, ServiceOutageRepository outages, PlatformTransactionManager transactionManager,
+                         int retentionDays, Clock clock, MonitoringStorage storage) {
+        this.storage = storage;
         this.registry = registry;
         this.outages = outages;
         this.readOnly = new TransactionTemplate(transactionManager);
@@ -54,7 +62,7 @@ public class ServiceHealthService {
     public MonitoringTO.HealthResponse health() {
         var states = registry.snapshot();
         var services = states.stream().map(ServiceHealthService::toView).toList();
-        return new MonitoringTO.HealthResponse(now(), overall(states), services);
+        return new MonitoringTO.HealthResponse(now(), overall(states), services, storage == null ? MonitoringTO.Storage.available() : storage.status());
     }
 
     private static String overall(List<ServiceHealthRegistry.ServiceState> states) {

@@ -181,9 +181,23 @@ class ServiceHealthServiceTest {
     @Test
     @DisplayName("the production constructor works with the system clock")
     void productionConstructor() {
-        var real = new ServiceHealthService(registry, outages, transactionManager, 90);
+        var real = new ServiceHealthService(registry, outages, transactionManager, 90, (com.umdc.mercury.monitoring.MonitoringStorage) null);
         when(registry.snapshot()).thenReturn(List.of());
 
         assertTrue(real.health().generatedAt().isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1)));
+    }
+
+    @Test
+    @DisplayName("the health answer carries what the storage check says (missing tables, failed recordings), or says all is fine without a check")
+    void healthCarriesTheStorageStatus() {
+        var storage = org.mockito.Mockito.mock(com.umdc.mercury.monitoring.MonitoringStorage.class);
+        var missing = new MonitoringTO.Storage(false, List.of("send_events"), List.of("V2039__send_events.sql"), 3);
+        when(storage.status()).thenReturn(missing);
+        when(registry.snapshot()).thenReturn(List.of());
+
+        var checked = new ServiceHealthService(registry, outages, transactionManager, 90, java.time.Clock.systemUTC(), storage);
+
+        assertEquals(missing, checked.health().storage());
+        assertTrue(new ServiceHealthService(registry, outages, transactionManager, 90, java.time.Clock.systemUTC()).health().storage().ready());
     }
 }
