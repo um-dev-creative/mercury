@@ -20,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -422,11 +423,43 @@ class MonitoringServiceImplTest {
     @Test
     @DisplayName("the production constructor reads the system clock")
     void productionConstructor() {
-        var production = new MonitoringServiceImpl(events, codes, new QueueSnapshots(definitions, emailQueue, channelQueue, 10), 15);
+        var production = new MonitoringServiceImpl(events, codes, new QueueSnapshots(definitions, emailQueue, channelQueue, 10), 15, 10_000);
         when(events.countOutcomes(eq(application), any())).thenReturn(List.of());
 
         var generated = production.summary(application, "1h").generatedAt();
 
         assertTrue(generated.isAfter(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1)));
+    }
+
+    @Test
+    @DisplayName("export returns the newest rows up to the configured maximum and the total that matched")
+    @SuppressWarnings("unchecked")
+    void exportCapsTheRows() {
+        var capped = new MonitoringServiceImpl(events, codes, new QueueSnapshots(definitions, emailQueue, channelQueue, 10, clock), 15, clock, 500);
+        when(events.findAll(any(Specification.class), any(Pageable.class))).thenAnswer(call -> new PageImpl<>(List.of(entity("FAILED")), call.getArgument(1), 900));
+
+        var export = capped.export(application, "email", "failed", "campaign", null, NOW.minusDays(1), NOW);
+
+        assertEquals(1, export.items().size());
+        assertEquals(900, export.total());
+        org.junit.jupiter.api.Assertions.assertTrue(export.truncated());
+        var captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(events).findAll(any(Specification.class), captor.capture());
+        assertEquals(500, captor.getValue().getPageSize());
+        assertEquals(0, captor.getValue().getPageNumber());
+        assertEquals(Sort.Direction.DESC, captor.getValue().getSort().getOrderFor("occurredAt").getDirection());
+        assertEquals("j***@e***.com", export.items().getFirst().recipient());
+    }
+
+    @Test
+    @DisplayName("export of everything that fits is not truncated; a bad channel, status or kind is rejected")
+    @SuppressWarnings("unchecked")
+    void exportValidates() {
+        when(events.findAll(any(Specification.class), any(Pageable.class))).thenAnswer(call -> new PageImpl<>(List.of(entity("SENT")), call.getArgument(1), 1));
+
+        org.junit.jupiter.api.Assertions.assertFalse(service.export(application, null, null, null, null, null, null).truncated());
+        assertThrows(IllegalArgumentException.class, () -> service.export(application, "fax", null, null, null, null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.export(application, null, "weird", null, null, null, null));
+        assertThrows(IllegalArgumentException.class, () -> service.export(application, null, null, "weird", null, null, null));
     }
 }

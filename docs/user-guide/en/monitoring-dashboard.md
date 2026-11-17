@@ -80,3 +80,28 @@ Mercury now checks its own services (PostgreSQL, MongoDB, Kafka, the e-mail serv
 - The **history of outages** lists each one with when it began, when it ended (or "ongoing") and how long it lasted, for the last hour, day, week or month.
 - The **live feed** sends the summary and the service states every 10 seconds, so the dashboard updates by itself. It reconnects on its own about every
   15 minutes; if your session expired it stops receiving data until you sign in again.
+
+## What phase 4 adds: be warned, retry, export
+
+```mermaid
+flowchart LR
+    A[Create an alert rule] --> B[Mercury checks it every minute]
+    B -->|a threshold is passed| C[An alert appears on the dashboard and an e-mail is sent]
+    C --> D[Open the failed messages]
+    D --> E[Retry a failed e-mail]
+    D --> F[Export the list]
+    B -->|back to normal| G[The alert is resolved]
+```
+
+- **Alerts.** You choose what to watch and how much is too much:
+  - **Failure rate:** more than X % of the messages failed in the last N minutes (with a minimum number of messages, so two failures out of three do not
+    ring the bell at night).
+  - **Stuck messages:** at least X messages have been waiting longer than N minutes.
+  - **Service down:** a service (or any) has been degraded or down for N minutes.
+  An alert stays **firing** while the problem lasts, appears once (no repeats) and is **resolved** by itself. You can ask for an e-mail to up to 5
+  addresses when it fires. In a test environment those e-mails go to the test list, not to the real addresses. The history of alerts is kept for 90 days.
+- **Retry.** A failed **e-mail** can be sent again with one click; the next run of Mercury sends it. The first failed attempt stays in the history and the
+  new attempt is added, so the figures count attempts. Telegram messages cannot be retried from the dashboard.
+- **Export.** The message table (with the filters you chose) can be downloaded as CSV or JSON, up to 10 000 rows; the file tells you if it was cut.
+  Recipients stay masked.
+- Creating or deleting rules and retrying need the write permission of the application; viewing needs only the read permission.

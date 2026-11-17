@@ -43,6 +43,18 @@ public class CampaignMetricsService {
      *                   outside a campaign (e.g. verification codes), which are skipped
      * @param status     the terminal status reached by the message
      */
+    /** Takes back the failure of a message that is queued again, so a retry is not counted as failed and then sent. No-op outside a campaign. */
+    public void revokeFailure(UUID campaignId) {
+        if (Objects.isNull(campaignId)) {
+            return;
+        }
+        try {
+            metricsRepository.decrementFailed(campaignId, LocalDateTime.now(ZoneId.of(ZoneOffset.UTC.getId())));
+        } catch (RuntimeException e) {
+            logger.warn("Unable to revoke the failure of a retried message. campaignId={}", campaignId, e);
+        }
+    }
+
     public void recordOutcome(UUID campaignId, DeliveryStatusType status) {
         if (Objects.isNull(campaignId)) {
             return;

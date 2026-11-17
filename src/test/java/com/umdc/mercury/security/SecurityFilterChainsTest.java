@@ -54,7 +54,7 @@ class SecurityFilterChainsTest {
         }
 
         @PostMapping({"/api/v1/templates", "/api/v1/campaigns", "/api/v1/channel-types", "/api/v1/auth/token",
-                "/api/v1/auth/logout"})
+                "/api/v1/auth/logout", "/api/v1/monitoring/applications/x/messages/y/retry", "/api/v1/monitoring/applications/x/alerts/rules"})
         String write() {
             return "ok";
         }
@@ -142,6 +142,17 @@ class SecurityFilterChainsTest {
         for (String other : List.of("/api/v1/monitoring/health", "/api/v1/monitoring/applications/x/stream")) {
             mockMvc.perform(get(other)).andExpect(status().isUnauthorized());
             mockMvc.perform(get(other).header("Authorization", "Bearer read-token")).andExpect(status().isOk());
+        }
+    }
+
+    @Test
+    @DisplayName("monitoring writes (retry a message, create an alert rule) need the write scope: the read scope alone is 403, none is 401")
+    void monitoringWritesNeedTheWriteScope() throws Exception {
+        for (String path : List.of("/api/v1/monitoring/applications/x/messages/y/retry", "/api/v1/monitoring/applications/x/alerts/rules")) {
+            mockMvc.perform(post(path)).andExpect(status().isUnauthorized());
+            mockMvc.perform(post(path).header("Authorization", "Bearer read-token")).andExpect(status().isForbidden());
+            mockMvc.perform(post(path).header("Authorization", "Bearer other-token")).andExpect(status().isForbidden());
+            mockMvc.perform(post(path).header("Authorization", "Bearer write-token")).andExpect(status().isOk());
         }
     }
 

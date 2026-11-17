@@ -23,4 +23,8 @@ public interface MonitoringService {
     /** The message table: newest first, every filter optional, recipients masked, at most 100 per page. */
     MonitoringTO.MessagePage messages(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId,
                                       LocalDateTime from, LocalDateTime to, int page, int size);
+
+    /** The rows of the message table for an export, newest first and at most {@code umdc.monitoring.export.max-rows}; {@code total} says whether it was cut. */
+    MonitoringTO.MessageExport export(UUID applicationId, String channel, String status, String kind, UUID templateDefinedId,
+                                      LocalDateTime from, LocalDateTime to);
 }

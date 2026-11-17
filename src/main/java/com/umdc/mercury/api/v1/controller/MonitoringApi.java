@@ -11,6 +11,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -109,4 +113,62 @@ public interface MonitoringApi {
     @GetMapping(value = "/api/v1/monitoring/applications/{applicationId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     SseEmitter stream(@PathVariable UUID applicationId, @RequestParam(required = false) String range,
                       @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Export the message table", description = "The rows of the message table with the same filters, as CSV (default) or JSON, newest first and "
+            + "limited to a maximum number of rows; X-Total-Count is how many matched and X-Export-Truncated is true when the file was cut. "
+            + "Recipients are masked. Format: csv or json.", operationId = "exportMonitoringMessages")
+    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "The file."),
+            @ApiResponse(responseCode = CODE_400, description = "Unknown format, channel, status or kind."),
+            @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED)})
+    @GetMapping(value = "/api/v1/monitoring/applications/{applicationId}/messages/export")
+    ResponseEntity<Object> exportMessages(@PathVariable UUID applicationId, @ModelAttribute MonitoringTO.ExportQuery query,
+                                          @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Retry a failed e-mail", description = "Queues a failed e-mail again so it is sent at the next run. 202 when queued, 404 when the "
+            + "application has no failed e-mail with that id, 409 when it cannot be retried (already queued, sent, or another channel). "
+            + "Needs the mercury:message:write scope.", operationId = "retryMonitoringMessage")
+    @ApiResponses({@ApiResponse(responseCode = "202", description = "Queued again."),
+            @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED),
+            @ApiResponse(responseCode = "404", description = "No failed e-mail with that id in the application."),
+            @ApiResponse(responseCode = "409", description = "It cannot be retried.")})
+    @PostMapping(value = "/api/v1/monitoring/applications/{applicationId}/messages/{messageId}/retry")
+    ResponseEntity<Void> retryMessage(@PathVariable UUID applicationId, @PathVariable UUID messageId,
+                                      @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Alert rules", description = "The alert rules of the application.", operationId = "listAlertRules")
+    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "The rules."), @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED)})
+    @GetMapping(value = "/api/v1/monitoring/applications/{applicationId}/alerts/rules", produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<MonitoringTO.AlertRulesResponse> alertRules(@PathVariable UUID applicationId,
+                                                               @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Create an alert rule", description = "type is FAILURE_RATE (threshold: percent of failed messages over windowMinutes, with at least "
+            + "minVolume messages), QUEUE_STUCK (threshold: messages waiting longer than windowMinutes) or SERVICE_DOWN (a service, or any, degraded or down for "
+            + "windowMinutes). notifyEmails (at most 5) receive an e-mail when it fires. At most 20 rules per application. Needs mercury:message:write.",
+            operationId = "createAlertRule")
+    @ApiResponses({@ApiResponse(responseCode = "201", description = "Created."), @ApiResponse(responseCode = CODE_400, description = "Invalid rule."),
+            @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED)})
+    @PostMapping(value = "/api/v1/monitoring/applications/{applicationId}/alerts/rules", produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<MonitoringTO.AlertRule> createAlertRule(@PathVariable UUID applicationId, @RequestBody MonitoringTO.AlertRuleRequest request,
+                                                           @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Update an alert rule", description = "Replaces the rule's settings. Needs mercury:message:write.", operationId = "updateAlertRule")
+    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "Updated."), @ApiResponse(responseCode = CODE_400, description = "Invalid rule."),
+            @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED), @ApiResponse(responseCode = "404", description = "No such rule in the application.")})
+    @PutMapping(value = "/api/v1/monitoring/applications/{applicationId}/alerts/rules/{ruleId}", produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<MonitoringTO.AlertRule> updateAlertRule(@PathVariable UUID applicationId, @PathVariable UUID ruleId, @RequestBody MonitoringTO.AlertRuleRequest request,
+                                                           @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Delete an alert rule", description = "Deletes the rule and its alerts. Needs mercury:message:write.", operationId = "deleteAlertRule")
+    @ApiResponses({@ApiResponse(responseCode = "204", description = "Deleted."), @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED),
+            @ApiResponse(responseCode = "404", description = "No such rule in the application.")})
+    @DeleteMapping(value = "/api/v1/monitoring/applications/{applicationId}/alerts/rules/{ruleId}")
+    ResponseEntity<Void> deleteAlertRule(@PathVariable UUID applicationId, @PathVariable UUID ruleId,
+                                         @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
+
+    @Operation(summary = "Alerts", description = "The alerts that fire now and those that started in the range. " + RANGE_HELP, operationId = "listAlerts")
+    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "The alerts."), @ApiResponse(responseCode = CODE_400, description = MSG_UNKNOWN_RANGE),
+            @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED)})
+    @GetMapping(value = "/api/v1/monitoring/applications/{applicationId}/alerts", produces = MediaType.APPLICATION_JSON_VALUE)
+    ResponseEntity<MonitoringTO.AlertsResponse> alerts(@PathVariable UUID applicationId, @RequestParam(required = false) String range,
+                                                       @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
 }

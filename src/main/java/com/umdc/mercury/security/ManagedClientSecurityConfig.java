@@ -60,6 +60,7 @@ public class ManagedClientSecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.POST, AUTH_TOKEN).hasAnyAuthority(SCOPE_READ, SCOPE_WRITE)
                         .requestMatchers(HttpMethod.GET, CAMPAIGNS, CHANNEL_TYPES, MONITORING, TEMPLATES).hasAuthority(SCOPE_READ)
+                        .requestMatchers(HttpMethod.POST, MONITORING).hasAuthority(SCOPE_WRITE)
                         .anyRequest().hasAuthority(SCOPE_WRITE))
                 .oauth2ResourceServer(oauth2 -> oauth2.opaqueToken(opaque -> opaque.introspector(introspector)));
         return http.build();

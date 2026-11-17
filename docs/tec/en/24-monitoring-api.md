@@ -37,7 +37,7 @@ flowchart LR
 
 ## Endpoints
 
-All are `GET`, rooted at `/api/v1/monitoring/applications/{applicationId}`.
+The phase 4 endpoints (alert rules, retry, export) are in `26-monitoring-alerts-retry-export.md`. These are `GET`, rooted at `/api/v1/monitoring/applications/{applicationId}`.
 
 | Path | Query parameters | Returns |
 |---|---|---|
