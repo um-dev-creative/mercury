@@ -36,3 +36,8 @@ When you create a template (`POST /api/v1/templates`, or the Templates section i
 `GET /api/v1/messages/template-definitions?applicationId=<uuid>` returns, for your own application, each usable template as `{templateDefinedId, location, language}`.
 Keep that list in memory and refresh it now and then: a template you create, edit or switch off in mercury is seen by the next refresh, so you never copy ids into your own database.
 Send the id as `templateDefinedId` to `POST /api/v1/messages` (e-mail) or `POST /api/v1/telegram/messages`.
+
+## Template language
+
+To send a template by name, Mercury needs to know its language. When you create a template you can set `language` (`es`, `en`, `pt-BR`...). If you leave it out, Mercury reads it from the end of the file name: `welcome_es.ftl` or `welcome-es.ftl` both mean Spanish, and the name you send is `welcome`.
+A template with no language is created but does not appear in `GET /api/v1/messages/templates` and cannot be sent by name. Templates that were created without one are fixed automatically when Mercury is updated.

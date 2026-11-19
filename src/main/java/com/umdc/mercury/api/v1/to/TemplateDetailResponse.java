@@ -20,6 +20,7 @@ import java.util.UUID;
  * @param severityTypeId   UUID of the associated severity type.
  * @param severityTypeName name of the associated severity type.
  * @param subject          e-mail subject of the template, or {@code null} when it defines none.
+ * @param language         language of the template, or {@code null} when it has none (then it cannot be sent by name).
  * @param active           whether the template is currently active (soft-delete flag).
  * @param createdAt        timestamp when the template was created.
  * @param updatedAt        timestamp of the last update to the template.
@@ -35,10 +36,19 @@ public record TemplateDetailResponse(
         UUID severityTypeId,
         String severityTypeName,
         String subject,
+        String language,
         Boolean active,
         @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime createdAt,
         @JsonFormat(pattern = DateUtil.PATTERN_DATE_TIME)
         LocalDateTime updatedAt
 ) {
+
+    /** A response without language (kept for callers that build one by hand). */
+    public TemplateDetailResponse(UUID id, String description, String location, String fileFormat, UUID templateTypeId, String templateTypeName,
+                                  UUID applicationId, UUID severityTypeId, String severityTypeName, String subject, Boolean active,
+                                  LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, description, location, fileFormat, templateTypeId, templateTypeName, applicationId, severityTypeId, severityTypeName, subject,
+                null, active, createdAt, updatedAt);
+    }
 }

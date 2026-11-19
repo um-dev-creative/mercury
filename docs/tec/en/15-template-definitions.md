@@ -38,3 +38,22 @@ sequenceDiagram
 ## Tests
 
 `TemplateDefinitionRegistrarTest` (create, create frequency, idempotent, reactivate, deactivate) and the create/delete cases of `TemplateServiceImplTest`.
+
+## Template language (fix)
+
+A template is reachable by name only if `templates.language` is set (`TemplateNameResolver.usable()` drops the ones without it, so the catalogue came back empty).
+
+```mermaid
+flowchart TD
+    R["POST/PUT /api/v1/templates<br/>language (optional) + location"] --> E{"language sent?"}
+    E -- yes --> S["saved as sent"]
+    E -- no --> D["TemplateEntity.deriveLanguage<br/>TemplateIdentity.languageOf(location)"]
+    D --> F{"suffix _xx / -xx<br/>before the extension?"}
+    F -- yes --> S
+    F -- no --> N["language NULL: not sendable by name"]
+```
+
+- `TemplateIdentity.languageOf` accepts `_<2-3 letters[-region]>` and `-<2 letters[-region]>`; `nameOf` strips whichever separator was used (`sk-verification-code-es.ftl` -> name `sk-verification-code`, language `es`).
+- `CreateTemplateRequest`, `UpdateTemplateRequest` and `TemplateDetailResponse` carry `language`; the old-arity constructors remain.
+- Migration `V2042__template_language_backfill.sql` fills `language` of existing rows from `location`. Idempotent.
+- Tests: `TemplateIdentityTest`, `TemplateMapperTest`, `TemplateUpdateApplierTest`.

@@ -88,6 +88,21 @@ class TemplateUpdateApplierTest {
     }
 
     @Nested
+    @DisplayName("language updates")
+    class LanguageUpdates {
+
+        @Test
+        @DisplayName("sets the language, trimmed, and reports no change when it is the same or blank")
+        void setsLanguage() {
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, null, " es "))).isTrue();
+            assertThat(entity.getLanguage()).isEqualTo("es");
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, null, "es"))).isFalse();
+            assertThat(applier.apply(entity, new UpdateTemplateRequest(null, null, null, null, null, null, " "))).isFalse();
+            assertThat(entity.getLanguage()).isEqualTo("es");
+        }
+    }
+
+    @Nested
     @DisplayName("templateTypeId updates")
     class TemplateTypeUpdates {
 

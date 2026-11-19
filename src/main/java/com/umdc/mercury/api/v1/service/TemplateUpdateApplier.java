@@ -42,7 +42,21 @@ public class TemplateUpdateApplier {
         changed |= applyTemplateType(entity, request);
         changed |= applySeverityType(entity, request);
         changed |= applySubject(entity, request);
+        changed |= applyLanguage(entity, request);
         return changed;
+    }
+
+    /** {@code null} or blank leaves the language alone. */
+    private boolean applyLanguage(TemplateEntity entity, UpdateTemplateRequest request) {
+        if (Objects.isNull(request.language()) || request.language().isBlank()) {
+            return false;
+        }
+        String language = request.language().strip();
+        if (language.equals(entity.getLanguage())) {
+            return false;
+        }
+        entity.setLanguage(language);
+        return true;
     }
 
     /** {@code null} leaves the subject alone; blank removes it (the template then defines none). */

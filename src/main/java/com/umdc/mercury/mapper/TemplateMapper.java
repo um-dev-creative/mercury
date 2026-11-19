@@ -48,6 +48,7 @@ public interface TemplateMapper {
     @Mapping(target = "fileFormat", source = "request.fileFormat")
     @Mapping(target = "applicationId", source = "request.applicationId")
     @Mapping(target = "subject", source = "request.subject")
+    @Mapping(target = "language", source = "request.language")
     @Mapping(target = "createdAt", source = "now")
     @Mapping(target = "updatedAt", source = "now")
     TemplateEntity toEntity(CreateTemplateRequest request, TemplateTypeEntity templateType,

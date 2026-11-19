@@ -16,6 +16,7 @@ import java.util.UUID;
  * @param templateTypeId UUID of a different existing, active {@code TemplateTypeEntity}, or {@code null} to leave unchanged.
  * @param severityTypeId UUID of a different existing, active {@code SeverityTypeEntity}, or {@code null} to leave unchanged.
  * @param subject        new e-mail subject, {@code null} to leave unchanged, blank to remove it. Max 500 chars.
+ * @param language       new language, or {@code null} to leave unchanged. Max 16 chars.
  */
 public record UpdateTemplateRequest(
         String description,
@@ -26,6 +27,13 @@ public record UpdateTemplateRequest(
         UUID templateTypeId,
         UUID severityTypeId,
         @Size(max = 500)
-        String subject
+        String subject,
+        @Size(max = 16)
+        String language
 ) {
+
+    /** A request that does not change the language. */
+    public UpdateTemplateRequest(String description, String location, String fileFormat, UUID templateTypeId, UUID severityTypeId, String subject) {
+        this(description, location, fileFormat, templateTypeId, severityTypeId, subject, null);
+    }
 }
