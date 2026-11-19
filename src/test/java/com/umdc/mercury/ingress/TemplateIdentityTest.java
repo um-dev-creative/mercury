@@ -23,4 +23,18 @@ class TemplateIdentityTest {
         assertEquals("welcome", TemplateIdentity.nameOf("welcome.ftl", "es"));
         assertEquals("welcome", TemplateIdentity.nameOf("welcome", null));
     }
+
+    @Test
+    void aHyphenBeforeTheExtensionIsAlsoALanguageSeparator() {
+        assertEquals(Optional.of("es"), TemplateIdentity.languageOf("sk-verification-code-es.ftl"));
+        assertEquals(Optional.of("pt-BR"), TemplateIdentity.languageOf("sk-welcome-pt-BR.ftl"));
+        assertEquals("sk-verification-code", TemplateIdentity.nameOf("sk-verification-code-es.ftl", "es"));
+        assertEquals("sk-welcome", TemplateIdentity.nameOf("sk-welcome-pt-BR.ftl", "pt-BR"));
+    }
+
+    @Test
+    void aHyphenatedWordIsNotTakenForALanguage() {
+        assertEquals(Optional.empty(), TemplateIdentity.languageOf("reset-pwd.ftl"));
+        assertEquals(Optional.empty(), TemplateIdentity.languageOf("sk-verification-code.ftl"));
+    }
 }

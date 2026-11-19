@@ -109,6 +109,17 @@ class TemplateMapperTest {
         }
 
         @Test
+        @DisplayName("toEntity keeps the language the request carries")
+        void toEntity_mapsLanguage() {
+            CreateTemplateRequest request = new CreateTemplateRequest(
+                    "desc", "sk-verification-code.ftl", "FTL", templateType.getId(), applicationId, severityType.getId(), null, "es");
+
+            TemplateEntity entity = generated.toEntity(request, templateType, severityType, LocalDateTime.of(2026, 1, 1, 10, 0));
+
+            assertEquals("es", entity.getLanguage());
+        }
+
+        @Test
         @DisplayName("toDetailResponse maps every field, including severity and real active state")
         void toDetailResponse_mapsEveryField() {
             LocalDateTime now = LocalDateTime.of(2026, 2, 2, 12, 0);

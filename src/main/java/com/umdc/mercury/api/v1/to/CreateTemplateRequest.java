@@ -17,6 +17,8 @@ import java.util.UUID;
  * @param applicationId  UUID of the application the template belongs to. Required, immutable once created.
  * @param severityTypeId UUID of an existing, active {@code SeverityTypeEntity}. Required.
  * @param subject        e-mail subject of the template (may use FreeMarker placeholders for the message parameters). Optional, max 500 chars.
+ * @param language       language ({@code es}, {@code en}, {@code pt-BR}...). Optional: when absent it is read from the end of {@code location}
+ *                       ({@code ..._es.ftl} or {@code ...-es.ftl}). A template with no language cannot be sent by name. Max 16 chars.
  */
 public record CreateTemplateRequest(
         @NotNull @NotBlank
@@ -32,6 +34,14 @@ public record CreateTemplateRequest(
         @NotNull
         UUID severityTypeId,
         @Size(max = 500)
-        String subject
+        String subject,
+        @Size(max = 16)
+        String language
 ) {
+
+    /** A request without an explicit language (the language is then read from the location). */
+    public CreateTemplateRequest(String description, String location, String fileFormat, UUID templateTypeId, UUID applicationId,
+                                 UUID severityTypeId, String subject) {
+        this(description, location, fileFormat, templateTypeId, applicationId, severityTypeId, subject, null);
+    }
 }
