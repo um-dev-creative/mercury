@@ -77,7 +77,10 @@ Mercury now checks its own services (PostgreSQL, MongoDB, Kafka, the e-mail serv
   the account was exceeded". Passwords, addresses and raw error texts are never shown.
 - The e-mail server is also judged by the e-mails that really go out: if the provider refuses one, the state changes within a minute without waiting
   for the next check.
-- The **history of outages** lists each one with when it began, when it ended (or "ongoing") and how long it lasted, for the last hour, day, week or month.
+- The **history of outages** lists each one with when it began, when it ended (or "ongoing") and how long it lasted. It comes in pages (Iris shows
+  10 at a time), so it stays quick however long Mercury has been running. You can **search** it (a service, a cause such as "quota", or words of
+  the description), keep one **service** or one **state** (down or degraded), and choose the **period**: the one of the page, the last 24 hours,
+  7, 30 or 90 days (everything Mercury keeps), or your own dates (UTC).
 - The **live feed** sends the summary and the service states every 10 seconds, so the dashboard updates by itself. It reconnects on its own about every
   15 minutes; if your session expired it stops receiving data until you sign in again.
 

@@ -104,14 +104,20 @@ class MonitoringControllerHttpTest {
     void healthAndOutages() throws Exception {
         when(health.health()).thenReturn(new MonitoringTO.HealthResponse(LocalDateTime.of(2026, 11, 16, 12, 0), "DEGRADED",
                 List.of(new MonitoringTO.ServiceHealth("SMTP", "DEGRADED", null, "QUOTA_EXCEEDED", "The sending limit of the account was exceeded", null, null))));
-        when(health.outages("7d")).thenReturn(new MonitoringTO.OutagesResponse("7d", List.of()));
-        when(health.outages("9d")).thenThrow(new IllegalArgumentException("Unknown range"));
+        when(health.outages(MonitoringTO.OutageQuery.of("7d"))).thenReturn(new MonitoringTO.OutagesResponse("7d", List.of()));
+        when(health.outages(MonitoringTO.OutageQuery.of("9d"))).thenThrow(new IllegalArgumentException("Unknown range"));
+        var custom = new MonitoringTO.OutageQuery(null, LocalDateTime.of(2026, 10, 1, 0, 0), LocalDateTime.of(2026, 10, 15, 6, 30), "time out", "SMTP", "DOWN", 2, 10);
+        when(health.outages(custom)).thenReturn(new MonitoringTO.OutagesResponse("custom", custom.from(), custom.to(), 2, 10, 31, List.of()));
 
         mvc.perform(get("/api/v1/monitoring/health").header("session-token", "good")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.overall").value("DEGRADED")).andExpect(jsonPath("$.services[0].cause").value("QUOTA_EXCEEDED"));
         mvc.perform(get("/api/v1/monitoring/health/outages").header("session-token", "good").param("range", "7d")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.range").value("7d"));
         mvc.perform(get("/api/v1/monitoring/health/outages").header("session-token", "good").param("range", "9d")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/monitoring/health/outages").header("session-token", "good").param("from", "2026-10-01T00:00:00")
+                        .param("to", "2026-10-15T06:30:00").param("q", "time out").param("service", "SMTP").param("status", "DOWN").param("page", "2").param("size", "10"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.range").value("custom")).andExpect(jsonPath("$.total").value(31))
+                .andExpect(jsonPath("$.page").value(2)).andExpect(jsonPath("$.totalPages").value(4)).andExpect(jsonPath("$.from").exists());
         mvc.perform(get("/api/v1/monitoring/health")).andExpect(status().isUnauthorized());
     }
 

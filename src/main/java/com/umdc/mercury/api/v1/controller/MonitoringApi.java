@@ -95,13 +95,16 @@ public interface MonitoringApi {
     @GetMapping(value = "/api/v1/monitoring/health", produces = MediaType.APPLICATION_JSON_VALUE)
     ResponseEntity<MonitoringTO.HealthResponse> health(@RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
 
-    @Operation(summary = "History of outages", description = "The outages that overlap the range, newest first; an ongoing one has no end. " + RANGE_HELP,
+    @Operation(summary = "History of outages", description = "One page of the outages that overlap the window, newest first, and how many match "
+            + "in all (`total`); an ongoing one has no end. The window is `from`-`to` (UTC, ISO without zone) when either is given (`range` = `custom`), "
+            + "else the `range` back from now. `q` searches the service, cause code and cause sentence (any case); `service` and `status` (DOWN, "
+            + "DEGRADED) narrow it; `page` from 0, `size` 20 by default and at most 100. " + RANGE_HELP,
             operationId = "getMonitoringOutages")
-    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "The outages."),
-            @ApiResponse(responseCode = CODE_400, description = MSG_UNKNOWN_RANGE),
+    @ApiResponses({@ApiResponse(responseCode = CODE_200, description = "The page of outages."),
+            @ApiResponse(responseCode = CODE_400, description = "Unknown range or status, 'from' not before 'to', or a search or service too long."),
             @ApiResponse(responseCode = CODE_401, description = MSG_UNAUTHORIZED)})
     @GetMapping(value = "/api/v1/monitoring/health/outages", produces = MediaType.APPLICATION_JSON_VALUE)
-    ResponseEntity<MonitoringTO.OutagesResponse> outages(@RequestParam(required = false) String range,
+    ResponseEntity<MonitoringTO.OutagesResponse> outages(@ModelAttribute MonitoringTO.OutageQuery query,
                                                          @RequestHeader(value = SESSION_TOKEN_KEY, required = false) String sessionToken);
 
     @Operation(summary = "Live feed", description = "Server-Sent Events: a 'summary' event (as the summary endpoint) and a 'health' event every few seconds. "

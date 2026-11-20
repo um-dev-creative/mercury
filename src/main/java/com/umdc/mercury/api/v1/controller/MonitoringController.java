@@ -94,9 +94,9 @@ public class MonitoringController implements MonitoringApi {
     }
 
     @Override
-    public ResponseEntity<MonitoringTO.OutagesResponse> outages(String range, String sessionToken) {
+    public ResponseEntity<MonitoringTO.OutagesResponse> outages(MonitoringTO.OutageQuery query, String sessionToken) {
         requireVerifiedUser(sessionToken);
-        return ResponseEntity.ok(healthService.outages(range));
+        return ResponseEntity.ok(healthService.outages(query));
     }
 
     @Override
