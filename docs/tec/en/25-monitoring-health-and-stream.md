@@ -72,7 +72,8 @@ An outage opens when a service enters DEGRADED or DOWN and closes when it goes b
 lasts (a timeout becomes a quota problem) the first outage ends and a new one begins, so each row has one cause.
 
 - Written in their own transaction, best effort. If PostgreSQL is the service that is down, the outage stays in memory and is written by the next
-  scheduler tick once the database answers; `GET /health/outages` merges the database with what is still in memory.
+  scheduler tick once the database answers; `GET /health/outages` merges the database with what is still in memory (see *Paging, search and a
+  window of its own* below).
 - At start the outages still open in the database are restored, so a recovery closes the same row instead of leaving it open forever.
 - Ended outages are deleted after `umdc.monitoring.retention-days` (90) by the same retention scheduler as the send events.
 
@@ -84,7 +85,42 @@ All are `GET` under `/api/v1/monitoring`, with the same security as phase 1 (ser
 | Path | Query | Returns |
 |---|---|---|
 | `/health` | | `overall` and, per service, `status`, `latencyMs` (null when not measured), `cause`, `causeText`, `since`, `lastCheckedAt`. |
-| `/health/outages` | `range` (1h, 24h default, 7d, 30d) | The outages that overlap the range, newest first, with `durationSeconds` and `ongoing`. |
+| `/health/outages` | `range` (1h, 24h default, 7d, 30d), `from`, `to`, `q`, `service`, `status`, `page`, `size` | One page of the outages that overlap the window, newest first, with `durationSeconds` and `ongoing`, plus `from`, `to`, `page`, `size`, `total` and `totalPages`. |
+
+### Paging, search and a window of its own (`/health/outages`)
+
+The history grows with time, so it is paged in the database instead of being returned whole.
+
+| Parameter | Meaning |
+|---|---|
+| `range` | Preset window back from now (default `24h`). Ignored for the start when `from` is given. |
+| `from`, `to` | A window of its own, UTC, ISO without zone (`2026-11-16T10:00:00`). A missing `to` is now; a missing `from` is `range` back from `to`. `from` must be before `to` (else 400). The answer says `range: "custom"`. |
+| `q` | Text looked for in the service, the cause code and the cause sentence, any case, at most 100 characters (else 400). `%` and `_` typed by the person are literal: they are escaped with `!` for the `LIKE`. |
+| `service` | Only that service (`SMTP`, `KAFKA`...), at most 30 characters. |
+| `status` | `DOWN` or `DEGRADED` (else 400). |
+| `page`, `size` | Page from 0; `size` 20 by default and at most 100. |
+
+An outage is in the window when it began before `to` and is still going on or ended at or after `from`.
+`ServiceOutageRepository.search` runs one query and its count with the same filter (`SEARCH_WHERE`); empty filters are passed as `''` and an empty
+search as `%`, so PostgreSQL never has to guess the type of a null parameter.
+
+```mermaid
+flowchart TD
+    Q[OutageQuery] --> W{from or to given?}
+    W -->|no| P[window = range back from now]
+    W -->|yes| C[window = from..to, range custom]
+    P --> V[validate status, q, service]
+    C --> V
+    V --> DB[(search + count, one page)]
+    V --> MEM[outages only in memory, same filter]
+    DB --> M[merge: an in-memory copy replaces its row;<br/>one the database lacks goes on page 0 and counts in total]
+    MEM --> M
+    M --> R[OutagesResponse: page, total, totalPages]
+    DB -.fails.-> F[page of what is in memory]
+```
+
+While PostgreSQL is down, the page holds what is in memory, paged the same way. Outages only in memory are few and recent, so putting them on
+the first page keeps them visible; the first page can then be a little longer than `size` until they are written.
 | `/applications/{applicationId}/stream` | `range` (default 24h) | The live feed (below). |
 
 ## The live feed (Server-Sent Events)
