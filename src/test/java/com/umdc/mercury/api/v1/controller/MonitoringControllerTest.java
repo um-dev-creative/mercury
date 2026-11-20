@@ -84,11 +84,12 @@ class MonitoringControllerTest {
         var outages = new MonitoringTO.OutagesResponse("24h", List.of());
         var emitter = new org.springframework.web.servlet.mvc.method.annotation.SseEmitter();
         when(healthService.health()).thenReturn(health);
-        when(healthService.outages("24h")).thenReturn(outages);
+        var query = MonitoringTO.OutageQuery.of("24h");
+        when(healthService.outages(query)).thenReturn(outages);
         when(streamService.subscribe(application, "1h")).thenReturn(emitter);
 
         assertSame(health, controller.health(TOKEN).getBody());
-        assertSame(outages, controller.outages("24h", TOKEN).getBody());
+        assertSame(outages, controller.outages(query, TOKEN).getBody());
         assertSame(emitter, controller.stream(application, "1h", TOKEN));
     }
 

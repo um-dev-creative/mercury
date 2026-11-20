@@ -119,8 +119,45 @@ public interface MonitoringTO {
                   long durationSeconds, boolean ongoing) {
     }
 
-    /** {@code GET /monitoring/health/outages}: the outages that overlap the range, newest first. */
-    record OutagesResponse(String range, List<Outage> outages) {
+    /**
+     * {@code GET /monitoring/health/outages}: one page of the outages that overlap the window {@code [from, to)}, newest first, and how many
+     * match in all. {@code range} is the preset used ({@code 1h}, {@code 24h}, {@code 7d}, {@code 30d}) or {@code custom} for a window of
+     * its own.
+     */
+    record OutagesResponse(String range, LocalDateTime from, LocalDateTime to, int page, int size, long total, List<Outage> outages) {
+        /** A page with every outage on it (no paging), for callers that only have the list. */
+        public OutagesResponse(String range, List<Outage> outages) {
+            this(range, null, null, 0, outages.size(), outages.size(), outages);
+        }
+
+        @com.fasterxml.jackson.annotation.JsonProperty("totalPages")
+        public int totalPages() {
+            return size <= 0 ? 0 : (int) Math.ceil((double) total / size);
+        }
+    }
+
+    /**
+     * Query of {@code /monitoring/health/outages}. The window is {@code from}–{@code to} (UTC, ISO without zone) when either is given (a
+     * missing {@code to} is now, a missing {@code from} is the {@code range} back from {@code to}); otherwise the {@code range} back from now.
+     * {@code q} looks for text in the service, the cause code and the cause sentence (any case); {@code service} and {@code status}
+     * ({@code DOWN} or {@code DEGRADED}) keep only those. {@code size} is 20 by default and at most 100.
+     */
+    record OutageQuery(String range,
+                       @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+                       @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+                       String q, String service, String status, Integer page, Integer size) {
+        public static final int DEFAULT_SIZE = 20;
+        public static final int MAX_SIZE = 100;
+
+        public OutageQuery {
+            page = page == null || page < 0 ? 0 : page;
+            size = size == null || size <= 0 ? DEFAULT_SIZE : Math.min(size, MAX_SIZE);
+        }
+
+        /** The preset only, first page: what the dashboard asked for before there was paging. */
+        public static OutageQuery of(String range) {
+            return new OutageQuery(range, null, null, null, null, null, null, null);
+        }
     }
 
     /** An alert rule. {@code threshold} is a percentage (FAILURE_RATE), a number of messages (QUEUE_STUCK) or unused (SERVICE_DOWN). */
