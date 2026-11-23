@@ -1,4 +1,4 @@
--- ZeroBound mail templates (T-71). Registers the 14 FreeMarker files zb_<kind>_<lang>.ftl as
+-- ZeroBound mail templates (T-71). Registers the 16 FreeMarker files zb_<kind>_<lang>.ftl (the 14 of the original seven kinds plus economic_event) as
 -- mercury.templates + mercury.template_defined for the ZeroBound application. Idempotent: a template
 -- whose location already exists is skipped.
 --
@@ -21,7 +21,7 @@ BEGIN;
 WITH kinds(kind, descr) AS (VALUES
     ('debt_due', 'Debt due date'), ('budget_exceeded', 'Budget exceeded'), ('goal_reached', 'Goal reached'),
     ('critical_insight', 'Critical insight'), ('price_alert', 'Price alert'), ('weekly_summary', 'Weekly summary'),
-    ('verification', 'Email verification code')),
+    ('verification', 'Email verification code'), ('economic_event', 'Economic event')),
      langs(lang) AS (VALUES ('es'), ('en')),
      wanted AS (
          SELECT 'zb_' || k.kind || '_' || l.lang || '.ftl' AS location,
@@ -49,7 +49,8 @@ WITH subjects(kind, lang, subject) AS (VALUES
     ('goal_reached', 'es', 'Alcanzaste una meta'), ('goal_reached', 'en', 'You reached a goal'),
     ('critical_insight', 'es', 'Aviso importante sobre tus finanzas'), ('critical_insight', 'en', 'Important notice about your finances'),
     ('price_alert', 'es', 'Alerta de precio'), ('price_alert', 'en', 'Price alert'),
-    ('weekly_summary', 'es', 'Tu resumen semanal'), ('weekly_summary', 'en', 'Your weekly summary'))
+    ('weekly_summary', 'es', 'Tu resumen semanal'), ('weekly_summary', 'en', 'Your weekly summary'),
+    ('economic_event', 'es', 'Evento económico de alto impacto'), ('economic_event', 'en', 'High-impact economic event'))
 UPDATE mercury.templates t
 SET subject = s.subject
 FROM subjects s
