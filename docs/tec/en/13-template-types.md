@@ -7,7 +7,7 @@ Every template (`mercury.templates`) points to a type (`mercury.template_types`)
 | Type | What the message is | Parameters | Templates (each in `_es`, `_en`; zb_* also `_tg_es`, `_tg_en`) |
 |---|---|---|---|
 | `VERIFICATION_CODE` | A single-use confirmation code that expires | `vc`, `expiresInMinutes`, `user_name` | `zb_verification`, `sk_verification`, `iris_verification`, `ds_new_user_verification_code` |
-| `FINANCIAL_ALERT` | A warning when a limit is crossed or something needs attention now | spent, limit, percent / symbol, threshold, price / title, summary | `zb_budget_exceeded`, `zb_price_alert`, `zb_critical_insight` |
+| `FINANCIAL_ALERT` | A warning when a limit is crossed or something needs attention now | spent, limit, percent / symbol, threshold, price / title, summary / phase, title, country, scheduledAt, previous, forecast, actual | `zb_budget_exceeded`, `zb_price_alert`, `zb_critical_insight`, `zb_economic_event` |
 | `PAYMENT_REMINDER` | A reminder tied to a due date | debtName, dueDate, amount | `zb_debt_due` |
 | `GOAL_ACHIEVEMENT` | A congratulation when a goal is reached | goalName, target | `zb_goal_reached` |
 | `PERIODIC_SUMMARY` | A recurring digest of a period | periodStart, periodEnd, income, spending, net | `zb_weekly_summary` |

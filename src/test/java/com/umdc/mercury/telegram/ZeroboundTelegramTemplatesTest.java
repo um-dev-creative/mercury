@@ -24,7 +24,9 @@ class ZeroboundTelegramTemplatesTest {
             "goal_reached", Map.of("goalName", "Emergency fund", "target", "≈ 5000"),
             "critical_insight", Map.of("title", "Low emergency fund", "summary", "Covers 1.2 months"),
             "price_alert", Map.of("symbol", "AAPL", "direction", "rose above", "threshold", "200", "price", "201.5"),
-            "weekly_summary", Map.of("periodStart", "2026-10-10", "periodEnd", "2026-10-16", "income", "≈ 900", "spending", "≈ 700", "net", "≈ 200"));
+            "weekly_summary", Map.of("periodStart", "2026-10-10", "periodEnd", "2026-10-16", "income", "≈ 900", "spending", "≈ 700", "net", "≈ 200"),
+            "economic_event", Map.of("phase", "released", "title", "CPI <m/m>", "country", "US", "scheduledAt", "2026-11-25T13:30Z",
+                    "actual", "0.4 %", "forecast", "0.3 %", "previous", "0.2 %"));
 
     private final TelegramTemplateRenderer renderer = renderer();
 
@@ -53,6 +55,24 @@ class ZeroboundTelegramTemplatesTest {
     }
 
     @Test
+    @DisplayName("economic_event: both phases render, the figure shows only once released, and a missing phase fails")
+    void economicEventPhases() {
+        for (String lang : List.of("es", "en")) {
+            final var base = new java.util.HashMap<String, Object>(PARAMS.get("economic_event"));
+            final String released = renderer.render("economic_event", lang, base);
+            base.put("phase", "upcoming");
+            base.put("actual", "-");
+            final String upcoming = renderer.render("economic_event", lang, base);
+            assertTrue(released.contains("0.4 %"));
+            assertFalse(upcoming.contains("0.4 %"));
+            assertTrue(upcoming.contains("CPI &lt;m/m&gt;"));
+            assertEquals(1, TelegramTextSplitter.split(upcoming).size());
+            base.remove("phase");
+            assertThrows(IllegalStateException.class, () -> renderer.render("economic_event", lang, base));
+        }
+    }
+
+    @Test
     @DisplayName("values are HTML-escaped (Telegram would reject a raw < in the text) and masked amounts print as sent")
     void escapes() {
         final String text = renderer.render("debt_due", "es", PARAMS.get("debt_due"));
@@ -68,10 +88,10 @@ class ZeroboundTelegramTemplatesTest {
     }
 
     @Test
-    @DisplayName("there are 12 Telegram templates: 6 kinds x 2 languages; verification codes are not sent through Telegram")
-    void twelveFiles() {
+    @DisplayName("there are 14 Telegram templates: 7 kinds x 2 languages; verification codes are not sent through Telegram")
+    void fourteenFiles() {
         final var files = new File("src/test/resources/templates").list((d, n) -> n.startsWith("zb_") && n.contains("_tg_"));
-        assertEquals(12, files == null ? 0 : files.length);
+        assertEquals(14, files == null ? 0 : files.length);
         assertFalse(renderer.exists("verification", "es"));
     }
 }

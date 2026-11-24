@@ -20,6 +20,7 @@
 --   MAP zb_budget_exceeded                 FINANCIAL_ALERT
 --   MAP zb_price_alert                     FINANCIAL_ALERT
 --   MAP zb_critical_insight                FINANCIAL_ALERT
+--   MAP zb_economic_event                  FINANCIAL_ALERT
 --   MAP zb_debt_due                        PAYMENT_REMINDER
 --   MAP zb_goal_reached                    GOAL_ACHIEVEMENT
 --   MAP zb_weekly_summary                  PERIODIC_SUMMARY

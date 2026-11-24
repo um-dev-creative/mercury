@@ -52,8 +52,9 @@ parameter makes the render fail instead of sending a half-empty mail. No uid, ac
 | `price_alert` | `symbol`, `direction`, `threshold`, `price` |
 | `weekly_summary` | `periodStart`, `periodEnd`, `income`, `spending`, `net` |
 | `verification` | `vc`, `expiresInMinutes` |
+| `economic_event` | `phase` (`upcoming` = high-impact event starting within the hour, `released` = the figure is out), `title`, `country`, `scheduledAt` (UTC ISO), `previous`, `forecast`, `actual` (`-` when unknown). Public macro data: no personal amounts; the text says it is informational, not financial advice |
 
-`ZeroboundTemplatesTest` renders all 14 with exactly these params.
+`ZeroboundTemplatesTest` renders all 16 with exactly these params (`economic_event` in both phases).
 
 ### The verification code (T-96, decision D-10 of zerobound-rest)
 `verification` is the one template that makes mercury **keep a code**. zerobound-rest generates the six digits and sends them as `vc`;
@@ -74,14 +75,37 @@ the `template_defined` ids zerobound-rest needs. The schema is managed outside t
 against the target database first. The `application` row of ZeroBound in `general.application` must already exist.
 
 **Subjects.** Since migration `V2036` the subject of each e-mail is a column of the template, edited from Iris (see
-`docs/template-management-api.md#-e-mail-subject`); zerobound-rest no longer sends one. The seed script fills the subject of the 14
+`docs/template-management-api.md#-e-mail-subject`); zerobound-rest no longer sends one. The seed script fills the subject of the 16
 `zb_*` templates **only where it is still empty**, with the lines zerobound used before, so an edited subject is never overwritten.
 Run it (or fill the subjects from Iris) **before** deploying a zerobound-rest that stops sending the subject, or those messages are
 refused with `subject is required for email`.
 
 ## Telegram (T-116)
 
-The same kinds (all but `verification`) exist for Telegram as `zb_<kind>_tg_<es|en>.ftl`, with the same parameters (amounts arrive already
+The same kinds (all but `verification`, so 7 kinds including `economic_event`) exist for Telegram as `zb_<kind>_tg_<es|en>.ftl`, with the same parameters (amounts arrive already
 masked). Telegram's HTML subset only (`<b>`, `<i>`, `<code>`, links): every value is escaped with `?html` (a raw `<` makes Telegram reject the
 message) and each message fits the 4096-character limit. No id is registered: `POST /api/v1/telegram/messages` names the `kind` and mercury picks
-the file by language. `ZeroboundTelegramTemplatesTest` renders all 12 with the documented parameters.
+the file by language. `ZeroboundTelegramTemplatesTest` renders all 14 with the documented parameters.
+
+## economic_event: uploading and registering (zerobound-rest economic calendar)
+
+zerobound-rest sends `economic_event` (high-impact calendar events) with the parameters in the table of section 3. The four files are
+`zb_economic_event_es.ftl`, `zb_economic_event_en.ftl`, `zb_economic_event_tg_es.ftl` and `zb_economic_event_tg_en.ftl`
+(reference copies in `src/test/resources/templates/`).
+
+```mermaid
+flowchart LR
+    F[4 .ftl files] -->|upload| S[(template storage: TEMPLATE_STORAGE s3/r2 bucket or local folder)]
+    S -->|folder zerobound/ under TEMPLATE_S3_PREFIX or TEMPLATE_PATH| M[mercury]
+    Q[seed-templates.sql] -->|rows templates + template_defined, es/en e-mail| DB[(mercury.templates)]
+    Z[zerobound-rest] -->|kind economic_event + language| M
+```
+
+1. **Upload the files** to the storage: with `TEMPLATE_STORAGE=s3` (Cloudflare R2 variables `CLOUDFLARE_R2_*`, see `application.yml`), under
+   `<TEMPLATE_S3_PREFIX><folder of ZeroBound>/` (the e-mail files; the folder is the one in `mercury.application_template_folders`) and the
+   Telegram files under `TEMPLATE_TELEGRAM_FOLDER` (default `zerobound`); with `local`, the same layout under `TEMPLATE_PATH`. Mercury picks them up within about 5 seconds.
+2. **Register the e-mail rows** by running `scripts/zerobound/seed-templates.sql` again (idempotent: the 14 existing locations are skipped, the two new
+   `zb_economic_event_{es,en}.ftl` get their `templates` and `template_defined` rows and their subject). Telegram needs no rows.
+3. `TemplateCatalogCheck` in zerobound-rest reports the missing ones (`zerobound_mercury_templates_missing`).
+
+Not verified: the real upload to the bucket and a run of the seed against a real database (neither is available here); the tests only render the reference files.
