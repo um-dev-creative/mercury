@@ -28,6 +28,14 @@ public interface MessageNSRepository extends MongoRepository<MessageDocument, St
     List<MessageDocument> findByDeliveryStatus(DeliveryStatusType deliveryStatus);
 
     /**
+     * Push messages the provider accepted ({@code SENT}) whose receipt has not been read yet.
+     *
+     * @return the push documents with a receipt id and no {@code receiptCheckedAt}
+     */
+    @Query("{ 'channelType': 'PUSH', 'deliveryStatus': 'SENT', 'providerReceiptId': { $ne: null }, 'receiptCheckedAt': null }")
+    List<MessageDocument> findPushAwaitingReceipt();
+
+    /**
      * Find messages by channel type and delivery status.
      *
      * @param channelType    the channel type to filter by

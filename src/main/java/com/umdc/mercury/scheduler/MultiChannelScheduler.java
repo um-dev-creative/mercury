@@ -31,4 +31,26 @@ public class MultiChannelScheduler {
         multiChannelMessageProcessor.dispatchTelegram();
         logger.debug("Telegram dispatch task completed.");
     }
+
+    /**
+     * Sends the queued push messages through Expo.
+     * Rate is controlled by {@code umdc.scheduler.dispatch-push.fixed-rate} (default 30 000 ms).
+     */
+    @Scheduled(fixedRateString = "${umdc.scheduler.dispatch-push.fixed-rate:30000}")
+    public void dispatchPush() {
+        logger.debug("Initiating push dispatch task...");
+        multiChannelMessageProcessor.dispatchPush();
+        logger.debug("Push dispatch task completed.");
+    }
+
+    /**
+     * Reads the Expo receipts (final answers, such as a dead device token) of the push messages already accepted.
+     * Rate is controlled by {@code umdc.scheduler.push-receipts.fixed-rate} (default 300 000 ms).
+     */
+    @Scheduled(fixedRateString = "${umdc.scheduler.push-receipts.fixed-rate:300000}")
+    public void checkPushReceipts() {
+        logger.debug("Initiating push receipts task...");
+        multiChannelMessageProcessor.checkPushReceipts();
+        logger.debug("Push receipts task completed.");
+    }
 }

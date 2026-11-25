@@ -157,7 +157,7 @@ class ChannelProvidersTest {
         var sms = new SmsChannelProvider(consumer, documents);
         var whatsapp = new WhatsAppChannelProvider(consumer, documents);
         var telegram = new TelegramChannelProvider(consumer, documents);
-        var push = new PushChannelProvider(consumer, documents);
+        var push = new PushChannelProvider(consumer, documents, definitions, subjects);
 
         assertEquals("sms", sms.code());
         assertEquals("whatsapp", whatsapp.code());
@@ -202,7 +202,7 @@ class ChannelProvidersTest {
     @Test
     void aDocumentChannelWithoutOptionsOrMediaGetsEmptyMapsAndNoMedia() {
         when(documents.existsById(id.toString())).thenReturn(true);
-        new PushChannelProvider(consumer, documents).queue(new OutboundMessage(id, "push", null, "token", null, null, null, null, "hi", null, null, null, null, null));
+        new PushChannelProvider(consumer, documents, definitions, subjects).queue(new OutboundMessage(id, "push", null, "token", null, null, null, null, "hi", null, null, null, null, null));
 
         var event = ArgumentCaptor.forClass(NotificationEventTO.class);
         verify(consumer).process(event.capture());
@@ -233,5 +233,44 @@ class ChannelProvidersTest {
         assertFalse(text.contains("+34600112233"));
         assertFalse(text.contains("cuerpo"));
         assertFalse(text.contains("123456"));
+    }
+
+    private NotificationEventTO pushEvent(OutboundMessage message) {
+        when(documents.existsById(id.toString())).thenReturn(true);
+        new PushChannelProvider(consumer, documents, definitions, subjects).queue(message);
+        var event = ArgumentCaptor.forClass(NotificationEventTO.class);
+        verify(consumer).process(event.capture());
+        return event.getValue();
+    }
+
+    @Test
+    void theTitleOfAPushIsTheOptionThenTheRequestSubjectThenTheRenderedTemplateSubject() {
+        templateSubject("CHISPA ${n}");
+        var params = Map.<String, Object>of("n", 7);
+
+        var given = new OutboundMessage(id, "push", user, "tok", template, "es", null, "Asunto", "hi", null, params, Map.of("title", "Opcion"), null, null);
+        var subject = new OutboundMessage(id, "push", user, "tok", template, "es", null, " Asunto ", "hi", null, params, null, null, null);
+        var fromTemplate = new OutboundMessage(id, "push", user, "tok", template, "es", null, null, "hi", null, params, Map.of("data", Map.of("k", "v")), null, null);
+
+        assertEquals("Opcion", pushEvent(given).payload().delivery_instructions().get("title"));
+        org.mockito.Mockito.reset(consumer);
+        assertEquals("Asunto", pushEvent(subject).payload().delivery_instructions().get("title"));
+        org.mockito.Mockito.reset(consumer);
+        var event = pushEvent(fromTemplate);
+        assertEquals("CHISPA 7", event.payload().delivery_instructions().get("title"));
+        assertEquals(Map.of("k", "v"), event.payload().delivery_instructions().get("data"));
+    }
+
+    @Test
+    void aPushWithNoTitleAnywhereKeepsNoTitle() {
+        var noTemplate = new OutboundMessage(id, "push", user, "tok", null, null, null, null, "hi", null, null, null, null, null);
+        assertFalse(pushEvent(noTemplate).payload().delivery_instructions().containsKey("title"));
+        org.mockito.Mockito.reset(consumer);
+        templateSubject(" ");
+        var blank = new OutboundMessage(id, "push", user, "tok", template, "es", null, " ", "hi", null, null, Map.of("title", " "), null, null);
+        assertEquals(" ", pushEvent(blank).payload().delivery_instructions().get("title"), "a blank title is not replaced by a blank template subject");
+        org.mockito.Mockito.reset(consumer);
+        when(definitions.findById(template)).thenReturn(Optional.empty());
+        assertEquals(" ", pushEvent(blank).payload().delivery_instructions().get("title"));
     }
 }

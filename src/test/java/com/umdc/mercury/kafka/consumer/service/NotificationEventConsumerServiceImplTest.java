@@ -206,6 +206,19 @@ class NotificationEventConsumerServiceImplTest {
         assertEquals("high", document.getPriority());
         assertEquals(3, document.getBadge());
         assertEquals("ding", document.getSound());
+        assertNull(document.getData());
+    }
+
+    @Test
+    @DisplayName("a Push message keeps options.data (ids for the app), with string keys; a non-object data is ignored")
+    void process_pushData() {
+        service().process(eventFor("push", "device-token", Map.of("data", Map.of("kind", "plan", "ref", "42"))));
+        service().process(eventFor("push", "device-token-2", Map.of("data", "not-an-object")));
+
+        ArgumentCaptor<PushNotificationMessageDocument> captor = ArgumentCaptor.forClass(PushNotificationMessageDocument.class);
+        verify(router, org.mockito.Mockito.times(2)).routePush(captor.capture());
+        assertEquals(Map.of("kind", "plan", "ref", "42"), captor.getAllValues().get(0).getData());
+        assertNull(captor.getAllValues().get(1).getData());
     }
 
     @Test

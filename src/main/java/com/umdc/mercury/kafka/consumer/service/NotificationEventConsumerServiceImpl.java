@@ -140,7 +140,14 @@ public class NotificationEventConsumerServiceImpl implements NotificationEventCo
         document.setPriority(instruction(event, "priority", "normal"));
         document.setBadge(instructions(event).get("badge") instanceof Number badge ? badge.intValue() : null);
         document.setSound(instruction(event, "sound"));
+        document.setData(instructions(event).get("data") instanceof Map<?, ?> data ? stringKeys(data) : null);
         return document;
+    }
+
+    private static Map<String, Object> stringKeys(Map<?, ?> source) {
+        var copy = new java.util.LinkedHashMap<String, Object>();
+        source.forEach((key, value) -> copy.put(String.valueOf(key), value));
+        return copy;
     }
 
     private <T extends MessageDocument> T withCommonFields(T document, NotificationEventTO event, ChannelType channelType) {

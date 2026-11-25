@@ -26,8 +26,7 @@ public class PushChannelService implements ChannelService<PushNotificationMessag
 
     /**
      * Renders the campaign template into the notification body and persists it. Actual delivery
-     * through a push provider (e.g. FCM/APNs) is not yet integrated; this stores the message so
-     * it can be picked up once a provider is wired in.
+     * through Expo is done by {@link com.umdc.mercury.provider.ExpoPushDispatcher}, driven by the scheduler; this stores the message so it can be picked up.
      */
     @Override
     public PushNotificationMessageDocument send(PushNotificationMessageDocument message, TemplateDefinedTO template) {
@@ -41,6 +40,14 @@ public class PushChannelService implements ChannelService<PushNotificationMessag
     public void updateStatus(PushNotificationMessageDocument message) {
         logger.debug("Updating Push message status. id={}, status={}", message.getId(), message.getDeliveryStatus());
         messageRepository.save(message);
+    }
+
+    /** Push messages the provider accepted whose receipt (final answer, for example a dead token) has not been read yet. */
+    public List<PushNotificationMessageDocument> findAwaitingReceipt() {
+        return messageRepository.findPushAwaitingReceipt().stream()
+                .filter(PushNotificationMessageDocument.class::isInstance)
+                .map(PushNotificationMessageDocument.class::cast)
+                .toList();
     }
 
     @Override

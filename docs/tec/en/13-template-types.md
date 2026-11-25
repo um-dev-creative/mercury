@@ -11,6 +11,7 @@ Every template (`mercury.templates`) points to a type (`mercury.template_types`)
 | `PAYMENT_REMINDER` | A reminder tied to a due date | debtName, dueDate, amount | `zb_debt_due` |
 | `GOAL_ACHIEVEMENT` | A congratulation when a goal is reached | goalName, target | `zb_goal_reached` |
 | `PERIODIC_SUMMARY` | A recurring digest of a period | periodStart, periodEnd, income, spending, net | `zb_weekly_summary` |
+| `PUSH_NOTIFICATION` | A short fixed-text notice shown as a push notification (lock screen), no parameters | none | `ch_invitation`, `ch_challenge`, `ch_surprise`, `ch_plan`, `ch_date_confirmed`, `ch_memory`, `ch_reward` |
 | `GENERIC_MESSAGE` | A plain greeting with no business meaning, to try a channel | name, userEntity.alias | `first_message_template` |
 
 ```mermaid
@@ -22,12 +23,13 @@ flowchart LR
   K -->|"goal reached"| G[GOAL_ACHIEVEMENT]
   K -->|"period digest"| S[PERIODIC_SUMMARY]
   K -->|"plain greeting"| M[GENERIC_MESSAGE]
-  V & A & P & G & S & M --> T[("mercury.template_types")]
+  K -->|"fixed-text push notice"| PN[PUSH_NOTIFICATION]
+  V & A & P & G & S & M & PN --> T[("mercury.template_types")]
 ```
 
 ## The script
 
-`scripts/templates/seed-template-types.sql` inserts the six types. It is a manual, per-environment step (like the other scripts in `scripts/`), not a Flyway migration, because the verification-code type is configured by id and each environment may already have one.
+`scripts/templates/seed-template-types.sql` inserts the seven types. It is a manual, per-environment step (like the other scripts in `scripts/`), not a Flyway migration, because the verification-code type is configured by id and each environment may already have one.
 
 ```
 psql "$MERCURY_DB" -f scripts/templates/seed-template-types.sql

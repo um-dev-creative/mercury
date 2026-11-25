@@ -24,6 +24,13 @@ class SharedCollectionQueriesTest {
     }
 
     @Test
+    void thePushReceiptQueryReadsOnlyAcceptedPushMessagesWithAnUnreadReceipt() throws NoSuchMethodException {
+        String q = MessageNSRepository.class.getMethod("findPushAwaitingReceipt").getAnnotation(Query.class).value();
+        assertTrue(q.contains("'channelType': 'PUSH'") && q.contains("'deliveryStatus': 'SENT'") && q.contains("'providerReceiptId': { $ne: null }")
+                && q.contains("'receiptCheckedAt': null"), q);
+    }
+
+    @Test
     void theChannelRepositoryLeavesOutTheEmails() throws NoSuchMethodException {
         String q = query(MessageNSRepository.class);
         assertTrue(q.contains("'deliveryStatus': ?0") && q.contains("'channelType': { $exists: true }"), q);
