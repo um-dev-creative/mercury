@@ -25,6 +25,8 @@
 | 🗂️ | [**11 · Template folders per application**](11-template-application-folders.md) | How the storage key of a template is built from its application, and how to configure R2 |
 | 🔐 | [**12 · Platform and template administrators**](12-platform-administration.md) | Who may manage which application's templates; the plan across Mercury, backbone-rest and Iris |
 | 🏷️ | [**13 · Template types**](13-template-types.md) | The six types the shipped templates belong to and the SQL script that inserts them |
+| 📲 | [**28 · Push delivery through Expo**](28-push-expo-dispatch.md) | The Expo dispatcher, receipts, the `failureReason` of a message and the CHISPA `ch_*` templates |
+| 📖 | [**User guide · Push notifications (Expo)**](../../user-guide/en/push-notifications.md) | Send push, follow it, drop dead device tokens |
 | 📖 | [**User guide · Messaging channels**](../../user-guide/en/messaging-channels.md) | How to send by SMS, Telegram, WhatsApp and Push |
 
 ---

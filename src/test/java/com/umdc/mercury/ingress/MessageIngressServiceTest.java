@@ -312,6 +312,24 @@ class MessageIngressServiceTest {
     }
 
     @Test
+    void aFailedPushReportsWhyAndOnlyThenSoTheCallerCanDropTheDeadToken() {
+        var id = UUID.randomUUID();
+        var now = Instant.now();
+        when(tracking.findByMessageId(id)).thenReturn(Optional.of(new MailTrackingDocument("c", id, CALLER, "h", DeliveryStatusType.OPENED, now, now)));
+        var doc = new com.umdc.mercury.jpa.nosql.document.PushNotificationMessageDocument();
+        doc.setFailureReason(com.umdc.mercury.constant.DeliveryFailureReason.DEVICE_NOT_REGISTERED);
+        when(documents.findById(id.toString())).thenReturn(Optional.of(doc));
+
+        doc.setDeliveryStatus(DeliveryStatusType.FAILED);
+        var failed = service.status(id, CALLER);
+        assertEquals(DeliveryStatusType.FAILED, failed.status());
+        assertEquals(com.umdc.mercury.constant.DeliveryFailureReason.DEVICE_NOT_REGISTERED, failed.failureReason());
+
+        doc.setDeliveryStatus(DeliveryStatusType.SENT);
+        assertEquals(null, service.status(id, CALLER).failureReason(), "only a FAILED message carries a reason");
+    }
+
+    @Test
     void anotherCallersMessageOrAnUnknownIdIsNotFound() {
         var id = UUID.randomUUID();
         var now = Instant.now();

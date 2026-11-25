@@ -28,6 +28,20 @@ umdc:
       application: ${TELEGRAM_APPLICATION:}
       mode: ${TELEGRAM_MODE:poll}
       webhook-url: ${TELEGRAM_WEBHOOK_URL:}
+    # Push through the Expo Push API (https://docs.expo.dev/push-notifications/sending-notifications/). Off by default: queued push messages stay OPENED.
+    # The access token is only needed when "enhanced push security" is on in the Expo project; it is Vault-owned, never put it in an env file.
+    push:
+      expo:
+        enabled: ${PUSH_EXPO_ENABLED:false}
+        api-base-url: ${PUSH_EXPO_API_BASE_URL:https://exp.host}
+        access-token: ${PUSH_EXPO_ACCESS_TOKEN:}
+        connect-timeout: ${PUSH_EXPO_CONNECT_TIMEOUT:3s}
+        read-timeout: ${PUSH_EXPO_READ_TIMEOUT:10s}
+        max-attempts: ${PUSH_EXPO_MAX_ATTEMPTS:3}                       # HTTP attempts per request on 429, 5xx or a network error (1 to 5)
+        retry-backoff: ${PUSH_EXPO_RETRY_BACKOFF:500ms}                 # wait before the 2nd attempt; doubles on each further one
+        android-channel-id: ${PUSH_EXPO_ANDROID_CHANNEL_ID:default}
+        max-delivery-attempts: ${PUSH_EXPO_MAX_DELIVERY_ATTEMPTS:5}     # scheduler runs a message may fail transiently before it is FAILED
+        receipt-delay: ${PUSH_EXPO_RECEIPT_DELAY:15m}                   # Expo advises reading receipts about 15 minutes after the send
   backbone:
     # Base URL for BackboneClient/BackbonePublicClient (session issuance, session
     # validate, M2M introspect). Was hardcoded per-@FeignClient before; centralizing
@@ -101,6 +115,10 @@ umdc:
   scheduler:
     dispatch-telegram:
       fixed-rate: ${UMDC_SCHEDULER_DISPATCH_TELEGRAM_RATE:60000} # Rate for dispatching queued Telegram campaign messages (ms)
+    dispatch-push:
+      fixed-rate: ${UMDC_SCHEDULER_DISPATCH_PUSH_RATE:30000}     # Rate for dispatching queued push messages through Expo (ms)
+    push-receipts:
+      fixed-rate: ${UMDC_SCHEDULER_PUSH_RECEIPTS_RATE:300000}    # Rate for reading the Expo receipts of accepted push messages (ms)
     send-email:
       fixed-rate: ${PRX_SCHEDULER_SEND_EMAIL_RATE:60000}        # Rate for triggering email sends (ms); default 60 s
     save-message-processed:

@@ -9,6 +9,7 @@
 --   PAYMENT_REMINDER   A reminder tied to a due date: debt due (debtName, dueDate, amount).
 --   GOAL_ACHIEVEMENT   A congratulation when the person reaches something: goal reached (goalName, target).
 --   PERIODIC_SUMMARY   A recurring digest of a period: weekly summary (periodStart, periodEnd, income, spending, net).
+--   PUSH_NOTIFICATION  A short, fixed-text notice shown as a push notification on the lock screen, with no parameters: the CHISPA ch_* notices.
 --   GENERIC_MESSAGE    A plain greeting with no business meaning (first_message_template: name, userEntity.alias); used to try the channel.
 --
 -- Which template kind belongs to which type (the "MAP" lines are read by TemplateTypesScriptTest, which fails if a template of the
@@ -24,6 +25,13 @@
 --   MAP zb_debt_due                        PAYMENT_REMINDER
 --   MAP zb_goal_reached                    GOAL_ACHIEVEMENT
 --   MAP zb_weekly_summary                  PERIODIC_SUMMARY
+--   MAP ch_invitation                        PUSH_NOTIFICATION
+--   MAP ch_challenge                         PUSH_NOTIFICATION
+--   MAP ch_surprise                          PUSH_NOTIFICATION
+--   MAP ch_plan                              PUSH_NOTIFICATION
+--   MAP ch_date_confirmed                    PUSH_NOTIFICATION
+--   MAP ch_memory                            PUSH_NOTIFICATION
+--   MAP ch_reward                            PUSH_NOTIFICATION
 --   MAP first_message_template             GENERIC_MESSAGE
 --
 -- Safe to run more than once and on a database that already has types: a type whose name already exists (any case) is left as it is, so no
@@ -45,6 +53,7 @@ FROM (VALUES
     ('PAYMENT_REMINDER',  'Reminders tied to a due date, such as a debt that is about to fall due'),
     ('GOAL_ACHIEVEMENT',  'Congratulations when the person reaches a goal'),
     ('PERIODIC_SUMMARY',  'Recurring digest of a period, such as the weekly summary of income, spending and net'),
+    ('PUSH_NOTIFICATION', 'Short fixed-text notices shown as a push notification (lock screen), with no parameters, such as the CHISPA notices'),
     ('GENERIC_MESSAGE',   'Plain messages with no business meaning, such as a greeting used to try a channel')
 ) AS v(name, description)
 WHERE NOT EXISTS (SELECT 1 FROM mercury.template_types t WHERE lower(t.name) = lower(v.name));

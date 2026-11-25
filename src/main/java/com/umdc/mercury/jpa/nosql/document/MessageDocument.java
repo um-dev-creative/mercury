@@ -1,6 +1,7 @@
 package com.umdc.mercury.jpa.nosql.document;
 
 import com.umdc.mercury.constant.ChannelType;
+import com.umdc.mercury.constant.DeliveryFailureReason;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import jakarta.persistence.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -22,6 +23,7 @@ public abstract class MessageDocument {
     private UUID campaignId;
     private String mediaUrl;
     private String mediaType;
+    private DeliveryFailureReason failureReason;
 
     public String getId() {
         return id;
@@ -45,6 +47,15 @@ public abstract class MessageDocument {
 
     public void setMediaType(String mediaType) {
         this.mediaType = mediaType;
+    }
+
+    /** Why the message is {@code FAILED}; {@code null} otherwise. */
+    public DeliveryFailureReason getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(DeliveryFailureReason failureReason) {
+        this.failureReason = failureReason;
     }
 
     public UUID getUserId() {

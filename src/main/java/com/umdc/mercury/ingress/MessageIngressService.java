@@ -5,6 +5,7 @@ import com.umdc.mercury.api.v1.exception.MailNotFoundException;
 import com.umdc.mercury.api.v1.service.RequestHashes;
 import com.umdc.mercury.api.v1.service.TemplateDefinedService;
 import com.umdc.mercury.api.v1.to.MailStatusResponse;
+import com.umdc.mercury.constant.DeliveryFailureReason;
 import com.umdc.mercury.constant.DeliveryStatusType;
 import com.umdc.mercury.jpa.nosql.document.MailTrackingDocument;
 import com.umdc.mercury.jpa.nosql.document.MessageDocument;
@@ -158,8 +159,10 @@ public class MessageIngressService {
         MailTrackingDocument row = tracking.findByMessageId(messageId)
                 .filter(t -> Objects.equals(t.caller(), caller))
                 .orElseThrow(() -> new MailNotFoundException("Message not found"));
-        DeliveryStatusType state = documents.findById(messageId.toString()).map(MessageDocument::getDeliveryStatus).orElse(row.status());
-        return new MailStatusResponse(row.messageId(), state, row.createdAt(), row.updatedAt());
+        var document = documents.findById(messageId.toString());
+        DeliveryStatusType state = document.map(MessageDocument::getDeliveryStatus).orElse(row.status());
+        DeliveryFailureReason reason = DeliveryStatusType.FAILED.equals(state) ? document.map(MessageDocument::getFailureReason).orElse(null) : null;
+        return new MailStatusResponse(row.messageId(), state, row.createdAt(), row.updatedAt(), reason);
     }
 
     /** SHA-256 over the whole request, so a reused key with another body is told apart (equal requests hash equal, whatever the order of the maps). */

@@ -173,4 +173,14 @@ class ChannelServicesTest {
 
         assertEquals(List.of(push), result);
     }
+
+    @Test
+    @DisplayName("PushChannelService findAwaitingReceipt returns the Push documents the repository says still wait for a receipt")
+    void pushChannelServiceFindsAwaitingReceipt() {
+        PushChannelService service = new PushChannelService(messageRepository, templateRenderer);
+        PushNotificationMessageDocument push = new PushNotificationMessageDocument();
+        when(messageRepository.findPushAwaitingReceipt()).thenReturn(List.<MessageDocument>of(new SmsMessageDocument(), push));
+
+        assertEquals(List.of(push), service.findAwaitingReceipt());
+    }
 }

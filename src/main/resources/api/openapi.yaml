@@ -1514,6 +1514,16 @@ components:
         updatedAt:
           type: string
           format: date-time
+        failureReason:
+          type: string
+          nullable: true
+          description: |
+            Why the message is `FAILED`; null when it did not fail or the channel reports no reason. Only the push channel reports one today.
+            `DEVICE_NOT_REGISTERED` (the provider says the device token is dead) and `INVALID_TOKEN` (not an Expo push token) mean the caller must drop
+            that token. The others are `INVALID_MESSAGE`, `MESSAGE_TOO_BIG`, `MESSAGE_RATE_EXCEEDED`, `MISMATCH_SENDER_ID`, `INVALID_CREDENTIALS`,
+            `PROVIDER_REJECTED`, `PROVIDER_UNAVAILABLE` and `PROVIDER_ERROR`. A push message can turn from `SENT` to `FAILED` some minutes after it was
+            accepted, when the provider receipt arrives.
+          enum: [DEVICE_NOT_REGISTERED, INVALID_TOKEN, INVALID_MESSAGE, MESSAGE_TOO_BIG, MESSAGE_RATE_EXCEEDED, MISMATCH_SENDER_ID, INVALID_CREDENTIALS, PROVIDER_REJECTED, PROVIDER_UNAVAILABLE, PROVIDER_ERROR]
 
     MessageRequest:
       type: object
